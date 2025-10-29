@@ -15,46 +15,54 @@ class PingController extends Controller
         ]);
     }
 
-    public function ping(Request $request)
-    {
-        // Validation des données d’entrée
-        $validated = $request->validate([
-            'address' => 'required|string|regex:/^[a-zA-Z0-9\.\-]+$/',
-            'count' => 'nullable|integer|min:1|max:10',
-            'timeout' => 'nullable|integer|min:100|max:10000',
-            'ip_version' => 'nullable|in:4,6',
-        ]);
+   public function ping(Request $request)
+{
+    $validated = $request->validate([
+        'address' => 'required|string|regex:/^[a-zA-Z0-9\.\-]+$/',
+        'count' => 'nullable|integer|min:1|max:10',
+        'timeout' => 'nullable|integer|min:100|max:10000',
+        'ip_version' => 'nullable|in:4,6',
+        'resolve' => 'nullable|boolean',
+    ]);
 
-        // Empêche les pings trop longs
-        set_time_limit(5);
+    $address = escapeshellarg($validated['address']);
+    $os = PHP_OS_FAMILY; // "Windows", "Linux", "Darwin" ...
 
-        $address = escapeshellarg($validated['address']);
-        $count = $validated['count'] ?? 4; // nombre de paquets
-        $timeout = intval(($validated['timeout'] ?? 1000) / 1000); // en secondes
-
-        // Commande de base pour Linux
-        $command = "ping -c " . intval($count) . " -W " . $timeout;
-
-        // Si l’utilisateur choisit IPv4 ou IPv6
+    if ($os === 'Windows') {
+        $command = "ping";
+        if (!empty($validated['resolve']) && $validated['resolve']) {
+            $command .= " -a";
+        }
+        $command .= " -n " . (!empty($validated['count']) ? intval($validated['count']) : 4);
+        if (!empty($validated['timeout'])) {
+            $command .= " -w " . intval($validated['timeout']);
+        }
         if (!empty($validated['ip_version'])) {
-            $command .= " -" . intval($validated['ip_version']);
+            $command .= " -" . $validated['ip_version'];
         }
-
-        $command .= " $address 2>&1"; // Redirige les erreurs vers la sortie standard
-
-        // Exécution sécurisée
-        $output = shell_exec($command);
-        $output = mb_convert_encoding($output ?? '', 'UTF-8', 'auto');
-
-        // Si aucune sortie, on affiche un message clair
-        if (empty(trim($output))) {
-            $output = "Aucune réponse. L’hôte est peut-être injoignable ou le ping est bloqué.";
+    } else { // Linux / Mac
+        $command = "ping";
+        $command .= !empty($validated['ip_version']) ? " -" . $validated['ip_version'] : " -4";
+        $command .= " -c " . (!empty($validated['count']) ? intval($validated['count']) : 4);
+        if (!empty($validated['timeout'])) {
+            // Convertir ms en secondes pour Linux
+            $timeoutSec = ceil(intval($validated['timeout']) / 1000);
+            $command .= " -W " . max(1, $timeoutSec); 
         }
-
-        return Inertia::render('ping/ping', [
-            'address' => $validated['address'],
-            'result' => nl2br($output),
-            'options' => $validated,
-        ]);
+        // L'option -a (résolution nom) n'existe pas sur Linux, donc on l'ignore
     }
+
+    // Exécution de la commande
+    exec($command, $outputLines, $returnVar);
+
+    $result = ($returnVar === 0) ? 'Réussi' : 'Échec';
+
+    return Inertia::render('ping/ping', [
+        'address' => $validated['address'],
+        'result' => $result,
+        'options' => $validated,
+    ]);
+}
+
+
 }
