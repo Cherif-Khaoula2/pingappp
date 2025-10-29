@@ -17,7 +17,7 @@ class PingController extends Controller
 
     public function ping(Request $request)
     {
-        // ✅ Validation stricte
+        
         $validated = $request->validate([
             'address' => 'required|string|regex:/^[a-zA-Z0-9\.\-]+$/',
             'count' => 'nullable|integer|min:1|max:10',
@@ -28,10 +28,10 @@ class PingController extends Controller
 
         $address = escapeshellarg($validated['address']);
 
-        // ✅ Commande de base
+        
         $command = "ping";
 
-        // Ajout des options autorisées seulement
+       
         if (!empty($validated['resolve']) && $validated['resolve']) {
             $command .= " -a";
         }
@@ -39,7 +39,7 @@ class PingController extends Controller
         if (!empty($validated['count'])) {
             $command .= " -n " . intval($validated['count']);
         } else {
-            $command .= " -n 4"; // défaut : 4 paquets
+            $command .= " -n 4"; 
         }
 
         if (!empty($validated['timeout'])) {
@@ -52,7 +52,7 @@ class PingController extends Controller
 
         $command .= " $address";
 
-        // ✅ Exécution sécurisée
+      
         $output = shell_exec($command);
         $output = mb_convert_encoding($output ?? '', 'UTF-8', 'auto');
 
