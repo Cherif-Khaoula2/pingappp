@@ -36,7 +36,7 @@ export default function Ping({ address, result, options }) {
     { label: 'IPv4', value: '4' },
     { label: 'IPv6', value: '6' }
   ];
-
+console.log(data)
   return (
     <Layout>
       <div className="grid">
