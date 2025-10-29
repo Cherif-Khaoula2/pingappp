@@ -46,3 +46,12 @@ Route::post('/ping', [PingController::class, 'ping'])->name('ping.execute');
 
 
 require __DIR__.'/auth.php';
+
+use App\Http\Controllers\EmployeeRequestController;
+
+
+Route::get('/employees', [EmployeeRequestController::class, 'index'])->name('employees.index'); // Liste
+Route::get('/employees/create', [EmployeeRequestController::class, 'create'])->name('employees.create'); // Formulaire
+Route::post('/employees', [EmployeeRequestController::class, 'store'])->name('employees.store'); // Création
+Route::patch('/employees/{id}/status', [EmployeeRequestController::class, 'updateStatus'])->name('employees.updateStatus'); // Valider/Rejeter
+Route::delete('/employees/{id}', [EmployeeRequestController::class, 'destroy'])->name('employees.destroy'); // Supprimer
