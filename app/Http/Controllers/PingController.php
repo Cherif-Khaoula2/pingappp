@@ -17,26 +17,49 @@ class PingController extends Controller
 
     public function ping(Request $request)
     {
-        $request->validate([
-            'address' => 'required|string'
+        // ✅ Validation stricte
+        $validated = $request->validate([
+            'address' => 'required|string|regex:/^[a-zA-Z0-9\.\-]+$/',
+            'count' => 'nullable|integer|min:1|max:10',
+            'timeout' => 'nullable|integer|min:100|max:10000',
+            'ip_version' => 'nullable|in:4,6',
+            'resolve' => 'nullable|boolean',
         ]);
 
-        $address = escapeshellarg($request->input('address'));
+        $address = escapeshellarg($validated['address']);
 
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            $command = "ping -n 4 $address";
-        } else {
-            $command = "ping -c 4 $address";
+        // ✅ Commande de base
+        $command = "ping";
+
+        // Ajout des options autorisées seulement
+        if (!empty($validated['resolve']) && $validated['resolve']) {
+            $command .= " -a";
         }
 
-        $output = shell_exec($command);
+        if (!empty($validated['count'])) {
+            $command .= " -n " . intval($validated['count']);
+        } else {
+            $command .= " -n 4"; // défaut : 4 paquets
+        }
 
-        // ✅ Conversion en UTF-8 pour éviter l'erreur
+        if (!empty($validated['timeout'])) {
+            $command .= " -w " . intval($validated['timeout']);
+        }
+
+        if (!empty($validated['ip_version'])) {
+            $command .= " -" . $validated['ip_version'];
+        }
+
+        $command .= " $address";
+
+        // ✅ Exécution sécurisée
+        $output = shell_exec($command);
         $output = mb_convert_encoding($output ?? '', 'UTF-8', 'auto');
 
         return Inertia::render('ping/ping', [
-            'address' => $request->input('address'),
+            'address' => $validated['address'],
             'result' => nl2br($output),
+            'options' => $validated,
         ]);
     }
 }
