@@ -4,7 +4,12 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'LaraReact') }}</title>
+        <title inertia>{{ config('app.name', 'Tosys') }}</title>
+
+        <!-- 🔹 Favicon Tosys -->
+        <link rel="icon" type="image/png" href="{{ asset('images/Tosys.png') }}">
+        <!-- Si ton fichier est en .ico -->
+        <!-- <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon"> -->
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -16,7 +21,7 @@
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead
 
-        <link id="theme-css" href={{asset('/themes/tailwind-light/theme.css')}} rel="stylesheet"></link>
+        <link id="theme-css" href="{{ asset('/themes/tailwind-light/theme.css') }}" rel="stylesheet" />
     </head>
     <body class="font-sans antialiased">
         @inertia

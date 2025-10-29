@@ -40,8 +40,10 @@ export default function Login({status, canResetPassword}) {
 
 
             <div className="flex align-items-center justify-content-center flex-column">
-                <img src="/images/logo/-dark.svg" alt="hyper" height={50} className="mb-3"/>
-                <div className="surface-card p-6 sm:p-4 shadow-2 border-round w-full lg:w-4">
+ <div className="topbar-logo">
+                <span className="logo-symbol">T</span>
+                <span className="logo-text">osys</span>
+            </div>                <div className="surface-card p-6 sm:p-4 shadow-2 border-round w-full lg:w-4">
                     <div className="text-center mb-5">
                         <div className="text-900 text-3xl font-medium mb-3">Welcome Back</div>
                         <span className="text-600 font-medium line-height-3">Don't have an account?</span>
@@ -96,7 +98,9 @@ export default function Login({status, canResetPassword}) {
                         </div>
                     </form>
                 </div>
+                
             </div>
         </GuestLayout>
+        
     );
 }
