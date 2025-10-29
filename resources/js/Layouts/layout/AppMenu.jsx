@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import AppMenuitem from './AppMenuitem';
 import { LayoutContext } from './context/layoutcontext';
 import { MenuProvider } from './context/menucontext';
-import {Link} from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 
 const AppMenu = () => {
     const { layoutConfig } = useContext(LayoutContext);
@@ -12,8 +12,7 @@ const AppMenu = () => {
             label: 'Home',
             items: [
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: route('dashboard') },
-                { label: 'Button', icon: 'pi pi-fw pi-id-card', to: route('button') },
-
+                { label: 'Ping', icon: 'pi pi-fw pi-wifi', to: '/ping' },
             ]
         },
     ];
@@ -24,8 +23,6 @@ const AppMenu = () => {
                 {model.map((item, i) => {
                     return !item?.seperator ? <AppMenuitem item={item} root={true} index={i} key={item.label} /> : <li className="menu-separator"></li>;
                 })}
-
-
             </ul>
         </MenuProvider>
     );
