@@ -15,54 +15,52 @@ class PingController extends Controller
         ]);
     }
 
-   public function ping(Request $request)
+  public function ping(Request $request)
 {
     $validated = $request->validate([
-        'address' => 'required|string|regex:/^[a-zA-Z0-9\.\-]+$/',
+        'address' => 'required|string',
         'count' => 'nullable|integer|min:1|max:10',
         'timeout' => 'nullable|integer|min:100|max:10000',
         'ip_version' => 'nullable|in:4,6',
         'resolve' => 'nullable|boolean',
     ]);
 
-    $address = escapeshellarg($validated['address']);
-    $os = PHP_OS_FAMILY; // "Windows", "Linux", "Darwin" ...
+    $address = $validated['address'];
+    $count = !empty($validated['count']) ? intval($validated['count']) : 4;
+    $timeout = !empty($validated['timeout']) ? intval($validated['timeout']) : 4000; // ms
+    $ipVersion = !empty($validated['ip_version']) ? $validated['ip_version'] : null;
 
+    $os = PHP_OS_FAMILY; // Windows, Linux, Darwin
+   
     if ($os === 'Windows') {
-        $command = "ping";
-        if (!empty($validated['resolve']) && $validated['resolve']) {
-            $command .= " -a";
-        }
-        $command .= " -n " . (!empty($validated['count']) ? intval($validated['count']) : 4);
-        if (!empty($validated['timeout'])) {
-            $command .= " -w " . intval($validated['timeout']);
-        }
-        if (!empty($validated['ip_version'])) {
-            $command .= " -" . $validated['ip_version'];
-        }
+        $cmd = "ping";
+        if ($ipVersion) $cmd .= " -$ipVersion";
+        $cmd .= " -n $count -w $timeout " . escapeshellarg($address);
     } else { // Linux / Mac
-        $command = "ping";
-        $command .= !empty($validated['ip_version']) ? " -" . $validated['ip_version'] : " -4";
-        $command .= " -c " . (!empty($validated['count']) ? intval($validated['count']) : 4);
-        if (!empty($validated['timeout'])) {
-            // Convertir ms en secondes pour Linux
-            $timeoutSec = ceil(intval($validated['timeout']) / 1000);
-            $command .= " -W " . max(1, $timeoutSec); 
-        }
-        // L'option -a (résolution nom) n'existe pas sur Linux, donc on l'ignore
+        $cmd = "ping";
+        $cmd .= $ipVersion ? " -$ipVersion" : " -4";
+        $cmd .= " -c $count -W " . max(1, ceil($timeout / 1000)) . " " . escapeshellarg($address);
     }
 
-    // Exécution de la commande
-    exec($command, $outputLines, $returnVar);
+    exec($cmd, $outputLines, $returnVar);
 
-    $result = ($returnVar === 0) ? 'Réussi' : 'Échec';
+    // Vérifie si au moins un paquet a répondu sous Linux
+    if ($os !== 'Windows' && !empty($outputLines)) {
+        $joinedOutput = implode("\n", $outputLines);
+        // Si aucune réponse reçue → Échec
+        $result = (preg_match('/(\d+) received/', $joinedOutput, $matches) && intval($matches[1]) > 0) ? 'Réussi' : 'Échec';
+    } else {
+        // Windows → code de retour
+        $result = ($returnVar === 0) ? 'Réussi' : 'Échec';
+    }
 
     return Inertia::render('ping/ping', [
-        'address' => $validated['address'],
+        'address' => $address,
         'result' => $result,
         'options' => $validated,
     ]);
 }
+
 
 
 }
