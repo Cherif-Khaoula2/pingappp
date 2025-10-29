@@ -1,3 +1,11 @@
 /* @tailwind base;*/
 /*@tailwind components;*/
 /*@tailwind utilities;*/
+@font-face {
+    font-family: "PrimeIcons";
+    src: url("/fonts/primeicons/primeicons.woff2") format("woff2"),
+         url("/fonts/primeicons/primeicons.woff") format("woff"),
+         url("/fonts/primeicons/primeicons.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}

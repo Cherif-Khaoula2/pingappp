@@ -26491,13 +26491,14 @@ input.p-dropdown-label  {
   !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[3].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[3].oneOf[12].use[3]!./node_modules/primeicons/primeicons.css ***!
   \**********************************************************************************************************************************************************************************************************************************************************************************/
 @font-face {
-    font-family: 'primeicons';
-    font-display: block;
-    src: url(/_next/static/media/primeicons.ffecb254.eot);
-    src: url(/_next/static/media/primeicons.ffecb254.eot?#iefix) format('embedded-opentype'), url(/_next/static/media/primeicons.ba3f916d.woff2) format('woff2'), url(/_next/static/media/primeicons.f8b9e8a4.woff) format('woff'), url(/_next/static/media/primeicons.0112589c.ttf) format('truetype'), url(/_next/static/media/primeicons.943ab24c.svg?#primeicons) format('svg');
+    font-family: "PrimeIcons";
+    src: url("/fonts/primeicons/primeicons.woff2") format("woff2"),
+         url("/fonts/primeicons/primeicons.woff") format("woff"),
+         url("/fonts/primeicons/primeicons.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
 }
+
 
 .pi {
     font-family: 'primeicons';

@@ -2,10 +2,7 @@ import './bootstrap';
 import '../css/app.css';
 
 
-import "primereact/resources/themes/lara-light-indigo/theme.css";
-import "primereact/resources/primereact.min.css";
-import "primeicons/primeicons.css";
-import 'primeflex/primeflex.css';
+
 
 import '../css/layout.css'
 
@@ -35,4 +32,5 @@ createInertiaApp({
     progress: {
         color: '#4B5563',
     },
+    
 });
