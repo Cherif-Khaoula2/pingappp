@@ -38,6 +38,8 @@ class EmployeeRequestController extends Controller
 
         $validated['password'] = Hash::make($validated['password']);
         EmployeeRequest::create($validated);
+          $emp->decrypted_password = $plain;
+        return $emp;
 
         return redirect()->route('employees.index'); // Retour à la liste
     }
