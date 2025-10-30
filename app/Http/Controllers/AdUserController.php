@@ -11,64 +11,63 @@ class AdUserController extends Controller
 {
     public function index()
     {
-        // Page Inertia (React) contenant le bouton
         return Inertia::render('Ad/IpConfigPage');
     }
 
     public function ipConfig(Request $request)
     {
-        // Validation minimale — adapte selon ton besoin
-        $data = $request->validate([
-            'host' => 'required|string',
-            'user' => 'required|string',
-            // si tu veux permettre mot de passe via frontend (déconseillé)
-            'password' => 'nullable|string',
-            // si tu utilises clé, tu n'as pas besoin de password
-        ]);
+        // Récupérer les credentials depuis .env
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
 
-        $host = $data['host'];
-        $user = $data['user'];
-        $password = $data['password'] ?? null;
+        // Vérifier que les configs existent
+        if (!$host || !$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Configuration SSH manquante dans .env',
+            ], 500);
+        }
 
-        // Construire la commande SSH. Ici: ipconfig (Windows)
-        // NOTE: StrictHostKeyChecking=no pour éviter prompt host key
-        if ($password) {
-            // Utilisation sshpass (exemple)
+        // Priorité : clé SSH > mot de passe
+        if ($keyPath && file_exists($keyPath)) {
+            $command = [
+                'ssh',
+                '-i', $keyPath,
+                '-o', 'StrictHostKeyChecking=no',
+                "{$user}@{$host}",
+                'ipconfig'
+            ];
+        } elseif ($password) {
+            // Utiliser sshpass (doit être installé : apt install sshpass)
             $command = [
                 'sshpass', '-p', $password,
                 'ssh', '-o', 'StrictHostKeyChecking=no',
-                "{$user}@{$host}", 'ipconfig'
+                "{$user}@{$host}",
+                'ipconfig'
             ];
         } else {
-            // Sans mot de passe (clé SSH configurée)
-            $command = [
-                'ssh', '-o', 'StrictHostKeyChecking=no',
-                "{$user}@{$host}", 'ipconfig'
-            ];
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucune méthode d\'authentification configurée',
+            ], 500);
         }
 
         try {
             $process = new Process($command);
-            $process->setTimeout(15); // en secondes
+            $process->setTimeout(15);
             $process->run();
 
-            if (! $process->isSuccessful()) {
+            if (!$process->isSuccessful()) {
                 throw new ProcessFailedException($process);
             }
 
-           
-$output = mb_convert_encoding($process->getOutput(), 'UTF-8', 'auto');
-$errorOutput = mb_convert_encoding($process->getErrorOutput(), 'UTF-8', 'auto');
-
-
-            // Extraire les adresses IPv4 de la sortie Windows ipconfig
-            // Pattern couvre "IPv4 Address. . . . . . . . . . . : 192.168.0.10"
+            $output = mb_convert_encoding($process->getOutput(), 'UTF-8', 'auto');
+            
+            // Extraire les IPv4
             preg_match_all('/IPv4 Address[^\:]*:\s*([0-9]{1,3}(?:\.[0-9]{1,3}){3})/i', $output, $matches);
-
             $ips = $matches[1] ?? [];
-
-            // Si tu veux renvoyer toute la sortie pour debug :
-            // return response()->json(['raw' => $output, 'ips' => $ips]);
 
             return response()->json([
                 'success' => true,
@@ -76,12 +75,11 @@ $errorOutput = mb_convert_encoding($process->getErrorOutput(), 'UTF-8', 'auto');
                 'raw' => $output,
             ]);
         } catch (\Throwable $e) {
-            // Log l'erreur côté serveur
-            \Log::error('ipConfig error: '.$e->getMessage());
+            \Log::error('ipConfig error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de l\'exécution SSH : '.$e->getMessage(),
+                'message' => 'Erreur SSH : ' . $e->getMessage(),
             ], 500);
         }
     }

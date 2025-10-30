@@ -14,6 +14,7 @@ const AppMenu = () => {
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: route('dashboard') },
                 { label: 'Ping', icon: 'pi pi-fw pi-wifi', to: '/ping' },
                 { label: 'Employees', icon: 'pi pi-fw pi-user', to: '/employees' },
+                { label: 'Test', icon: 'pi pi-fw pi-user', to: '/ad/ipconfig' },
 
                 
             ]
