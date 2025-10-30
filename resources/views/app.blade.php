@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
@@ -8,8 +9,6 @@
 
         <!-- 🔹 Favicon Tosys -->
         <link rel="icon" type="image/png" href="{{ asset('images/Tosys.png') }}">
-        <!-- Si ton fichier est en .ico -->
-        <!-- <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon"> -->
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -18,7 +17,7 @@
         <!-- Scripts -->
         @routes
         @viteReactRefresh
-        @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
+        @vite(['resources/js/app.jsx'])
         @inertiaHead
 
         <link id="theme-css" href="{{ asset('/themes/tailwind-light/theme.css') }}" rel="stylesheet" />

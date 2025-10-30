@@ -56,7 +56,10 @@ class AdUserController extends Controller
                 throw new ProcessFailedException($process);
             }
 
-            $output = $process->getOutput();
+           
+$output = mb_convert_encoding($process->getOutput(), 'UTF-8', 'auto');
+$errorOutput = mb_convert_encoding($process->getErrorOutput(), 'UTF-8', 'auto');
+
 
             // Extraire les adresses IPv4 de la sortie Windows ipconfig
             // Pattern couvre "IPv4 Address. . . . . . . . . . . : 192.168.0.10"
