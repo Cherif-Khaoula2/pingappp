@@ -55,3 +55,12 @@ Route::get('/employees/create', [EmployeeRequestController::class, 'create'])->n
 Route::post('/employees', [EmployeeRequestController::class, 'store'])->name('employees.store'); // Création
 Route::patch('/employees/{id}/status', [EmployeeRequestController::class, 'updateStatus'])->name('employees.updateStatus'); // Valider/Rejeter
 Route::delete('/employees/{id}', [EmployeeRequestController::class, 'destroy'])->name('employees.destroy'); // Supprimer
+use App\Http\Controllers\AdUserController;
+
+Route::get('/ad/search', [AdUserController::class, 'index'])->name('ad.search');
+Route::post('/ad-user', [AdUserController::class, 'getUser']);
+
+
+Route::get('/ad/ipconfig', [AdUserController::class, 'index']);
+
+    Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('ad.user.ipconfig');
