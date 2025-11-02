@@ -106,7 +106,7 @@ public function adUsers(Request $request)
      
        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
             "Import-Module ActiveDirectory; " .
-            "Get-ADUser -Identity '$search' " .  
+            "Get-ADUser -Filter 'Name -like \"*$search*\"' " . 
             "-Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | " .
             "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | ConvertTo-Json -Depth 4\"";
     } else {
