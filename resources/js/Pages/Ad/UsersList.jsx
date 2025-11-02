@@ -31,22 +31,6 @@ export default function UsersList({ users = [], meta = {}, error }) {
         Utilisateurs Active Directory
       </h1>
 
-      {/* Barre de recherche */}
-      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher par nom..."
-          className="border p-2 rounded w-1/3"
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Rechercher
-        </button>
-      </form>
 
       {error && (
         <div className="bg-red-100 text-red-800 p-3 rounded mb-4">{error}</div>
