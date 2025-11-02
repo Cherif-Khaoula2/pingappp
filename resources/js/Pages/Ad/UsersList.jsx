@@ -5,12 +5,16 @@ import Layout from "@/Layouts/layout/layout.jsx";
 export default function UsersList() {
   const { users, meta, error } = usePage().props;
   const [search, setSearch] = useState("");
+  const [confirmPopup, setConfirmPopup] = useState({
+    visible: false,
+    sam: null,
+    action: null,
+  });
 
   // Fonction pour formater les dates AD
   const formatAdDate = (value) => {
     if (!value) return "—";
 
-    // Format AD typique : /Date(1758790730256)/
     const match = /\/Date\((\d+)\)\//.exec(value);
     if (match) {
       const date = new Date(parseInt(match[1], 10));
@@ -23,7 +27,6 @@ export default function UsersList() {
       });
     }
 
-    // Si déjà une date valide
     if (!isNaN(Date.parse(value))) {
       return new Date(value).toLocaleString("fr-FR");
     }
@@ -31,25 +34,33 @@ export default function UsersList() {
     return value;
   };
 
-  // Recherche d'utilisateur
+  // Recherche
   const handleSearch = (e) => {
     e.preventDefault();
     router.get("/ad/users", { search });
   };
 
-  // Bloquer / Débloquer un utilisateur
-  const toggleUser = async (sam, action) => {
-    if (!confirm(`Voulez-vous vraiment ${action === 'block' ? 'bloquer' : 'débloquer'} cet utilisateur ?`)) return;
+  // Préparer le popup de confirmation
+  const handleToggleClick = (sam, action) => {
+    setConfirmPopup({ visible: true, sam, action });
+  };
 
+  // Confirmer le blocage/déblocage
+  const confirmToggle = async () => {
     try {
-      await router.post("/ad/users/toggle", { sam, action });
-      router.get("/ad/users", { search }); // rafraîchir la liste
+      await router.post("/ad/users/toggle", {
+        sam: confirmPopup.sam,
+        action: confirmPopup.action,
+      });
+      router.get("/ad/users", { search }); // rafraîchir
     } catch (err) {
       alert("Erreur lors du changement de statut");
+    } finally {
+      setConfirmPopup({ visible: false, sam: null, action: null });
     }
   };
 
-  // Ligne du tableau
+  // Ligne utilisateur
   const UserRow = ({ user }) => (
     <tr className="text-center">
       <td className="px-4 py-2 border">{user.name}</td>
@@ -63,7 +74,7 @@ export default function UsersList() {
             <span className="text-green-600 font-semibold">✔️</span>
             <button
               className="ml-2 text-red-600 underline"
-              onClick={() => toggleUser(user.sam, "block")}
+              onClick={() => handleToggleClick(user.sam, "block")}
             >
               Bloquer
             </button>
@@ -73,7 +84,7 @@ export default function UsersList() {
             <span className="text-red-600 font-semibold">❌</span>
             <button
               className="ml-2 text-green-600 underline"
-              onClick={() => toggleUser(user.sam, "unblock")}
+              onClick={() => handleToggleClick(user.sam, "unblock")}
             >
               Débloquer
             </button>
@@ -129,7 +140,7 @@ export default function UsersList() {
           </tbody>
         </table>
 
-        {/* Pagination simple */}
+        {/* Pagination */}
         <div className="flex justify-between mt-4">
           <p>
             Page {meta?.page} / {Math.ceil(meta?.total / meta?.per_page || 1)}
@@ -148,9 +159,7 @@ export default function UsersList() {
               onClick={() => router.get(`/ad/users?page=${meta.page + 1}`)}
               disabled={meta.page * meta.per_page >= meta.total}
               className={`px-3 py-1 border rounded ${
-                meta.page * meta.per_page >= meta.total
-                  ? "opacity-50 pointer-events-none"
-                  : ""
+                meta.page * meta.per_page >= meta.total ? "opacity-50 pointer-events-none" : ""
               }`}
             >
               Suivant ➡️
@@ -158,6 +167,31 @@ export default function UsersList() {
           </div>
         </div>
       </div>
+
+      {/* Popup de confirmation */}
+      {confirmPopup.visible && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-80 text-center">
+            <p className="mb-4">
+              Voulez-vous vraiment {confirmPopup.action === "block" ? "bloquer" : "débloquer"} cet utilisateur ?
+            </p>
+            <div className="flex justify-around">
+              <button
+                onClick={confirmToggle}
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Oui
+              </button>
+              <button
+                onClick={() => setConfirmPopup({ visible: false, sam: null, action: null })}
+                className="bg-gray-400 text-white px-4 py-2 rounded"
+              >
+                Non
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
