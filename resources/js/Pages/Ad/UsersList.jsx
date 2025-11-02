@@ -1,8 +1,9 @@
 import React from "react";
 import { Head } from "@inertiajs/react";
-
+import Layout from "@/Layouts/layout/layout.jsx";
 export default function UsersList({ users = [], meta = {}, error }) {
   return (
+        <Layout>
     <div className="p-6">
       <Head title="Utilisateurs Active Directory" />
       <h1 className="text-2xl font-semibold mb-4">Utilisateurs Active Directory</h1>
@@ -36,5 +37,6 @@ export default function UsersList({ users = [], meta = {}, error }) {
         </tbody>
       </table>
     </div>
+    </Layout>
   );
 }
