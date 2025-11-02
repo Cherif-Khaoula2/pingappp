@@ -54,8 +54,8 @@ export default function UsersList({ users = [], meta = {}, error }) {
           <td className="px-4 py-2 border">{user.name}</td>
           <td className="px-4 py-2 border">{user.sam}</td>
           <td className="px-4 py-2 border">{user.email}</td>
-          <td className="px-4 py-2 border">{user.lastLogon ? new Date(user.lastLogon).toLocaleString() : '-'}</td>
-          <td className="px-4 py-2 border">{user.passwordLastSet ? new Date(user.passwordLastSet).toLocaleString() : '-'}</td>
+          <td className="px-4 py-2 border">{user.lastLogon}</td>
+          <td className="px-4 py-2 border">{user.passwordLastSet}</td>
           <td className="px-4 py-2 border">
             {user.enabled
               ? <span className="text-green-600 font-semibold">Actif</span>
