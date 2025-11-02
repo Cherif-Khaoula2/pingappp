@@ -173,5 +173,54 @@ public function adUsers(Request $request)
         ]);
     }
 }
+public function toggleUserStatus(Request $request)
+{
+    $request->validate([
+        'sam' => 'required|string',
+        'action' => 'required|in:block,unblock',
+    ]);
+
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    if (!$host || !$user) {
+        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+    }
+
+    $sam = $request->input('sam');
+    $action = $request->input('action');
+
+    // Définir la commande PowerShell
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
+        "Import-Module ActiveDirectory; " .
+        ($action === 'block' 
+            ? "Disable-ADAccount -Identity '$sam'" 
+            : "Enable-ADAccount -Identity '$sam'") . "\"";
+
+    // Préparer la commande SSH
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+
+    try {
+        $process = new Process($command);
+        $process->setTimeout(30);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $action === 'block' ? 'Utilisateur bloqué' : 'Utilisateur débloqué'
+        ]);
+    } catch (\Throwable $e) {
+        \Log::error('toggleUserStatus error: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Erreur SSH : ' . $e->getMessage()], 500);
+    }
+}
 
 }
