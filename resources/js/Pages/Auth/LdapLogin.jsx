@@ -1,17 +1,16 @@
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
-import {Head, Link, useForm} from '@inertiajs/react';
-import {InputText} from "primereact/inputtext";
-import {Button} from "primereact/button";
-import {Divider} from "primereact/divider";
+import { Head, Link, useForm } from '@inertiajs/react';
+import { InputText } from "primereact/inputtext";
+import { Button } from "primereact/button";
+import { Divider } from "primereact/divider";
 
-export default function Login({status, canResetPassword}) {
-    const {data, setData, post, processing, errors, reset} = useForm({
-        email: '',
+export default function LdapLoginPage({ status }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        username: '',
         password: '',
-        remember: false,
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -24,29 +23,24 @@ export default function Login({status, canResetPassword}) {
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('login'));
-    };
-
-    const handleLdapLogin = () => {
-        // Rediriger vers la route LDAP ou déclencher l'authentification LDAP
-        window.location.href = route('ldap.login');
+        post(route('ldap.login'));
     };
 
     return (
         <GuestLayout>
-            <Head title="Connexion"/>
+            <Head title="Connexion LDAP" />
 
             <div className="flex align-items-center justify-content-center min-h-screen p-4">
-                <div className="surface-card p-6 shadow-4 border-round-xl w-full" style={{maxWidth: '520px', padding: '2.5rem'}}>
-                    
+                <div className="surface-card p-6 shadow-4 border-round-xl w-full" style={{ maxWidth: '520px', padding: '2.5rem' }}>
+
                     {/* Header avec Logo */}
                     <div className="text-center mb-6">
                         <div className="topbar-logo mb-4">
                             <span className="logo-symbol">T</span>
                             <span className="logo-text">osys</span>
                         </div>
-                        <h1 className="text-900 text-3xl font-semibold mb-2">Bienvenue</h1>
-                        <p className="text-600">Connectez-vous pour accéder à votre compte</p>
+                        <h1 className="text-900 text-3xl font-semibold mb-2">Connexion LDAP</h1>
+                        <p className="text-600">Connectez-vous avec votre compte LDAP</p>
                     </div>
 
                     {/* Message de statut */}
@@ -56,21 +50,21 @@ export default function Login({status, canResetPassword}) {
                         </div>
                     )}
 
-                    {/* Formulaire de connexion standard */}
+                    {/* Formulaire de connexion LDAP */}
                     <form onSubmit={submit}>
                         <div className="mb-4">
-                            <label htmlFor="email" className="block text-900 font-medium mb-2">
-                                Adresse e-mail
+                            <label htmlFor="username" className="block text-900 font-medium mb-2">
+                                Nom d'utilisateur LDAP
                             </label>
                             <InputText
-                                id="email"
-                                type="email"
+                                id="username"
+                                type="text"
                                 className="w-full p-3"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                autoComplete="email"
+                                value={data.username}
+                                onChange={(e) => setData('username', e.target.value)}
+                                autoComplete="username"
                             />
-                            <InputError message={errors.email} className="mt-2"/>
+                            <InputError message={errors.username} className="mt-2" />
                         </div>
 
                         <div className="mb-4">
@@ -93,25 +87,19 @@ export default function Login({status, canResetPassword}) {
                                     onClick={() => setShowPassword(!showPassword)}
                                 />
                             </div>
-                            <InputError message={errors.password} className="mt-2"/>
+                            <InputError message={errors.password} className="mt-2" />
                         </div>
 
-                        <div className="flex align-items-center justify-content-between mb-5">
-                            <div className="flex align-items-center">
-                             
-                                
-                            </div>
-
-                                <Link
-                                    href={route('password.request')}
-                                    className="font-medium no-underline text-primary text-sm hover:underline"
-                                >
-                                    Mot de passe oublié ?
-                                </Link>
-                            
+                        <div className="flex align-items-center justify-content-end mb-5">
+                            <Link
+                                href={route('login')}
+                                className="font-medium no-underline text-primary text-sm hover:underline"
+                            >
+                                Se connecter via compte local
+                            </Link>
                         </div>
 
-                        <PrimaryButton 
+                        <PrimaryButton
                             className="w-full p-3 text-center justify-content-center"
                             disabled={processing}
                         >
@@ -122,32 +110,19 @@ export default function Login({status, canResetPassword}) {
                                 </>
                             ) : (
                                 <>
-                                    <i className="pi pi-sign-in mr-2"></i>
-                                    Se connecter
+                                    <i className="pi pi-building mr-2"></i>
+                                    Se connecter avec LDAP
                                 </>
                             )}
                         </PrimaryButton>
                     </form>
 
-                    {/* Divider */}
-                    <Divider align="center" className="my-5">
-                        <span className="text-600 text-sm">OU</span>
-                    </Divider>
-
-                    {/* Bouton LDAP */}
-                    
-                    <Button
-                        type="button"
-                        className="w-full p-3 text-center justify-content-center"
-                        onClick={handleLdapLogin}
-                        disabled={processing}
-                    >
-                        <i className="pi pi-building mr-2"></i>
-                        Se connecter avec LDAP
-                    </Button>
-
-                    {/* Footer */}
-                 
+                    {/* Message d'erreur général */}
+                    {errors.error && (
+                        <div className="mt-4 p-3 border-round bg-red-50 border-1 border-red-200">
+                            <p className="text-red-700 text-sm m-0">{errors.error}</p>
+                        </div>
+                    )}
                 </div>
             </div>
 

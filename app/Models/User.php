@@ -2,44 +2,80 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+   protected $fillable = [
+    'first_name',
+    'last_name',
+    'email',
+    'password',
+    'samaccountname',
+    'auth_type',
+    
+];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+        ];
+    }
+
+    // ⚡ Concatène prénom + nom
+    public function getNameAttribute()
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
+    }
+
+    // ⚡ Hash automatique du mot de passe
+    public function setPasswordAttribute($password)
+    {
+        $this->attributes['password'] = Hash::needsRehash($password)
+            ? Hash::make($password)
+            : $password;
+    }
+
+    // ⚡ Scope pour trier par nom
+    public function scopeOrderByName($query)
+    {
+        $query->orderBy('last_name')->orderBy('first_name');
+    }
+
+    // ⚡ Scope de recherche (nom/email)
+    public function scopeFilter($query, array $filters)
+    {
+        $query->when($filters['search'] ?? null, function ($query, $search) {
+            $query->where(function ($query) use ($search) {
+                $query->where('first_name', 'like', "%$search%")
+                    ->orWhere('last_name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%");
+            });
+        });
+    }
+    public function isDemoUser(): bool
+{
+    // Désactive complètement la logique "utilisateur démo"
+    return false;
 }
+
+}
+
+
+
+
+
+

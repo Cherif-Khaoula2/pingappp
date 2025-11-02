@@ -46,7 +46,7 @@ const passwordBodyTemplate = (rowData) => {
       message: `Êtes-vous sûr de vouloir supprimer "${employee.first_name} ${employee.last_name}" ?`,
       header: 'Confirmation de suppression',
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Oui, supprimer',
+      acceptLabel: 'Supprimer',
       rejectLabel: 'Annuler',
       acceptClassName: 'p-button-danger',
       accept: () => {
@@ -163,7 +163,6 @@ const passwordBodyTemplate = (rowData) => {
               <h5 className="m-0">Liste des Employés</h5>
               <Button
                 label="Ajouter un Employé"
-                icon="pi pi-plus"
                 onClick={() => setVisible(true)}
                 className="p-button-success"
               />
@@ -321,14 +320,12 @@ const passwordBodyTemplate = (rowData) => {
               <div className="flex justify-content-end gap-2 mt-3">
                 <Button
                   label="Annuler"
-                  icon="pi pi-times"
                   onClick={() => setVisible(false)}
                   className="p-button-text"
                   type="button"
                 />
                 <Button
                   label="Enregistrer"
-                  icon="pi pi-check"
                   type="submit"
                   className="p-button-success"
                 />
