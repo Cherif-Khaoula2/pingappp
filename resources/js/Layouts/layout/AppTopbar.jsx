@@ -54,7 +54,7 @@ const AppTopbar = forwardRef((props, ref) => {
                     <i className="pi pi-user"></i>
                     <span>Profil</span>
                 </Link>
-                <Link href={route('logout')} method="post" as="button" className="p-link layout-topbar-button">
+                <Link href={route('logout')} method="delete" as="button" className="p-link layout-topbar-button">
                     <i className="pi pi-lock"></i>
                     <span>Déconnexion</span>
                 </Link>

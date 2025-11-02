@@ -15,6 +15,7 @@ const AppMenu = () => {
                 { label: 'Ping', icon: 'pi pi-fw pi-wifi', to: '/ping' },
                 { label: 'Employees', icon: 'pi pi-fw pi-user', to: '/employees' },
 
+
                 
             ]
         },
