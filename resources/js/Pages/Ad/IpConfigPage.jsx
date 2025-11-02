@@ -71,14 +71,7 @@ export default function IpConfigPage() {
           </div>
         )}
 
-        {raw && (
-          <div className="mt-4">
-            <h3 className="font-semibold text-lg mb-2">Sortie brute (ipconfig)</h3>
-            <pre className="whitespace-pre-wrap bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-              {raw}
-            </pre>
-          </div>
-        )}
+      
       </div>
     </div>
     </Layout>
