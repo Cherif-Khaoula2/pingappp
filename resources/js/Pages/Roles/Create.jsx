@@ -1,189 +1,372 @@
-import { Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import LoadingButton from '@/Components/LoadingButton.jsx';
-import TextInput from '@/Components/TextInput.jsx';
-import FieldGroup from '@/Components/FieldGroup.jsx';
-import Layout from "@/Layouts/layout/layout.jsx";
-const Create = () => {
-  const { permissions } = usePage().props;
+import { useForm, router } from '@inertiajs/react';
+import { Card } from 'primereact/card';
+import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
+import { Divider } from 'primereact/divider';
+import { Message } from 'primereact/message';
+import Layout from '@/Layouts/layout/layout.jsx';
 
-  const { data, setData, post, processing, errors } = useForm({
+const RolesCreate = ({ permissions = [] }) => {
+  const { data, setData, errors, post, processing } = useForm({
     name: '',
     permissions: []
   });
-  
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  function togglePermission(name) {
-    const current = data.permissions || [];
-    setData(
-      'permissions',
-      current.includes(name)
-        ? current.filter(n => n !== name)
-        : [...current, name]
-    );
-  }
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    setShowCreateModal(true);
-  }
-
-  const confirmCreate = () => {
-    post(route('roles.store'));
-    setShowCreateModal(false);
+  // Gérer la sélection des permissions
+  const handlePermissionToggle = (permissionValue) => {
+    const currentPermissions = [...data.permissions];
+    const index = currentPermissions.indexOf(permissionValue);
+    
+    if (index > -1) {
+      currentPermissions.splice(index, 1);
+    } else {
+      currentPermissions.push(permissionValue);
+    }
+    
+    setData('permissions', currentPermissions);
   };
 
+  // Soumettre le formulaire
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setShowConfirmDialog(true);
+  };
+
+  // Confirmer la création
+  const confirmCreate = () => {
+    post(route('roles.store'), {
+      onSuccess: () => {
+        setShowConfirmDialog(false);
+      },
+      onError: () => {
+        setShowConfirmDialog(false);
+      }
+    });
+  };
+
+  // Footer du dialog
+  const dialogFooter = (
+    <div className="flex justify-content-end gap-2">
+      <Button
+        label="Annuler"
+        icon="pi pi-times"
+        outlined
+        severity="secondary"
+        onClick={() => setShowConfirmDialog(false)}
+        disabled={processing}
+      />
+      <Button
+        label={processing ? "Création..." : "Créer"}
+        icon={processing ? "pi pi-spin pi-spinner" : "pi pi-check"}
+        severity="success"
+        onClick={confirmCreate}
+        loading={processing}
+      />
+    </div>
+  );
+
+  // Header de la page
+  const pageHeader = (
+    <div className="flex align-items-center gap-3 mb-4">
+      <div>
+        <h1 className="text-900 text-3xl font-bold m-0">
+          Créer un rôle
+        </h1>
+        <p className="text-600 mt-1 m-0">
+          Remplissez les informations pour créer un nouveau rôle
+        </p>
+      </div>
+    </div>
+  );
+
   return (
-    <div>
-      <h1 className="mb-8 text-3xl font-bold">
-        <Link
-          href={route('roles.index')}
-          className="text-indigo-600 hover:text-indigo-700"
-        >
-          Rôles
-        </Link>
-        <span className="font-medium text-indigo-600"> /</span> Créer
-      </h1>
+    <Layout>
+      <div className="grid">
+        <div className="col-12">
+          {pageHeader}
+          
+          <Card className="shadow-3">
+            <form onSubmit={handleSubmit}>
+              <div className="grid">
+                {/* Section Informations du rôle */}
+                <div className="col-12">
+                  <div className="flex align-items-center gap-2 mb-4">
+                    <i className="pi pi-shield text-primary text-2xl"></i>
+                    <h2 className="text-900 text-xl font-semibold m-0">
+                      Informations du rôle
+                    </h2>
+                  </div>
+                  <Divider />
+                </div>
 
-      <div className="max-w-8xl overflow-hidden bg-white rounded shadow">
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-8 p-8 lg:grid-cols-1">
-            {/* Role Name */}
-            <FieldGroup label="Nom du rôle" name="name" error={errors.name}>
-              <TextInput
-                name="name"
-                error={errors.name}
-                value={data.name}
-                onChange={e => setData('name', e.target.value)}
-                placeholder="Ex: Administrateur, Gestionnaire..."
-              />
-            </FieldGroup>
-
-            {/* Permissions */}
-            <FieldGroup label="Permissions" name="permissions" error={errors.permissions}>
-              <div
-                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-md ${
-                  errors.permissions ? 'border-red-500' : 'border-gray-300'
-                } bg-gray-50`}
-              >
-                {permissions.map((p) => (
-                  <label
-                    key={p.value}
-                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded shadow-sm hover:border-indigo-500 transition cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={data.permissions.includes(p.value)}
-                      onChange={() => togglePermission(p.value)}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                <div className="col-12">
+                  <div className="field">
+                    <label htmlFor="name" className="block text-900 font-medium mb-2">
+                      Nom du rôle <span className="text-red-500">*</span>
+                    </label>
+                    <InputText
+                      id="name"
+                      value={data.name}
+                      onChange={(e) => setData('name', e.target.value)}
+                      className={`w-full ${errors.name ? 'p-invalid' : ''}`}
                     />
-                    <span className="text-sm font-medium text-gray-800">{p.label}</span>
-                  </label>
-                ))}
-                {permissions.length === 0 && (
-                  <p className="text-sm text-gray-500 italic col-span-full">
-                    Aucune permission disponible
-                  </p>
-                )}
+                    {errors.name && (
+                      <small className="p-error block mt-1">{errors.name}</small>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section Permissions */}
+                <div className="col-12 mt-4">
+                  <div className="flex align-items-center gap-2 mb-4">
+                    <i className="pi pi-lock text-primary text-2xl"></i>
+                    <h2 className="text-900 text-xl font-semibold m-0">
+                      Permissions
+                    </h2>
+                  </div>
+                  <Divider />
+                </div>
+
+                <div className="col-12">
+                  <div className="field">
+                    <label className="block text-900 font-medium mb-3">
+                      Sélectionner les permissions <span className="text-red-500">*</span>
+                    </label>
+                    
+                    {permissions.length > 0 ? (
+                      <div className="grid">
+                        {permissions.map((permission) => (
+                          <div key={permission.value} className="col-12 md:col-6 lg:col-4">
+                            <div 
+                              className={`surface-card p-3 border-1 border-round cursor-pointer transition-all transition-duration-200 hover:surface-hover ${
+                                data.permissions.includes(permission.value) 
+                                  ? 'border-primary shadow-2' 
+                                  : 'border-300'
+                              }`}
+                              onClick={() => handlePermissionToggle(permission.value)}
+                            >
+                              <div className="flex align-items-center gap-3">
+                                <label 
+                                  htmlFor={`permission-${permission.value}`} 
+                                  className="text-900 font-medium cursor-pointer flex-1"
+                                >
+                                  {permission.label}
+                                </label>
+                                {data.permissions.includes(permission.value) && (
+                                  <i className="pi pi-check-circle text-primary"></i>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Message 
+                        severity="info" 
+                        text="Aucune permission disponible pour le moment" 
+                        className="w-full"
+                      />
+                    )}
+
+                    {errors.permissions && (
+                      <small className="p-error block mt-2">{errors.permissions}</small>
+                    )}
+                    
+                    <small className="text-600 block mt-2">
+                      <i className="pi pi-info-circle mr-1"></i>
+                      Sélectionnez une ou plusieurs permissions pour définir les accès de ce rôle
+                    </small>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="col-12 mt-4">
+                  <Divider />
+                  <div className="flex justify-content-end gap-2">
+                    <Button
+                      label="Annuler"
+                      outlined
+                      severity="secondary"
+                      onClick={() => router.visit(route('roles.index'))}
+                      disabled={processing}
+                    />
+                    <Button
+                      label="Créer le rôle"
+                      icon="pi pi-plus"
+                      type="submit"
+                      loading={processing}
+                      style={{
+                        background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        border: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-
-              {errors.permissions && (
-                <div className="mt-2 text-sm text-red-600">{errors.permissions}</div>
-              )}
-
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-xs text-gray-500">
-                  {data.permissions.length > 0 ? (
-                    <span className="font-medium text-indigo-600">
-                      {data.permissions.length} permission(s) sélectionnée(s)
-                    </span>
-                  ) : (
-                    'Sélectionnez les permissions pour ce rôle.'
-                  )}
-                </p>
-                {data.permissions.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setData('permissions', [])}
-                    className="text-xs text-red-600 hover:text-red-700 font-medium"
-                  >
-                    Tout désélectionner
-                  </button>
-                )}
-              </div>
-            </FieldGroup>
-          </div>
-
-          <div className="flex items-center justify-end px-8 py-4 bg-gray-100 border-t border-gray-200">
-            <LoadingButton loading={processing} type="submit" className="btn-indigo">
-              Créer le rôle
-            </LoadingButton>
-          </div>
-        </form>
+            </form>
+          </Card>
+        </div>
       </div>
 
-      {/* Modal de confirmation de création */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[450px] transform transition-all">
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg
-                  className="w-8 h-8 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-              </div>
+      {/* Dialog de confirmation */}
+      <Dialog
+        visible={showConfirmDialog}
+        onHide={() => setShowConfirmDialog(false)}
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-check-circle text-green-600 text-2xl"></i>
+            <span>Confirmer la création</span>
+          </div>
+        }
+        footer={dialogFooter}
+        style={{ width: '480px' }}
+        modal
+        draggable={false}
+      >
+        <div className="text-center py-3">
+          <div 
+            className="inline-flex align-items-center justify-content-center bg-green-100 border-circle mb-4" 
+            style={{ width: '80px', height: '80px' }}
+          >
+            <i className="pi pi-plus text-5xl text-green-600"></i>
+          </div>
+          
+          <h3 className="text-900 text-xl font-bold mb-2">
+            Créer un nouveau rôle
+          </h3>
+          
+          <p className="text-600 mb-3">
+            Êtes-vous sûr de vouloir créer ce rôle ?
+          </p>
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Confirmer la création
-              </h3>
-              <p className="text-gray-600 text-center mb-2">
-                Êtes-vous sûr de vouloir créer ce rôle ?
-              </p>
-              {data.name && (
-                <p className="text-sm text-gray-500 mb-4">
-                  <span className="font-semibold">Rôle :</span> {data.name}
-                  <br />
-                  <span className="font-semibold">Permissions :</span> {data.permissions.length}
-                </p>
-              )}
-
-              <div className="flex gap-3 w-full">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmCreate}
-                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                >
-                  Créer
-                </button>
-              </div>
+          <div className="surface-100 border-round p-3 text-left">
+            <div className="flex align-items-center gap-2 mb-2">
+              <i className="pi pi-shield text-600"></i>
+              <span className="text-900 font-medium">
+                {data.name || 'Non défini'}
+              </span>
+            </div>
+            <div className="flex align-items-center gap-2">
+              <i className="pi pi-lock text-600"></i>
+              <span className="text-700">
+                {data.permissions.length} permission{data.permissions.length > 1 ? 's' : ''} sélectionnée{data.permissions.length > 1 ? 's' : ''}
+              </span>
             </div>
           </div>
+
         </div>
-      )}
-    </div>
+      </Dialog>
+
+      <style jsx>{`
+        /* Card styling */
+        :global(.p-card) {
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+        }
+
+        :global(.p-card .p-card-body) {
+          padding: 2rem;
+        }
+
+        /* Input styling */
+        :global(.p-inputtext) {
+          border-radius: 8px;
+          border: 1px solid #e5e7eb;
+          transition: all 0.2s ease;
+        }
+
+        :global(.p-inputtext:enabled:focus) {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        :global(.p-inputtext.p-invalid) {
+          border-color: #ef4444;
+        }
+
+        /* Button styling */
+        :global(.p-button) {
+          border-radius: 8px;
+          font-weight: 600;
+          transition: all 0.2s ease;
+        }
+
+        :global(.p-button:not(.p-button-outlined):not(:disabled):hover) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        :global(.p-button-outlined) {
+          border-width: 2px;
+        }
+
+        /* Dialog styling */
+        :global(.p-dialog) {
+          border-radius: 12px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        :global(.p-dialog .p-dialog-header) {
+          border-radius: 12px 12px 0 0;
+          padding: 1.5rem;
+          background: #f9fafb;
+        }
+
+        :global(.p-dialog .p-dialog-content) {
+          padding: 1.5rem;
+        }
+
+        :global(.p-dialog .p-dialog-footer) {
+          padding: 1rem 1.5rem 1.5rem;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        /* Divider styling */
+        :global(.p-divider) {
+          margin: 1rem 0;
+        }
+
+        /* Message styling */
+        :global(.p-message) {
+          border-radius: 8px;
+        }
+
+        /* Permission card styling */
+        :global(.surface-card) {
+          border-width: 2px;
+        }
+
+        :global(.surface-card:hover) {
+          border-color: #6366f1 !important;
+        }
+
+        /* Shadow */
+        :global(.shadow-3) {
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Field spacing */
+        :global(.field) {
+          margin-bottom: 1.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          :global(.p-card .p-card-body) {
+            padding: 1.5rem;
+          }
+
+          :global(.p-dialog) {
+            width: 90% !important;
+          }
+        }
+      `}</style>
+    </Layout>
   );
 };
 
-Create.layout = (page) => (
-  <Layout title="Créer un role" children={page} />
-);
-
-export default Create;
+export default RolesCreate;

@@ -22,18 +22,29 @@ use Spatie\Permission\Models\Role;
 
 class UsersController extends Controller
 {
-    public function index(): Response
-    {
-        return Inertia::render('Users/Index', [
-            'permissions' => auth()->user()->getAllPermissions()->pluck('name'),
-            'users' => new UserCollection(
-                User::query()
-                    ->orderBy('first_name')
-                    ->paginate()
-                    
-            ),
-        ]);
-    }
+  public function index(Request $request): Response
+{
+    $search = $request->input('search', '');
+    $perPage = $request->input('per_page', 10);
+    
+    $users = User::query()
+        ->when($search, function ($query, $search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        })
+        ->with('roles')
+        ->orderBy('first_name')
+        ->paginate($perPage);
+
+    return Inertia::render('Users/Index', [
+        'permissions' => auth()->user()->getAllPermissions()->pluck('name'),
+        'users' => $users,
+        'search' => $search,
+    ]);
+}
 public function create(): Response
 {
     $roles = \Spatie\Permission\Models\Role::all(['id', 'name']);

@@ -10,6 +10,17 @@ import { PrimeReactProvider } from "primereact/api";
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// ✅ Protection silencieuse - pas de console.log
+const originalRoute = window.route;
+window.route = function(name, params, absolute) {
+    try {
+        return originalRoute(name, params, absolute);
+    } catch (error) {
+        // Retourne # silencieusement sans afficher dans la console
+        return '#';
+    }
+};
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(
