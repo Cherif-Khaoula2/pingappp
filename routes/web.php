@@ -64,3 +64,6 @@ Route::post('/ad-user', [AdUserController::class, 'getUser']);
 Route::get('/ad/ipconfig', [AdUserController::class, 'index']);
 
     Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('ad.user.ipconfig');
+
+    Route::get('/ad/users', [\App\Http\Controllers\AdUserController::class, 'adUsers'])->name('ad.users');
+
