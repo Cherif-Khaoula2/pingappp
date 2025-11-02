@@ -97,7 +97,7 @@ public function adUsers(Request $request)
 
     // 📄 Pagination simple
     $page = max(1, (int) $request->input('page', 1));
-    $perPage = max(10, min(100, (int) $request->input('per_page', 20)));
+    $perPage = max(10, min(100, (int) $request->input('per_page', 50)));
 
     // 📘 Commande PowerShell enrichie sans recherche
     $psCommand = "powershell -NoProfile -NonInteractive -Command \""
