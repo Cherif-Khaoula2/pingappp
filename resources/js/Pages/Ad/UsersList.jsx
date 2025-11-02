@@ -36,32 +36,43 @@ export default function UsersList({ users = [], meta = {}, error }) {
         <div className="bg-red-100 text-red-800 p-3 rounded mb-4">{error}</div>
       )}
 
-      <table className="min-w-full bg-white border rounded-lg shadow-sm">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2 text-left">Nom</th>
-            <th className="p-2 text-left">Identifiant (SAM)</th>
-            <th className="p-2 text-left">Email</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.length > 0 ? (
-            users.map((u, i) => (
-              <tr key={i} className="border-t hover:bg-gray-50">
-                <td className="p-2">{u.name}</td>
-                <td className="p-2">{u.sam}</td>
-                <td className="p-2">{u.email}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="3" className="p-3 text-center text-gray-500">
-                Aucun utilisateur trouvé.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+     <table className="w-full border-collapse border border-gray-300">
+  <thead className="bg-gray-100">
+    <tr>
+      <th className="px-4 py-2 border">Nom</th>
+      <th className="px-4 py-2 border">Identifiant (SAM)</th>
+      <th className="px-4 py-2 border">Email</th>
+      <th className="px-4 py-2 border">Dernière connexion</th>
+      <th className="px-4 py-2 border">Mot de passe modifié le</th>
+      <th className="px-4 py-2 border">Statut</th>
+    </tr>
+  </thead>
+  <tbody>
+    {users.length > 0 ? (
+      users.map((user, index) => (
+        <tr key={index} className="hover:bg-gray-50">
+          <td className="px-4 py-2 border">{user.name}</td>
+          <td className="px-4 py-2 border">{user.sam}</td>
+          <td className="px-4 py-2 border">{user.email}</td>
+          <td className="px-4 py-2 border">{user.lastLogon ? new Date(user.lastLogon).toLocaleString() : '-'}</td>
+          <td className="px-4 py-2 border">{user.passwordLastSet ? new Date(user.passwordLastSet).toLocaleString() : '-'}</td>
+          <td className="px-4 py-2 border">
+            {user.enabled
+              ? <span className="text-green-600 font-semibold">Actif</span>
+              : <span className="text-red-600 font-semibold">Désactivé</span>
+            }
+          </td>
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan="6" className="text-center py-4 text-gray-500">
+          Aucun utilisateur trouvé.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
 
       {/* Pagination */}
       {meta.total > meta.per_page && (

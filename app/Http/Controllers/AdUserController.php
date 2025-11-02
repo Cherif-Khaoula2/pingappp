@@ -84,7 +84,7 @@ class AdUserController extends Controller
         }
     }
 
- public function adUsers(Request $request)
+public function adUsers(Request $request)
 {
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
@@ -95,22 +95,25 @@ class AdUserController extends Controller
         return back()->withErrors('Configuration SSH manquante dans .env');
     }
 
+    // 📄 Pagination simple
     $page = max(1, (int) $request->input('page', 1));
-    $perPage = max(10, min(100, (int) $request->input('per_page', 50)));
-    $search = $request->input('search', null);
+    $perPage = max(10, min(100, (int) $request->input('per_page', 20)));
 
-    $psFilter = $search ? " -Filter \"Name -like '*$search*'\" " : " -Filter * ";
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; "
-        . "Get-ADUser $psFilter -Properties Name,SamAccountName,EmailAddress | "
-        . "Select-Object Name,SamAccountName,EmailAddress | ConvertTo-Json -Depth 4\"";
+    // 📘 Commande PowerShell enrichie sans recherche
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "Get-ADUser -Filter * -Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | "
+        . "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | "
+        . "ConvertTo-Json -Depth 4\"";
 
+    // 🔐 SSH avec clé ou mot de passe
     $command = $keyPath && file_exists($keyPath)
         ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
         : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
 
     try {
         $process = new Process($command);
-        $process->setTimeout(60);
+        $process->setTimeout(90); // plus long car liste complète
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -124,17 +127,22 @@ class AdUserController extends Controller
             $decoded = json_decode(mb_convert_encoding($output, 'UTF-8', 'auto'), true);
         }
 
+        // Normalisation
         $users = isset($decoded['Name']) ? [$decoded] : $decoded;
         $users = array_map(fn($u) => [
             'name' => $u['Name'] ?? '',
             'sam' => $u['SamAccountName'] ?? '',
             'email' => $u['EmailAddress'] ?? '',
+            'lastLogon' => $u['LastLogonDate'] ?? '',
+            'passwordLastSet' => $u['PasswordLastSet'] ?? '',
+            'enabled' => $u['Enabled'] ?? false,
         ], $users ?? []);
 
+        // 📊 Pagination
         $total = count($users);
         $paged = array_slice($users, ($page - 1) * $perPage, $perPage);
 
-        // 👉 Rendu direct Inertia
+        // 📄 Rendu Inertia
         return Inertia::render('Ad/UsersList', [
             'users' => $paged,
             'meta' => [
@@ -152,6 +160,5 @@ class AdUserController extends Controller
         ]);
     }
 }
-
 
 }
