@@ -62,18 +62,23 @@ export default function UsersList() {
     });
   };
 
-  const confirmToggle = async () => {
-    try {
-      await router.post("/ad/users/toggle", {
-        sam: confirmDialog.sam,
-        action: confirmDialog.action,
-      });
-      router.get("/ad/users", { search });
-    } catch (err) {
-      alert("Erreur lors du changement de statut");
-    } finally {
-      setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
-    }
+  const confirmToggle = () => {
+    router.post("/ad/users/toggle", {
+      sam: confirmDialog.sam,
+      action: confirmDialog.action,
+    }, {
+      onSuccess: () => {
+        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+        router.get("/ad/users", { search }, {
+          preserveState: false,
+          preserveScroll: true
+        });
+      },
+      onError: () => {
+        alert("Erreur lors du changement de statut");
+        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+      }
+    });
   };
 
   // Templates pour les colonnes
