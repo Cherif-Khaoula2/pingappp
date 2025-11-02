@@ -13,9 +13,9 @@ const AppMenu = () => {
             items: [
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: route('dashboard') },
                 { label: 'Ping', icon: 'pi pi-fw pi-wifi', to: '/ping' },
-                { label: 'Employees', icon: 'pi pi-fw pi-user', to: '/employees' },
-                { label: 'IPCONFIG', icon: 'pi pi-fw pi-user', to: '/ad/ipconfig' },
+                { label: 'IPCONFIG', icon: 'pi pi-fw pi-wifi', to: '/ad/ipconfig' },
                 { label: 'ADUSER', icon: 'pi pi-fw pi-user', to: '/ad/users' },
+                { label: 'ADDUSER', icon: 'pi pi-fw pi-user', to: '/employees' },
 
                 
             ]
