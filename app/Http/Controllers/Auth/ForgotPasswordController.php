@@ -52,7 +52,7 @@ class ForgotPasswordController extends Controller
 
         // 📧 Préparer l'email
         $email = (new Email())
-            ->from('SARPI GMAT')
+            ->from('Tosys <no-reply@sarpi-dz.com>')
             ->to($user->email)
             ->subject('Réinitialisation de votre mot de passe')
             ->html("
