@@ -37,7 +37,7 @@ export default function Login({status, canResetPassword}) {
             <Head title="Connexion"/>
 
             <div className="flex align-items-center justify-content-center min-h-screen p-4">
-                <div className="surface-card p-6 shadow-4 border-round-xl w-full" style={{maxWidth: '520px', padding: '2.5rem'}}>
+                <div className="surface-card p-6 shadow-4 border-round-xl w-full" style={{maxWidth: '600px', padding: '2.5rem'}}>
                     
                     {/* Header avec Logo */}
                     <div className="text-center mb-6">
