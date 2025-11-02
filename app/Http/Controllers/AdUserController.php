@@ -166,11 +166,10 @@ public function adUsers(Request $request)
             ],
         ]);
     } catch (\Throwable $e) {
-        \Log::error('adUsers error: ' . $e->getMessage());
+       
         return Inertia::render('Ad/UsersList', [
             'users' => [],
             'meta' => [],
-            'error' => 'Erreur : ' . $e->getMessage(),
         ]);
     }
 }
