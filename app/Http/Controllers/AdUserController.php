@@ -83,6 +83,7 @@ class AdUserController extends Controller
             ], 500);
         }
     }
+
 public function adUsers(Request $request)
 {
     $host = env('SSH_HOST');
@@ -94,28 +95,16 @@ public function adUsers(Request $request)
         return back()->withErrors('Configuration SSH manquante dans .env');
     }
 
-    // 📄 Pagination
+    // 📄 Pagination simple
     $page = max(1, (int) $request->input('page', 1));
     $perPage = max(10, min(100, (int) $request->input('per_page', 50)));
 
-    // 🔍 Recherche facultative
-    $search = trim($request->input('search', ''));
-
-    // 📘 Commande PowerShell avec ou sans filtre
-    if ($search !== '') {
-        // Rechercher dans le nom, le SAM ou l’email
-        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
-            "Import-Module ActiveDirectory; " .
-            "Get-ADUser -Filter \\\"Name -like '*$search*' -or SamAccountName -like '*$search*' -or EmailAddress -like '*$search*'\\\" " .
-            "-Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | " .
-            "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | ConvertTo-Json -Depth 4\"";
-    } else {
-        // Liste complète
-        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
-            "Import-Module ActiveDirectory; " .
-            "Get-ADUser -Filter * -Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | " .
-            "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | ConvertTo-Json -Depth 4\"";
-    }
+    // 📘 Commande PowerShell enrichie sans recherche
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "Get-ADUser -Filter * -Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | "
+        . "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | "
+        . "ConvertTo-Json -Depth 4\"";
 
     // 🔐 SSH avec clé ou mot de passe
     $command = $keyPath && file_exists($keyPath)
@@ -124,7 +113,7 @@ public function adUsers(Request $request)
 
     try {
         $process = new Process($command);
-        $process->setTimeout(90);
+        $process->setTimeout(90); // plus long car liste complète
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -138,7 +127,7 @@ public function adUsers(Request $request)
             $decoded = json_decode(mb_convert_encoding($output, 'UTF-8', 'auto'), true);
         }
 
-        // Normalisation des données
+        // Normalisation
         $users = isset($decoded['Name']) ? [$decoded] : $decoded;
         $users = array_map(fn($u) => [
             'name' => $u['Name'] ?? '',
@@ -149,21 +138,18 @@ public function adUsers(Request $request)
             'enabled' => $u['Enabled'] ?? false,
         ], $users ?? []);
 
-        // 📊 Pagination manuelle
+        // 📊 Pagination
         $total = count($users);
         $paged = array_slice($users, ($page - 1) * $perPage, $perPage);
 
-        // 📄 Rendu Inertia avec le champ de recherche
+        // 📄 Rendu Inertia
         return Inertia::render('Ad/UsersList', [
             'users' => $paged,
             'meta' => [
                 'total' => $total,
                 'page' => $page,
                 'per_page' => $perPage,
-            ],
-            'filters' => [
-                'search' => $search,
-            ],
+            ]
         ]);
     } catch (\Throwable $e) {
         \Log::error('adUsers error: ' . $e->getMessage());
@@ -172,6 +158,7 @@ public function adUsers(Request $request)
             'meta' => [],
             'error' => 'Erreur : ' . $e->getMessage(),
         ]);
-    }}
+    }
+}
 
 }
