@@ -106,7 +106,7 @@ public function adUsers(Request $request)
      
        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
             "Import-Module ActiveDirectory; " .
-            "Get-ADUser -Filter 'Name -like \"*$search*\"' " . 
+            "Get-ADUser -Identity '$search' " .  
             "-Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | " .
             "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | ConvertTo-Json -Depth 4\"";
     } else {
@@ -208,6 +208,12 @@ public function toggleUserStatus(Request $request)
         if (!$process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => $action === 'block' ? 'Utilisateur bloqué' : 'Utilisateur débloqué'
+        ]);
+
     } catch (\Throwable $e) {
         \Log::error('toggleUserStatus error: ' . $e->getMessage() . 
             ' | Output: ' . $process->getOutput() . 
