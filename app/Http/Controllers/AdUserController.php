@@ -103,10 +103,10 @@ public function adUsers(Request $request)
 
     // 📘 Commande PowerShell avec ou sans filtre
     if ($search !== '') {
-        // Rechercher dans le nom, le SAM ou l’email
+     
        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
             "Import-Module ActiveDirectory; " .
-            "Get-ADUser -Identity '$search' " .  // Sans les *
+            "Get-ADUser -Identity '$search' " .  
             "-Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | " .
             "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | ConvertTo-Json -Depth 4\"";
     } else {
