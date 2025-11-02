@@ -63,6 +63,7 @@ export default function UsersList() {
   };
 
   const confirmToggle = async () => {
+<<<<<<< HEAD
     try {
       await router.post("/ad/users/toggle", {
         sam: confirmDialog.sam,
@@ -73,8 +74,41 @@ export default function UsersList() {
       alert("Erreur lors du changement de statut");
     } finally {
       setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+=======
+  try {
+    const response = await router.post("/ad/users/toggle", {
+      sam: confirmPopup.sam,
+      action: confirmPopup.action,
+    }, {
+      preserveScroll: true, // option Inertia pour ne pas recharger
+    });
+
+    if (response.props?.errors) {
+      alert("Erreur : " + JSON.stringify(response.props.errors));
+      return;
+>>>>>>> 7a75027986c0a72bb8f11a072fd78fff06f1c68a
     }
-  };
+
+    // Mise à jour locale immédiate
+    setUsers(prev =>
+      prev.map(u =>
+        u.sam === confirmPopup.sam
+          ? { ...u, enabled: confirmPopup.action === "unblock" }
+          : u
+      )
+    );
+
+  } catch (err) {
+    // Afficher l'erreur renvoyée par Laravel
+    if (err.response?.data?.message) {
+      alert("Erreur AD : " + err.response.data.message);
+    } else {
+      alert("Erreur lors du changement de statut");
+    }
+  } finally {
+    setConfirmPopup({ visible: false, sam: null, action: null });
+  }
+};
 
   // Templates pour les colonnes
   const nameTemplate = (rowData) => {

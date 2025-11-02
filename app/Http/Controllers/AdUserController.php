@@ -192,17 +192,13 @@ public function toggleUserStatus(Request $request)
     $sam = $request->input('sam');
     $action = $request->input('action');
 
-    // Définir la commande PowerShell
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
-        "Import-Module ActiveDirectory; " .
-        ($action === 'block' 
-            ? "Disable-ADAccount -Identity '$sam'" 
-            : "Enable-ADAccount -Identity '$sam'") . "\"";
+    $adCommand = $action === 'block'
+        ? "Disable-ADAccount -Identity " . escapeshellarg($sam)
+        : "Enable-ADAccount -Identity " . escapeshellarg($sam);
 
-    // Préparer la commande SSH
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
 
     try {
         $process = new Process($command);
@@ -217,10 +213,20 @@ public function toggleUserStatus(Request $request)
             'success' => true,
             'message' => $action === 'block' ? 'Utilisateur bloqué' : 'Utilisateur débloqué'
         ]);
+
     } catch (\Throwable $e) {
-        \Log::error('toggleUserStatus error: ' . $e->getMessage());
-        return response()->json(['success' => false, 'message' => 'Erreur SSH : ' . $e->getMessage()], 500);
+        \Log::error('toggleUserStatus error: ' . $e->getMessage() . 
+            ' | Output: ' . $process->getOutput() . 
+            ' | Error: ' . $process->getErrorOutput());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur AD : ' . $e->getMessage(),
+            'output' => $process->getOutput(),
+            'error' => $process->getErrorOutput()
+        ], 500);
     }
 }
+
 
 }
