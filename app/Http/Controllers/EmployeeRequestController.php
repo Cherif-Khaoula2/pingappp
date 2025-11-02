@@ -29,11 +29,11 @@ class EmployeeRequestController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name'  => 'required|string|max:255',
-            'email'      => 'required|email|unique:employee_requests,email',
-            'password'   => 'required|string|min:6',
-            'department' => 'required|string|max:255',
+            'first_name' => 'nullable|string|max:255',
+            'last_name'  => 'nullable|string|max:255',
+            'email'      => 'nullable|email|unique:employee_requests,email',
+            'password'   => 'nullable|string|min:6',
+            'department' => 'nullable|string|max:255',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);

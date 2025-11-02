@@ -174,12 +174,11 @@ Route::post('/ad-user', [AdUserController::class, 'getUser']);
 
 Route::get('/ad/ipconfig', [AdUserController::class, 'index']);
 Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('ad.user.ipconfig');
-Route::middleware('auth')->group(function () {
-Route::get('/ad/users', [AdUserController::class, 'adUsers'])->name('ad.users');
-});
 
-Route::get('/ad/ipconfig', [AdUserController::class, 'index']);
-Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('ad.user.ipconfig');
+
+
+
+
 Route::middleware('auth')->group(function () {
 Route::get('/ad/users', [AdUserController::class, 'adUsers'])->name('ad.users');
 Route::post('/ad/users/toggle', [AdUserController::class, 'toggleUserStatus'])->name('ad.users.toggle');
