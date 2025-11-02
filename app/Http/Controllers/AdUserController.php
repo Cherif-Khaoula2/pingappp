@@ -208,12 +208,6 @@ public function toggleUserStatus(Request $request)
         if (!$process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => $action === 'block' ? 'Utilisateur bloqué' : 'Utilisateur débloqué'
-        ]);
-
     } catch (\Throwable $e) {
         \Log::error('toggleUserStatus error: ' . $e->getMessage() . 
             ' | Output: ' . $process->getOutput() . 
