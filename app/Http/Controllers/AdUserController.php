@@ -85,80 +85,80 @@ class AdUserController extends Controller
     }
 
 public function adUsers(Request $request)
-{
-    $host = env('SSH_HOST');
-    $user = env('SSH_USER');
-    $password = env('SSH_PASSWORD');
-    $keyPath = env('SSH_KEY_PATH');
+    {
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
 
-    if (!$host || !$user) {
-        return back()->withErrors('Configuration SSH manquante dans .env');
-    }
-
-    // 📄 Pagination simple
-    $page = max(1, (int) $request->input('page', 1));
-    $perPage = max(10, min(100, (int) $request->input('per_page', 20)));
-
-    // 📘 Commande PowerShell enrichie sans recherche
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
-        . "Import-Module ActiveDirectory; "
-        . "Get-ADUser -Filter * -Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | "
-        . "Select-Object Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled | "
-        . "ConvertTo-Json -Depth 4\"";
-
-    // 🔐 SSH avec clé ou mot de passe
-    $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
-
-    try {
-        $process = new Process($command);
-        $process->setTimeout(90); // plus long car liste complète
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
+        if (!$host || !$user) {
+            return back()->withErrors('Configuration SSH manquante dans .env');
         }
 
-        $output = trim($process->getOutput());
-        $decoded = json_decode($output, true);
+        // Pagination
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = max(10, min(100, (int) $request->input('per_page', 20)));
 
-        if ($decoded === null) {
-            $decoded = json_decode(mb_convert_encoding($output, 'UTF-8', 'auto'), true);
+        // ✅ Commande PowerShell enrichie avec formatage des dates
+        $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+            . "Import-Module ActiveDirectory; "
+            . "\$users = Get-ADUser -Filter * -Properties Name,SamAccountName,EmailAddress,LastLogonDate,PasswordLastSet,Enabled; "
+            . "\$users | Select-Object Name,SamAccountName,EmailAddress,"
+            . "@{Name='LastLogonDate';Expression={if(\$_.LastLogonDate){\$_.LastLogonDate.ToString('yyyy-MM-dd HH:mm')}}},"
+            . "@{Name='PasswordLastSet';Expression={if(\$_.PasswordLastSet){\$_.PasswordLastSet.ToString('yyyy-MM-dd HH:mm')}}},"
+            . "Enabled | ConvertTo-Json -Depth 4\"";
+
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+
+        try {
+            $process = new Process($command);
+            $process->setTimeout(90);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+
+            $output = trim($process->getOutput());
+            $decoded = json_decode($output, true);
+
+            if ($decoded === null) {
+                $decoded = json_decode(mb_convert_encoding($output, 'UTF-8', 'auto'), true);
+            }
+
+            // Normalisation
+            $users = isset($decoded['Name']) ? [$decoded] : $decoded;
+            $users = array_map(fn($u) => [
+                'name' => $u['Name'] ?? '',
+                'sam' => $u['SamAccountName'] ?? '',
+                'email' => $u['EmailAddress'] ?? '',
+                'lastLogon' => $u['LastLogonDate'] ?? '',
+                'passwordLastSet' => $u['PasswordLastSet'] ?? '',
+                'enabled' => $u['Enabled'] ?? false,
+            ], $users ?? []);
+
+            // Pagination manuelle
+            $total = count($users);
+            $paged = array_slice($users, ($page - 1) * $perPage, $perPage);
+
+            return Inertia::render('Ad/UsersList', [
+                'users' => $paged,
+                'meta' => [
+                    'total' => $total,
+                    'page' => $page,
+                    'per_page' => $perPage,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('adUsers error: ' . $e->getMessage());
+            return Inertia::render('Ad/UsersList', [
+                'users' => [],
+                'meta' => [],
+                'error' => 'Erreur : ' . $e->getMessage(),
+            ]);
         }
-
-        // Normalisation
-        $users = isset($decoded['Name']) ? [$decoded] : $decoded;
-        $users = array_map(fn($u) => [
-            'name' => $u['Name'] ?? '',
-            'sam' => $u['SamAccountName'] ?? '',
-            'email' => $u['EmailAddress'] ?? '',
-            'lastLogon' => $u['LastLogonDate'] ?? '',
-            'passwordLastSet' => $u['PasswordLastSet'] ?? '',
-            'enabled' => $u['Enabled'] ?? false,
-        ], $users ?? []);
-
-        // 📊 Pagination
-        $total = count($users);
-        $paged = array_slice($users, ($page - 1) * $perPage, $perPage);
-
-        // 📄 Rendu Inertia
-        return Inertia::render('Ad/UsersList', [
-            'users' => $paged,
-            'meta' => [
-                'total' => $total,
-                'page' => $page,
-                'per_page' => $perPage,
-            ]
-        ]);
-    } catch (\Throwable $e) {
-        \Log::error('adUsers error: ' . $e->getMessage());
-        return Inertia::render('Ad/UsersList', [
-            'users' => [],
-            'meta' => [],
-            'error' => 'Erreur : ' . $e->getMessage(),
-        ]);
     }
-}
 
 }
