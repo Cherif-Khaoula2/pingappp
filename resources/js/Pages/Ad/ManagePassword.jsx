@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { router } from "@inertiajs/react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Card } from "primereact/card";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Password } from "primereact/password";
 import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function ResetUserPassword() {
   const [search, setSearch] = useState("");
-  const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmDialog, setConfirmDialog] = useState({
@@ -18,7 +21,24 @@ export default function ResetUserPassword() {
     userName: null,
   });
 
-  // 🔹 Recherche d’un utilisateur
+  // 🔹 Format date AD
+  const formatAdDate = (value) => {
+    if (!value) return "—";
+    const match = /\/Date\((\d+)\)\//.exec(value);
+    if (match) {
+      const date = new Date(parseInt(match[1], 10));
+      return date.toLocaleString("fr-FR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    return value;
+  };
+
+  // 🔹 Recherche d’utilisateur
   const handleSearch = async () => {
     if (!search.trim()) {
       alert("Veuillez saisir un SamAccountName");
@@ -29,14 +49,17 @@ export default function ResetUserPassword() {
       const response = await axios.post("/ad/users/find", { search });
 
       if (response.data.success && response.data.users) {
-        setUser({
-          name: response.data.users.Name,
-          sam: response.data.users.SamAccountName,
-          email: response.data.users.EmailAddress,
-        });
+        setUsers([
+          {
+            name: response.data.users.Name,
+            sam: response.data.users.SamAccountName,
+            email: response.data.users.EmailAddress,
+            lastLogon: formatAdDate(response.data.users.LastLogonDate),
+          },
+        ]);
         setError(null);
       } else {
-        setUser(null);
+        setUsers([]);
         setError("Aucun utilisateur trouvé.");
       }
     } catch (error) {
@@ -59,26 +82,69 @@ export default function ResetUserPassword() {
     });
   };
 
-  // 🔹 Confirmation de la réinitialisation
-  const confirmReset = async () => {
-    try {
-      const response = await axios.post("/ad/users/reset-password", {
+  // 🔹 Confirmation
+  const confirmReset = () => {
+    router.post(
+      "/ad/users/reset-password",
+      {
         sam: confirmDialog.sam,
         new_password: newPassword,
-      });
-
-      if (response.data.success) {
-        alert("Mot de passe réinitialisé avec succès !");
-        setConfirmDialog({ visible: false, sam: null, userName: null });
-        setNewPassword("");
-      } else {
-        alert("Erreur : " + response.data.message);
+      },
+      {
+        onSuccess: () => {
+          setConfirmDialog({ visible: false, sam: null, userName: null });
+          setNewPassword("");
+          alert("Mot de passe réinitialisé avec succès !");
+        },
+        onError: () => {
+          alert("Erreur lors de la réinitialisation du mot de passe.");
+        },
       }
-    } catch (error) {
-      console.error("Erreur lors de la réinitialisation :", error);
-      alert("Erreur de communication avec le serveur.");
-    }
+    );
   };
+
+  // 🔹 Templates du tableau
+  const nameTemplate = (rowData) => (
+    <div className="flex align-items-center gap-3">
+      <div
+        className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
+        style={{
+          width: "40px",
+          height: "40px",
+          background: "linear-gradient(135deg, #6366f1, #a855f7)",
+        }}
+      >
+        {rowData.name?.charAt(0).toUpperCase() || "U"}
+      </div>
+      <div>
+        <div className="font-medium text-900">{rowData.name}</div>
+        <div className="text-sm text-600">{rowData.sam}</div>
+      </div>
+    </div>
+  );
+
+  const passwordInputTemplate = () => (
+    <Password
+      value={newPassword}
+      onChange={(e) => setNewPassword(e.target.value)}
+      toggleMask
+      feedback={false}
+      placeholder="Saisir un nouveau mot de passe..."
+      className="w-full"
+    />
+  );
+
+  const actionTemplate = (rowData) => (
+    <Button
+      icon="pi pi-refresh"
+      label="Réinitialiser"
+      severity="info"
+      text
+      size="small"
+      onClick={() => handleResetClick(rowData)}
+      disabled={!newPassword}
+    />
+  );
 
   return (
     <Layout>
@@ -93,13 +159,13 @@ export default function ResetUserPassword() {
                     Réinitialisation du mot de passe AD
                   </h1>
                   <p className="text-600 m-0">
-                    Recherchez un utilisateur pour réinitialiser son mot de
+                    Recherchez un utilisateur et saisissez un nouveau mot de
                     passe.
                   </p>
                 </div>
               </div>
 
-              {/* Champ de recherche */}
+              {/* 🔹 Barre de recherche */}
               <div className="p-inputgroup">
                 <span className="p-inputgroup-addon">
                   <i className="pi pi-search"></i>
@@ -128,71 +194,45 @@ export default function ResetUserPassword() {
                 </div>
               )}
 
-              {user && (
-                <div className="mt-4 border-round p-3 bg-gray-50">
-                  <div className="flex flex-column gap-2 mb-3">
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-user text-600"></i>
-                      <span className="font-semibold text-900">
-                        {user.name}
-                      </span>
-                    </div>
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-id-card text-600"></i>
-                      <span className="text-600 text-sm">{user.sam}</span>
-                    </div>
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-envelope text-600"></i>
-                      <span className="text-600 text-sm">{user.email}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3">
-                    <label
-                      htmlFor="new-password"
-                      className="font-semibold text-900 mb-2 block"
-                    >
-                      Nouveau mot de passe :
-                    </label>
-                    <Password
-                      id="new-password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      toggleMask
-                      feedback={false}
-                      placeholder="Saisir un nouveau mot de passe..."
-                      className="w-full"
-                    />
-                  </div>
-
-                  <Button
-                    label="Réinitialiser le mot de passe"
-                    icon="pi pi-refresh"
-                    className="mt-4"
-                    onClick={() => handleResetClick(user)}
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #6366f1, #4f46e5)",
-                      border: "none",
-                    }}
-                    disabled={!newPassword}
-                  />
-                </div>
-              )}
+              {/* 🔹 Tableau utilisateur */}
+              <DataTable
+                value={users}
+                emptyMessage="Aucun utilisateur affiché."
+                stripedRows
+                responsiveLayout="scroll"
+              >
+                <Column
+                  field="name"
+                  header="Utilisateur"
+                  body={nameTemplate}
+                  style={{ minWidth: "250px" }}
+                />
+                <Column
+                  field="email"
+                  header="Email"
+                  style={{ minWidth: "220px" }}
+                />
+                <Column
+                  header="Nouveau mot de passe"
+                  body={passwordInputTemplate}
+                  style={{ minWidth: "250px" }}
+                />
+                <Column
+                  header="Action"
+                  body={actionTemplate}
+                  style={{ minWidth: "180px" }}
+                />
+              </DataTable>
             </div>
           </Card>
         </div>
       </div>
 
-      {/* Pop-up de confirmation */}
+      {/* 🔹 Popup confirmation */}
       <Dialog
         visible={confirmDialog.visible}
         onHide={() =>
-          setConfirmDialog({
-            visible: false,
-            sam: null,
-            userName: null,
-          })
+          setConfirmDialog({ visible: false, sam: null, userName: null })
         }
         header={
           <div className="flex align-items-center gap-3">
@@ -241,11 +281,7 @@ export default function ResetUserPassword() {
             icon="pi pi-times"
             outlined
             onClick={() =>
-              setConfirmDialog({
-                visible: false,
-                sam: null,
-                userName: null,
-              })
+              setConfirmDialog({ visible: false, sam: null, userName: null })
             }
           />
           <Button
