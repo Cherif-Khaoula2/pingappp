@@ -365,7 +365,9 @@ public function manageAddUser()
 {
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
-}public function createAdUser(Request $request)
+}
+
+public function createAdUser(Request $request)
 {
     $request->validate([
         'name' => 'required|string',
