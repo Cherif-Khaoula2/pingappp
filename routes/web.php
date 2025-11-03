@@ -207,6 +207,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword'])
         ->name('ad.users.reset-password');
+        Route::get('/ad/add-user', [AdUserController::class, 'manageAddUser'])->name('ad.add-user');
+Route::post('/ad/create-user', [AdUserController::class, 'createAdUser'])->name('ad.create-user');
+
 });
 
 

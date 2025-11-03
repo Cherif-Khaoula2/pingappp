@@ -361,6 +361,102 @@ public function managePassword()
 {
     return inertia('Ad/ManagePassword');
 }
+public function manageAddUser()
+{
+    // Page React pour ajouter un utilisateur AD
+    return inertia('Ad/ManageAddUser');
+}
+
+public function createAdUser(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:100',
+        'sam' => 'required|string|max:50',
+        'email' => 'required|email|max:150',
+        'password' => 'required|string|min:8',
+    ]);
+
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    if (!$host || !$user) {
+        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante dans .env'], 500);
+    }
+
+    $name = $request->input('name');
+    $sam = $request->input('sam');
+    $email = $request->input('email');
+    $plainPassword = $request->input('password');
+
+    // 🔹 Chemin par défaut OU dans Active Directory
+    $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
+
+    // 🔹 Construction de la commande PowerShell
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "New-ADUser -Name '$name' "
+        . "-SamAccountName '$sam' "
+        . "-UserPrincipalName '$email' "
+        . "-EmailAddress '$email' "
+        . "-Path '$ouPath' "
+        . "-AccountPassword (ConvertTo-SecureString '$plainPassword' -AsPlainText -Force) "
+        . "-Enabled \$true; "
+        . "Write-Output 'User $sam created successfully'\"";
+
+    // 🔹 Construction de la commande SSH selon la méthode d’authentification
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+
+    try {
+        $process = new Process($command);
+        $process->setTimeout(90);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        $output = trim($process->getOutput());
+
+        // ✅ Log activité (si tu veux tracer les créations)
+        $this->logAdActivity(
+            action: 'create_user',
+            targetUser: $sam,
+            targetUserName: $name,
+            success: true,
+            additionalDetails: [
+                'email' => $email,
+                'ou' => $ouPath,
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Utilisateur $sam créé avec succès.",
+            'output' => $output,
+        ]);
+
+    } catch (\Throwable $e) {
+        \Log::error('createAdUser error: ' . $e->getMessage());
+
+        // ❌ Log en cas d’échec
+        $this->logAdActivity(
+            action: 'create_user',
+            targetUser: $sam,
+            targetUserName: $name,
+            success: false,
+            errorMessage: $e->getMessage()
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la création de l’utilisateur : ' . $e->getMessage(),
+        ], 500);
+    }
+}
 
 
 }
