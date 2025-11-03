@@ -12,13 +12,15 @@ import Layout from "@/Layouts/layout/layout.jsx";
 
 const ManageAddUser = () => {
   const [form, setForm] = useState({
-    name: "",
-    sam: "",
-    email: "",
-    logmail : "",
-    password: "",
-    ou_path: "",
-  });
+  firstName: "",
+  lastName: "",
+  name: "", // champ recomposé pour backend
+  sam: "",
+  email: "",
+  logmail: "",
+  password: "",
+  ou_path: "",
+});
 const directions = [
   "DJU", "DAS", "DPM", "DAU", "DFC", "DRH", "DQHSE", "DSPE", 
   "DSI", "DAG", "DCM", "DG", "DLG", "DENG", "DRO", "DRHMD", 
@@ -144,7 +146,16 @@ const generatePassword = () => {
   return `S@rpi${randomDigits}`;
 };
 
+const handleNameChange = (e) => {
+  const { name, value } = e.target;
 
+  setForm((prev) => {
+    const newForm = { ...prev, [name]: value };
+    // On recombine le prénom et le nom pour le backend
+    newForm.name = `${newForm.firstName} ${newForm.lastName}`.trim();
+    return newForm;
+  });
+};
 
   return (
     <Layout>
@@ -193,20 +204,37 @@ const generatePassword = () => {
                 </div>
 
                 <div className="col-12 md:col-6">
-                  <div className="field">
-                    <label htmlFor="name" className="block text-900 font-medium mb-2">
-                      Nom complet <span className="text-red-500">*</span>
-                    </label>
-                  <InputText
-  id="name"
-  name="name"
-  value={form.name}
-  onChange={handleChange}
-  className="w-full"
-  required
-/>
-                  </div>
-                </div>
+  <div className="field">
+    <label htmlFor="firstName" className="block text-900 font-medium mb-2">
+      Prénom <span className="text-red-500">*</span>
+    </label>
+    <InputText
+      id="firstName"
+      name="firstName"
+      value={form.firstName}
+      onChange={handleNameChange}
+      className="w-full"
+      required
+    />
+  </div>
+</div>
+
+<div className="col-12 md:col-6">
+  <div className="field">
+    <label htmlFor="lastName" className="block text-900 font-medium mb-2">
+      Nom <span className="text-red-500">*</span>
+    </label>
+    <InputText
+      id="lastName"
+      name="lastName"
+      value={form.lastName}
+      onChange={handleNameChange}
+      className="w-full"
+      required
+    />
+  </div>
+</div>
+
 
                 <div className="col-12 md:col-6">
                   <div className="field">
@@ -228,7 +256,7 @@ const generatePassword = () => {
                 </div>
 
                 {accountType === "AD+Exchange" && (
-                  <div className="col-12">
+                  <div className="col-12 md:col-6">
                     <div className="field">
                       <label htmlFor="email" className="block text-900 font-medium mb-2">
                         Adresse email <span className="text-red-500">*</span>
@@ -374,14 +402,16 @@ const generatePassword = () => {
                 <span className="text-700">{form.email}</span>
               </div>
             )}
+         <div className="flex align-items-center gap-2">
+  <i className="pi pi-sitemap text-600"></i>
+  <span className="text-700">{direction}</span>
+</div>
+
             <div className="flex align-items-center gap-2">
-              <i className="pi pi-sitemap text-600"></i>
-              <span className="text-700">{form.ou_path}</span>
-            </div>
-             <div className="flex align-items-center gap-2">
-              <i className="pi pi-sitemap text-600"></i>
-              <span className="text-700">{form.password}</span>
-            </div>
+  <i className="pi pi-lock text-600"></i>
+  <span className="text-700">{form.password}</span>
+</div>
+
           </div>
         </div>
       </Dialog>
