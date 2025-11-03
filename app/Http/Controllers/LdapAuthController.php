@@ -122,7 +122,7 @@ class LdapAuthController extends Controller
         }
     }
 
-    public function logout(Request $request)
+    public function destroy(Request $request)
     {
         $user = Auth::user();
         
