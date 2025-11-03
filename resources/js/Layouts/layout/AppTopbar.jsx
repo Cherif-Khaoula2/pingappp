@@ -20,8 +20,8 @@ const AppTopbar = forwardRef((props, ref) => {
         <div className="layout-topbar">
             {/* Logo / App Name */}
             <div className="topbar-logo">
-                <span className="logo-symbol">T</span>
-                <span className="logo-text">osys</span>
+                <span className="logo-symbol">To</span>
+                <span className="logo-text">sys</span>
             </div>
 
             {/* Menu button */}

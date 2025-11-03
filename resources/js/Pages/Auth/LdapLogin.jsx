@@ -36,8 +36,8 @@ export default function LdapLoginPage({ status }) {
                     {/* Header avec Logo */}
                     <div className="text-center mb-6">
                         <div className="topbar-logo mb-4">
-                            <span className="logo-symbol">T</span>
-                            <span className="logo-text">osys</span>
+                            <span className="logo-symbol">To</span>
+                            <span className="logo-text">sys</span>
                         </div>
                         <h1 className="text-900 text-3xl font-semibold mb-2">Connexion LDAP</h1>
                         <p className="text-600">Connectez-vous avec votre compte LDAP</p>

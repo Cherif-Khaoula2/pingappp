@@ -14,6 +14,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\auth\LoginController;
 use App\Http\Controllers\LdapAuthController;
 use App\Http\Controllers\LdapUserController;
+use App\Http\Controllers\AdActivityLogController;
 
 
 /*
@@ -186,4 +187,20 @@ Route::post('/ad/users/toggle', [AdUserController::class, 'toggleUserStatus'])->
 Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword'])
     ->name('ad.users.reset-password');
 
+});
+
+
+
+// Routes protégées pour les logs d'activité AD
+Route::middleware(['auth'])->group(function () {
+    
+    // Logs d'activité AD
+    Route::get('/ad/activity-logs', [AdActivityLogController::class, 'index'])
+        ->name('ad.logs.index');
+    
+    Route::get('/ad/activity-logs/{id}', [AdActivityLogController::class, 'show'])
+        ->name('ad.logs.show');
+    
+    Route::get('/ad/activity-logs-export', [AdActivityLogController::class, 'export'])
+        ->name('ad.logs.export');
 });
