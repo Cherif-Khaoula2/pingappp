@@ -360,6 +360,10 @@ public function findUser(Request $request)
         ]);
     }
 }
+public function managePassword()
+{
+    return inertia('Ad/ManagePassword');
+}
 
 
 }

@@ -181,15 +181,32 @@ Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('a
 
 
 Route::middleware('auth')->group(function () {
-Route::get('/ad/users', [AdUserController::class, 'adUsers'])->name('ad.users');
 
-Route::post('/ad/users/toggle', [AdUserController::class, 'toggleUserStatus'])->name('ad.users.toggle');
-Route::get('/ad/users/manage-lock', [AdUserController::class, 'manageLock'])
-    ->name('ad.users.manage-lock');
-Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword'])
-    ->name('ad.users.reset-password');
-Route::post('/ad/users/find', [AdUserController::class, 'findUser'])->name('ad.users.find');
+    // 🔍 Page principale des utilisateurs AD
+    Route::get('/ad/users', [AdUserController::class, 'adUsers'])
+        ->name('ad.users');
 
+    // 🔐 Page spéciale pour bloquer / débloquer un utilisateur
+    Route::get('/ad/users/manage-lock', [AdUserController::class, 'manageLock'])
+        ->name('ad.users.manage-lock');
+
+    // 🔎 Recherche d’un utilisateur via SamAccountName
+    Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
+        ->name('ad.users.find');
+
+    // 🚫 Changer l’état d’un utilisateur (bloquer / débloquer)
+    Route::post('/ad/users/toggle', [AdUserController::class, 'toggleUserStatus'])
+        ->name('ad.users.toggle');
+
+    // 🔑 Réinitialiser le mot de passe d’un utilisateur AD
+    Route::get('/ad/users/manage-password', [AdUserController::class, 'managePassword'])
+        ->name('ad.users.manage-password');
+
+    Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
+        ->name('ad.users.find');
+
+    Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword'])
+        ->name('ad.users.reset-password');
 });
 
 
