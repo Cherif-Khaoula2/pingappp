@@ -300,7 +300,15 @@ class AdUserController extends Controller
                 ]
             );
 
-           
+           // 📧 Envoyer la notification email
+        $userData = [
+            'sam' => $sam,
+            'name' => $userName ?? $sam,
+            'email' => $userEmail ?? null,
+            'ouPath' => $ouPath ?? null,
+        ];
+        
+        $this->sendPasswordResetNotification(auth()->user(), $userData);
         } catch (\Throwable $e) {
             \Log::error('resetPassword error: ' . $e->getMessage());
 
@@ -605,14 +613,7 @@ protected function sendBlockNotification($creator, $userData, $action)
                             <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>SamAccountName :</strong></td>
                             <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['sam']) . "</td>
                         </tr>
-                        <tr style='background-color: #f8f9fa;'>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Email :</strong></td>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['email'] ?? '-') . "</td>
-                        </tr>
-                        <tr>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Direction :</strong></td>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['ouPath'] ?? '-') . "</td>
-                        </tr>
+                       
                         <tr style='background-color: #f8f9fa;'>
                             <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Action :</strong></td>
                             <td style='padding: 10px; border: 1px solid #dee2e6; color: {$actionColor}; font-weight: bold;'>
@@ -635,6 +636,93 @@ protected function sendBlockNotification($creator, $userData, $action)
             \Log::info("Email de notification ({$actionText}) envoyé avec succès à : {$user->email}");
         } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
             \Log::error("Erreur d'envoi de mail (notification {$actionText}) à {$user->email} : " . $e->getMessage());
+        }
+    }
+}
+protected function sendPasswordResetNotification($creator, $userData)
+{
+    $usersToNotify = User::permission('superviserusers')->get();
+
+    // ✅ Ajouter le créateur seulement s'il n'est pas déjà dans la liste
+    if (!$usersToNotify->contains('id', $creator->id)) {
+        $usersToNotify->push($creator);
+    }
+
+    // 🔍 Filtrer les utilisateurs sans email
+    $usersToNotify = $usersToNotify->filter(function($user) {
+        if (!$user->email) {
+            \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé.");
+            return false;
+        }
+        return true;
+    });
+
+    // ⚙️ Configurer le transport SMTP
+    $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&verify_peer=false');
+    $mailer = new SymfonyMailer($transport);
+
+    foreach ($usersToNotify as $user) {
+        $firstName = $user->first_name ?? '';
+        $lastName = $user->last_name ?? '';
+
+        $email = (new Email())
+            ->from('TOSYS <contact@tosys.sarpi-dz.com>')
+            ->to($user->email)
+            ->subject("[TOSYSAPP] Mot de passe AD réinitialisé : {$userData['sam']}")
+            ->html("
+                <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
+                    <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
+                    
+                    <div style='background-color: #f39c12; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                        <p style='margin: 0; font-size: 16px;'>
+                            🔑 <strong>Mot de passe réinitialisé</strong>
+                        </p>
+                    </div>
+
+                    <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a réinitialisé le mot de passe du compte AD suivant :</p>
+
+                    <table style='border-collapse: collapse; margin: 15px 0; width: 100%; max-width: 600px;'>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Nom :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['name'] ?? '-') . "</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>SamAccountName :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['sam']) . "</td>
+                        </tr>
+                      
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Action :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6; color: #f39c12; font-weight: bold;'>
+                                RÉINITIALISATION MOT DE PASSE
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Compte déverrouillé :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>✅ Oui</td>
+                        </tr>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>
+                        </tr>
+                    </table>
+
+                    <div style='background-color: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin: 20px 0;'>
+                        <p style='margin: 0; color: #856404;'>
+                            ⚠️ <strong>Important :</strong> Le compte a été automatiquement déverrouillé lors de cette opération.
+                        </p>
+                    </div>
+
+                    <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
+                    <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système TOSYSAPP.</p>
+                </div>
+            ");
+
+        try {
+            $mailer->send($email);
+            \Log::info("Email de notification (reset password) envoyé avec succès à : {$user->email}");
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            \Log::error("Erreur d'envoi de mail (notification reset password) à {$user->email} : " . $e->getMessage());
         }
     }
 }
