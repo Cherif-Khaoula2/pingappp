@@ -1,17 +1,18 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { router } from "@inertiajs/react";
-import { Button } from 'primereact/button';
-import { InputText } from 'primereact/inputtext';
-import { Card } from 'primereact/card';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
-import { Tag } from 'primereact/tag';
-import { Dialog } from 'primereact/dialog';
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
+import { Card } from "primereact/card";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { Tag } from "primereact/tag";
+import { Dialog } from "primereact/dialog";
 import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function ManageUserStatus() {
   const [search, setSearch] = useState("");
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]); // Tableau pour la DataTable
   const [error, setError] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({
     visible: false,
@@ -20,6 +21,7 @@ export default function ManageUserStatus() {
     userName: null,
   });
 
+  // 🔹 Formatage de la date AD
   const formatAdDate = (value) => {
     if (!value) return "—";
     const match = /\/Date\((\d+)\)\//.exec(value);
@@ -36,30 +38,38 @@ export default function ManageUserStatus() {
     return value;
   };
 
-
-const handleSearch = () => {
-  if (!search.trim()) {
-    alert("Veuillez saisir un SamAccountName");
-    return;
-  }
-
-  router.post("/ad/users/find", { search }, {
-    onSuccess: (page) => {
-      console.log("Réponse reçue :", page.props);
-
-      // Exemple si ton contrôleur renvoie `user` dans props :
-      if (page.props.user) {
-        setUser(page.props.user);
-      } else {
-        alert("Aucun utilisateur trouvé.");
-      }
-    },
-    onError: (error) => {
-      console.error("Erreur lors de la recherche :", error);
-      alert("Erreur lors de la recherche de l'utilisateur.");
+  // 🔹 Recherche d’un utilisateur
+  const handleSearch = async () => {
+    if (!search.trim()) {
+      alert("Veuillez saisir un SamAccountName");
+      return;
     }
-  });
-};
+
+    try {
+      const response = await axios.post("/ad/users/find", { search });
+      console.log("Réponse reçue :", response.data);
+
+      if (response.data.success && response.data.users) {
+        // ✅ Transformer la réponse unique en tableau pour le DataTable
+        setUsers([{
+          name: response.data.users.Name,
+          sam: response.data.users.SamAccountName,
+          email: response.data.users.EmailAddress,
+          enabled: response.data.users.Enabled,
+          lastLogon: formatAdDate(response.data.users.LastLogonDate),
+        }]);
+        setError(null);
+      } else {
+        setUsers([]);
+        setError("Aucun utilisateur trouvé.");
+      }
+    } catch (error) {
+      console.error("Erreur lors de la recherche :", error);
+      setError("Erreur lors de la recherche de l'utilisateur.");
+    }
+  };
+
+  // 🔹 Ouverture du popup de confirmation
   const handleToggleClick = (user, action) => {
     setConfirmDialog({
       visible: true,
@@ -69,21 +79,32 @@ const handleSearch = () => {
     });
   };
 
+  // 🔹 Confirmation du blocage/déblocage
   const confirmToggle = () => {
-    router.post("/ad/users/toggle", {
-      sam: confirmDialog.sam,
-      action: confirmDialog.action,
-    }, {
-      onSuccess: () => {
-        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
-        handleSearch();
+    router.post(
+      "/ad/users/toggle",
+      {
+        sam: confirmDialog.sam,
+        action: confirmDialog.action,
       },
-      onError: () => {
-        alert("Erreur lors du changement de statut");
+      {
+        onSuccess: () => {
+          setConfirmDialog({
+            visible: false,
+            sam: null,
+            action: null,
+            userName: null,
+          });
+          handleSearch(); // rafraîchir les données
+        },
+        onError: () => {
+          alert("Erreur lors du changement de statut");
+        },
       }
-    });
+    );
   };
 
+  // 🔹 Templates pour le tableau
   const nameTemplate = (rowData) => (
     <div className="flex align-items-center gap-3">
       <div
@@ -142,8 +163,12 @@ const handleSearch = () => {
               <div className="flex align-items-center gap-3 mb-2">
                 <i className="pi pi-lock text-3xl text-indigo-600"></i>
                 <div>
-                  <h1 className="text-900 text-2xl font-bold m-0">Blocage / Déblocage AD</h1>
-                  <p className="text-600 m-0">Rechercher un utilisateur par son SAMAccountName</p>
+                  <h1 className="text-900 text-2xl font-bold m-0">
+                    Blocage / Déblocage AD
+                  </h1>
+                  <p className="text-600 m-0">
+                    Rechercher un utilisateur par son SAMAccountName
+                  </p>
                 </div>
               </div>
 
@@ -183,9 +208,23 @@ const handleSearch = () => {
                 stripedRows
                 responsiveLayout="scroll"
               >
-                <Column field="name" header="Utilisateur" body={nameTemplate} style={{ minWidth: "250px" }} />
-                <Column field="email" header="Email" style={{ minWidth: "200px" }} />
-                <Column field="enabled" header="Statut" body={statusTemplate} style={{ minWidth: "180px" }} />
+                <Column
+                  field="name"
+                  header="Utilisateur"
+                  body={nameTemplate}
+                  style={{ minWidth: "250px" }}
+                />
+                <Column
+                  field="email"
+                  header="Email"
+                  style={{ minWidth: "200px" }}
+                />
+                <Column
+                  field="enabled"
+                  header="Statut"
+                  body={statusTemplate}
+                  style={{ minWidth: "180px" }}
+                />
               </DataTable>
             </div>
           </Card>
@@ -195,7 +234,14 @@ const handleSearch = () => {
       {/* Pop-up de confirmation */}
       <Dialog
         visible={confirmDialog.visible}
-        onHide={() => setConfirmDialog({ visible: false, sam: null, action: null, userName: null })}
+        onHide={() =>
+          setConfirmDialog({
+            visible: false,
+            sam: null,
+            action: null,
+            userName: null,
+          })
+        }
         header={
           <div className="flex align-items-center gap-3">
             <div
@@ -203,16 +249,25 @@ const handleSearch = () => {
               style={{
                 width: "48px",
                 height: "48px",
-                background: confirmDialog.action === "block" ? "#fef2f2" : "#f0fdf4",
+                background:
+                  confirmDialog.action === "block" ? "#fef2f2" : "#f0fdf4",
               }}
             >
               <i
-                className={`pi ${confirmDialog.action === "block" ? "pi-lock" : "pi-unlock"} text-2xl`}
-                style={{ color: confirmDialog.action === "block" ? "#dc2626" : "#16a34a" }}
+                className={`pi ${
+                  confirmDialog.action === "block" ? "pi-lock" : "pi-unlock"
+                } text-2xl`}
+                style={{
+                  color:
+                    confirmDialog.action === "block" ? "#dc2626" : "#16a34a",
+                }}
               ></i>
             </div>
             <span className="text-xl font-bold">
-              {confirmDialog.action === "block" ? "Bloquer" : "Débloquer"} l'utilisateur
+              {confirmDialog.action === "block"
+                ? "Bloquer"
+                : "Débloquer"}{" "}
+              l'utilisateur
             </span>
           </div>
         }
@@ -222,7 +277,13 @@ const handleSearch = () => {
         <div className="py-3">
           <p className="text-700 text-lg mb-3">
             Êtes-vous sûr de vouloir{" "}
-            <strong className={confirmDialog.action === "block" ? "text-red-600" : "text-green-600"}>
+            <strong
+              className={
+                confirmDialog.action === "block"
+                  ? "text-red-600"
+                  : "text-green-600"
+              }
+            >
               {confirmDialog.action === "block" ? "bloquer" : "débloquer"}
             </strong>{" "}
             cet utilisateur ?
@@ -231,7 +292,9 @@ const handleSearch = () => {
           <div className="p-3 bg-gray-50 border-round">
             <div className="flex align-items-center gap-2 mb-2">
               <i className="pi pi-user text-600"></i>
-              <span className="font-semibold text-900">{confirmDialog.userName}</span>
+              <span className="font-semibold text-900">
+                {confirmDialog.userName}
+              </span>
             </div>
             <div className="flex align-items-center gap-2">
               <i className="pi pi-id-card text-600"></i>
@@ -245,13 +308,22 @@ const handleSearch = () => {
             label="Annuler"
             icon="pi pi-times"
             outlined
-            onClick={() => setConfirmDialog({ visible: false, sam: null, action: null, userName: null })}
+            onClick={() =>
+              setConfirmDialog({
+                visible: false,
+                sam: null,
+                action: null,
+                userName: null,
+              })
+            }
           />
           <Button
             label="Confirmer"
             icon="pi pi-check"
             onClick={confirmToggle}
-            severity={confirmDialog.action === "block" ? "danger" : "success"}
+            severity={
+              confirmDialog.action === "block" ? "danger" : "success"
+            }
           />
         </div>
       </Dialog>
