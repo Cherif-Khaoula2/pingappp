@@ -366,9 +366,6 @@ public function manageAddUser()
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
 }
-use Illuminate\Http\Request;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
 
 public function createAdUser(Request $request)
 {
