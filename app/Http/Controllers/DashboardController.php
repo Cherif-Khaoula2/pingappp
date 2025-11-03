@@ -4,163 +4,61 @@ namespace App\Http\Controllers;
 
 use App\Models\AdActivityLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $period = $request->get('period', 7); // 7 jours par défaut
-        $startDate = Carbon::now()->subDays($period);
-        
-        // Statistiques principales
-        $stats = [
-            'today_logs' => AdActivityLog::whereDate('created_at', today())->count(),
-            'today_logins' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'login')
-                ->where('status', 'success')
-                ->count(),
-            'today_blocks' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'block_user')
-                ->count(),
-            'today_creations' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'create_user')
-                ->count(),
-        ];
+        // Définir la timezone pour correspondre à Tinker (souvent celle du système)
+        $tz = 'Africa/Algiers';
+        $period = (int) $request->get('period', 30); // période en jours
 
-        // Activité quotidienne
-        $dailyActivity = AdActivityLog::select(
+        // 🔹 Statistiques globales comme Tinker
+        $total_logs   = AdActivityLog::count();
+        $today_logs   = AdActivityLog::whereDate('created_at', Carbon::today($tz))->count();
+        $login_count  = AdActivityLog::where('action', 'login')->count();
+        $logout_count = AdActivityLog::where('action', 'logout')->count();
+        $block_count  = AdActivityLog::where('action', 'block_user')->count();
+        $failed       = AdActivityLog::where('status', 'failed')->count();
+
+        // 🔹 Activité des derniers jours
+        $activityData = AdActivityLog::select(
                 DB::raw('DATE(created_at) as date'),
-                DB::raw('COUNT(CASE WHEN status = "success" THEN 1 END) as success'),
-                DB::raw('COUNT(CASE WHEN status = "failed" THEN 1 END) as failed')
+                DB::raw('COUNT(*) as total')
             )
-            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
             ->groupBy('date')
             ->orderBy('date')
-            ->get();
+            ->get()
+            ->toArray();
 
-        // Répartition par type d'action
-        $actionBreakdown = AdActivityLog::select('action', DB::raw('COUNT(*) as count'))
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('action')
-            ->get();
-
-        // Activité par heure
-        $hourlyActivity = AdActivityLog::select(
-                DB::raw('HOUR(created_at) as hour'),
-                DB::raw('COUNT(*) as count')
-            )
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('hour')
-            ->orderBy('hour')
-            ->get();
-
-        // Top utilisateurs connectés
-        $topConnectedUsers = AdActivityLog::select(
-                'target_user',
-                'target_user_name',
-                DB::raw('COUNT(*) as login_count')
-            )
-            ->where('action', 'login')
-            ->where('status', 'success')
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('target_user', 'target_user_name')
-            ->orderByDesc('login_count')
-            ->limit(10)
-            ->get();
-
-        // Top utilisateurs bloqués
-        $topBlockedUsers = AdActivityLog::select(
-                'target_user',
-                'target_user_name',
-                DB::raw('COUNT(*) as block_count')
-            )
-            ->where('action', 'block_user')
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('target_user', 'target_user_name')
-            ->orderByDesc('block_count')
-            ->limit(10)
-            ->get();
-
-        // Top admins actifs
-        $topAdmins = AdActivityLog::select(
-                'performed_by_name',
-                DB::raw('COUNT(*) as action_count')
-            )
-            ->where('created_at', '>=', $startDate)
-            ->groupBy('performed_by_name')
-            ->orderByDesc('action_count')
-            ->limit(10)
-            ->get();
-
-        // Derniers échecs
-        $recentFailures = AdActivityLog::where('status', 'failed')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Créations récentes
-        $recentCreations = AdActivityLog::where('action', 'create_user')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
-        // Tendances (comparaison avec période précédente)
-        $previousStartDate = Carbon::now()->subDays($period * 2);
-        $previousEndDate = $startDate;
-
-        $currentLogins = AdActivityLog::where('action', 'login')
-            ->where('status', 'success')
-            ->where('created_at', '>=', $startDate)
-            ->count();
-
-        $previousLogins = AdActivityLog::where('action', 'login')
-            ->where('status', 'success')
-            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
-            ->count();
-
-        $currentBlocks = AdActivityLog::where('action', 'block_user')
-            ->where('created_at', '>=', $startDate)
-            ->count();
-
-        $previousBlocks = AdActivityLog::where('action', 'block_user')
-            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
-            ->count();
-
-        $currentCreations = AdActivityLog::where('action', 'create_user')
-            ->where('created_at', '>=', $startDate)
-            ->count();
-
-        $previousCreations = AdActivityLog::where('action', 'create_user')
-            ->whereBetween('created_at', [$previousStartDate, $previousEndDate])
-            ->count();
-
-        $trends = [
-            'logins' => $previousLogins > 0 
-                ? round((($currentLogins - $previousLogins) / $previousLogins) * 100, 1)
-                : 0,
-            'blocks' => $previousBlocks > 0 
-                ? round((($currentBlocks - $previousBlocks) / $previousBlocks) * 100, 1)
-                : 0,
-            'creations' => $previousCreations > 0 
-                ? round((($currentCreations - $previousCreations) / $previousCreations) * 100, 1)
-                : 0,
-        ];
+        // 🔹 Derniers logs
+        $recentLogs = AdActivityLog::with('performed_by')
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function ($log) use ($tz) {
+                $log->created_at_formatted = Carbon::parse($log->created_at)->timezone($tz)->diffForHumans();
+                $log->performer_name = $log->performed_by ? $log->performed_by->name : 'N/A';
+                return $log;
+            })
+            ->toArray();
 
         return Inertia::render('Dashboard', [
-            'stats' => $stats,
-            'dailyActivity' => $dailyActivity,
-            'actionBreakdown' => $actionBreakdown,
-            'hourlyActivity' => $hourlyActivity,
-            'topConnectedUsers' => $topConnectedUsers,
-            'topBlockedUsers' => $topBlockedUsers,
-            'topAdmins' => $topAdmins,
-            'recentFailures' => $recentFailures,
-            'recentCreations' => $recentCreations,
-            'trends' => $trends,
-            'period' => $period,
+            'stats' => [
+                'total_logs'   => (int) $total_logs,
+                'today_logs'   => (int) $today_logs,
+                'login_count'  => (int) $login_count,
+                'logout_count' => (int) $logout_count,
+                'block_count'  => (int) $block_count,
+                'failed'       => (int) $failed,
+            ],
+            'activityData' => $activityData,
+            'recentLogs'   => $recentLogs,
+            'period'       => (int) $period,
         ]);
     }
 }

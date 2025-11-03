@@ -141,6 +141,42 @@ public function showUserLogs($id)
     ]);
 }
 
+public function dashboard()
+{
+    // Logs récents
+    $recentLogs = AdActivityLog::with('performer')
+        ->latest()
+        ->take(5)
+        ->get();
+
+    // Stats globales
+    $total_logs = AdActivityLog::count();
+    $today_logs = AdActivityLog::whereDate('created_at', today())->count();
+    $login_count = AdActivityLog::where('action', 'login')->count();
+    $logout_count = AdActivityLog::where('action', 'logout')->count();
+    $block_count = AdActivityLog::where('action', 'block_user')->count();
+    $failed = AdActivityLog::where('status', 'failed')->count();
+
+    // Activité des derniers jours (7 derniers jours)
+    $activityData = AdActivityLog::selectRaw('DATE(created_at) as date, COUNT(*) as total')
+        ->where('created_at', '>=', now()->subDays(7))
+        ->groupBy('date')
+        ->orderBy('date')
+        ->get();
+
+    return Inertia::render('Dashboard', [
+        'stats' => [
+            'total_logs' => $total_logs,
+            'today_logs' => $today_logs,
+            'login_count' => $login_count,
+            'logout_count' => $logout_count,
+            'block_count' => $block_count,
+            'failed' => $failed,
+        ],
+        'activityData' => $activityData,
+        'recentLogs' => $recentLogs,
+    ]);
+}
 
 
 }
