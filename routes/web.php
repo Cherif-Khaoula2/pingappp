@@ -188,6 +188,7 @@ Route::get('/ad/users/manage-lock', [AdUserController::class, 'manageLock'])
     ->name('ad.users.manage-lock');
 Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword'])
     ->name('ad.users.reset-password');
+Route::post('/ad/users/find', [AdUserController::class, 'findUser'])->name('ad.users.find');
 
 });
 

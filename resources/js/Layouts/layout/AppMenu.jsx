@@ -52,17 +52,17 @@ const AppMenu = () => {
                     {
                         label: 'Ajouter un utilisateur',
                         icon: 'pi pi-fw pi-user',
-                        to: safeRoute('users'),
+                        to: ('/users'),
                     },
                     {
                         label: 'Bloquer/Debloquer un utilisateur',
                         icon: 'pi pi-fw pi-shield',
-                        to:('ad/users/manage-lock'),
+                        to:('/ad/users/manage-lock'),
                     },
                      {
                         label: 'Réinitialiser Mot pour un utilisateur',
                         icon: 'pi pi-fw pi-shield',
-                        to:('roles'),
+                        to:('/roles'),
                     },
                     {
                         label: 'Voir la liste des utilisateurs ',
