@@ -366,6 +366,9 @@ public function manageAddUser()
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
 }
+use Illuminate\Http\Request;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 public function createAdUser(Request $request)
 {
@@ -392,12 +395,17 @@ public function createAdUser(Request $request)
     $passwordValue = $request->input('password');
     $ouPath = $request->input('ou_path');
 
+    // Commande PowerShell avec gestion d'erreur
     $psCommand = "powershell -NoProfile -NonInteractive -Command \""
         . "Import-Module ActiveDirectory; "
+        . "try { "
         . "New-ADUser -Name '$name' -SamAccountName '$sam' -UserPrincipalName '$email' "
         . "-EmailAddress '$email' -Path '$ouPath' "
         . "-AccountPassword (ConvertTo-SecureString '$passwordValue' -AsPlainText -Force) -Enabled \$true; "
-        . "Write-Output 'User created successfully'\"";
+        . "Start-Sleep -Seconds 2; "
+        . "if (Get-ADUser -Identity '$sam') { Write-Output 'Utilisateur AD créé avec succès' } "
+        . "else { Write-Output 'Échec de la création de l’utilisateur' } "
+        . "} catch { Write-Error \$_; exit 1 }\"";
 
     $command = $keyPath && file_exists($keyPath)
         ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
@@ -408,31 +416,35 @@ public function createAdUser(Request $request)
         $process->setTimeout(60);
         $process->run();
 
+        $output = $process->getOutput();
+        $errorOutput = $process->getErrorOutput();
+
         if (!$process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
 
-        // ✅ Log de création réussie
+        // Log de création
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
             targetUserName: $name,
-            success: true,
+            success: str_contains($output, 'créé avec succès'),
             additionalDetails: [
                 'email' => $email,
                 'ou_path' => $ouPath,
-                'method' => 'PowerShell AD'
+                'method' => 'PowerShell AD',
+                'output' => $output,
+                'error' => $errorOutput,
             ]
         );
 
         return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur AD créé avec succès',
+            'success' => str_contains($output, 'créé avec succès'),
+            'message' => trim($output),
         ]);
     } catch (\Throwable $e) {
         \Log::error('createAdUser error: ' . $e->getMessage());
 
-        // ❌ Log de l'échec
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
