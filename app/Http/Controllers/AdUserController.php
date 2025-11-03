@@ -482,34 +482,32 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
     }
 }
 
-
-
 protected function sendAdUserCreationNotification($creator, $newUser)
 {
-$usersToNotify = User::permission('superviserusers')->get();
+    $usersToNotify = User::permission('superviserusers')->get();
 
-// Ajouter l'utilisateur qui a fait l'action
-$usersToNotify->push($creator);
-
-foreach ($usersToNotify as $user) {
-    if (!$user->email) {
-        \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé.");
-        continue;
+    // ✅ Ajouter le créateur seulement s'il n'est pas déjà dans la liste
+    if (!$usersToNotify->contains('id', $creator->id)) {
+        $usersToNotify->push($creator);
     }
-    \Log::info("Destinataire OK : {$user->email}");
-}
 
+    // 🔍 Filtrer les utilisateurs sans email
+    $usersToNotify = $usersToNotify->filter(function($user) {
+        if (!$user->email) {
+            \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé.");
+            return false;
+        }
+        return true;
+    });
 
- 
-  // ⚙️ Configurer le transport SMTP
-        $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&auto_tls=false');
-        $mailer = new SymfonyMailer($transport);
+    // ⚙️ Configurer le transport SMTP
+    $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&verify_peer=false');
+    $mailer = new SymfonyMailer($transport);
+
     foreach ($usersToNotify as $user) {
         $firstName = $user->first_name ?? '';
         $lastName = $user->last_name ?? '';
-
-        // 🔗 Lien éventuel vers l’AD ou doc interne
-        $lien = '#'; // tu peux mettre un vrai lien si besoin
+        $lien = '#';
 
         $email = (new Email())
             ->from('TOSYS <contact@tosys.sarpi-dz.com>')
@@ -518,22 +516,18 @@ foreach ($usersToNotify as $user) {
             ->html("
                 <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
                     <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
-
                     <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a créé un nouvel utilisateur AD :</p>
-
                     <table style='border-collapse: collapse; margin: 15px 0;'>
                         <tr><td style='padding: 5px 10px;'><strong>Nom :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['name']) . "</td></tr>
                         <tr><td style='padding: 5px 10px;'><strong>SamAccountName :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['sam']) . "</td></tr>
                         <tr><td style='padding: 5px 10px;'><strong>Email :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['email'] ?? '-') . "</td></tr>
                         <tr><td style='padding: 5px 10px;'><strong>Type de compte :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['accountType'] ?? '-') . "</td></tr>
                     </table>
-
                     <p style='margin: 20px 0;'>
                         <a href='" . $lien . "' target='_blank' style='background-color: #81a6c5ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;'>
                           🔗 Voir les détails
                         </a>
                     </p>
-
                     <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
                     <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système ADAPP.</p>
                 </div>
@@ -541,8 +535,9 @@ foreach ($usersToNotify as $user) {
 
         try {
             $mailer->send($email);
+            \Log::info("Email envoyé avec succès à : {$user->email}");
         } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
-            Log::error("Erreur d'envoi de mail (notification AD) : " . $e->getMessage());
+            \Log::error("Erreur d'envoi de mail (notification AD) à {$user->email} : " . $e->getMessage());
         }
     }
 }
