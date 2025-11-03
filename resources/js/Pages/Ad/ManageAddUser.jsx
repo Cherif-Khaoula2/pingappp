@@ -12,11 +12,6 @@ import Layout from "@/Layouts/layout/layout.jsx";
 import 'primeicons/primeicons.css';
 import 'primereact/resources/themes/lara-light-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
-const [ setMounted] = useState(false);
-
-useEffect(() => {
-  setMounted(true);
-}, []);
 
 const ManageAddUser = () => {
   const toast = React.useRef(null);
