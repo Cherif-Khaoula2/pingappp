@@ -9,9 +9,6 @@ import { Divider } from "primereact/divider";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
-import 'primeicons/primeicons.css';
-import 'primereact/resources/themes/lara-light-blue/theme.css';
-import 'primereact/resources/primereact.min.css';
 
 const ManageAddUser = () => {
   const toast = React.useRef(null);
