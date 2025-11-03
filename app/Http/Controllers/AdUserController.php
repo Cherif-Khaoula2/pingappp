@@ -401,7 +401,6 @@ public function createAdUser(Request $request)
         . "-EmailAddress '$email' "
         . "-Path '$ouPath' "
         . "-AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) "
-        . "-Enabled \$true; "
         . "Write-Output 'User created successfully'\"";
 
     // ✅ Choix de la méthode de connexion SSH
