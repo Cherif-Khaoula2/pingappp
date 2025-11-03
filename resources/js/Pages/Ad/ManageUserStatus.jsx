@@ -37,33 +37,29 @@ export default function ManageUserStatus() {
   };
 
 
-const handleSearch = async () => {
+const handleSearch = () => {
   if (!search.trim()) {
-    alert("Veuillez saisir un SamAccountName !");
+    alert("Veuillez saisir un SamAccountName");
     return;
   }
 
-  try {
-    const response = await fetch("/ad/users/find", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
-      },
-      body: JSON.stringify({ search }),
-    });
+  router.post("/ad/users/find", { search }, {
+    onSuccess: (page) => {
+      console.log("Réponse reçue :", page.props);
 
-    const data = await response.json();
-    if (data.success) {
-      setUsers(data.users);
-    } else {
-      alert(data.message);
+      // Exemple si ton contrôleur renvoie `user` dans props :
+      if (page.props.user) {
+        setUser(page.props.user);
+      } else {
+        alert("Aucun utilisateur trouvé.");
+      }
+    },
+    onError: (error) => {
+      console.error("Erreur lors de la recherche :", error);
+      alert("Erreur lors de la recherche de l'utilisateur.");
     }
-  } catch (err) {
-    alert("Erreur lors de la recherche de l'utilisateur.");
-  }
+  });
 };
-
   const handleToggleClick = (user, action) => {
     setConfirmDialog({
       visible: true,

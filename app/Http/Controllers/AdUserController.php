@@ -314,26 +314,26 @@ public function manageLock()
 }
 public function findUser(Request $request)
 {
+    $request->validate([
+        'search' => 'required|string'
+    ]);
+
+    $search = $request->input('search');
+
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
     $password = env('SSH_PASSWORD');
     $keyPath = env('SSH_KEY_PATH');
 
     if (!$host || !$user) {
-        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    $search = trim($request->input('search', ''));
-
-    if ($search === '') {
-        return response()->json(['success' => false, 'message' => 'Veuillez saisir un identifiant'], 400);
-    }
-
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
-        "Import-Module ActiveDirectory; " .
-        "Get-ADUser -Filter 'SamAccountName -like \"*$search*\"' " .
-        "-Properties Name,SamAccountName,EmailAddress,Enabled | " .
-        "Select-Object Name,SamAccountName,EmailAddress,Enabled | ConvertTo-Json -Depth 4\"";
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "Get-ADUser -Filter 'SamAccountName -like \"*$search*\"' "
+        . "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | "
+        . "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | ConvertTo-Json\"";
 
     $command = $keyPath && file_exists($keyPath)
         ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
@@ -349,29 +349,19 @@ public function findUser(Request $request)
         }
 
         $output = trim($process->getOutput());
-        $decoded = json_decode($output, true);
+        $users = json_decode($output, true);
 
-        if (!$decoded) {
+        if (!$users) {
             return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé']);
         }
 
-        $users = isset($decoded['Name']) ? [$decoded] : $decoded;
-
-        return response()->json([
-            'success' => true,
-            'users' => array_map(fn($u) => [
-                'name' => $u['Name'] ?? '',
-                'sam' => $u['SamAccountName'] ?? '',
-                'email' => $u['EmailAddress'] ?? '',
-                'enabled' => $u['Enabled'] ?? false,
-            ], $users),
-        ]);
-
+        return response()->json(['success' => true, 'users' => is_array($users) ? $users : [$users]]);
     } catch (\Throwable $e) {
+        \Log::error('findUser error: ' . $e->getMessage());
         return response()->json([
             'success' => false,
-            'message' => 'Erreur SSH : ' . $e->getMessage(),
-        ], 500);
+            'message' => 'Erreur serveur : ' . $e->getMessage(),
+        ]);
     }
 }
 
