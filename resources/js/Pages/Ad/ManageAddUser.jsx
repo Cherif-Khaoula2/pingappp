@@ -9,6 +9,9 @@ import { Divider } from "primereact/divider";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
+import 'primeicons/primeicons.css';
+import 'primereact/resources/themes/lara-light-blue/theme.css';
+import 'primereact/resources/primereact.min.css';
 
 const ManageAddUser = () => {
   const toast = React.useRef(null);
@@ -79,13 +82,7 @@ const ManageAddUser = () => {
       ou_path: `OU=${selected},OU=OuTempUsers,DC=sarpi-dz,DC=sg`
     }));
 
-    // Afficher notification de sélection
-    toast.current.show({
-      severity: 'info',
-      summary: 'Direction sélectionnée',
-      detail: `Vous avez choisi la direction: ${selected}`,
-      life: 3000
-    });
+
   };
 
   const handleAccountTypeChange = (type) => {
