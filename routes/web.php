@@ -232,13 +232,17 @@ Route::middleware(['auth'])->group(function () {
     
     // Logs d'activité AD
     Route::get('/ad/activity-logs', [AdActivityLogController::class, 'index'])
+    ->middleware('permission:getlog')
         ->name('ad.logs.index');
     
     Route::get('/ad/activity-logs/{id}', [AdActivityLogController::class, 'show'])
+    ->middleware('permission:getlog')
         ->name('ad.logs.show');
     
     Route::get('/ad/activity-logs-export', [AdActivityLogController::class, 'export'])
+    ->middleware('permission:getlog')
         ->name('ad.logs.export');
       Route::get('/ad/activity-logs/user/{id}', [AdActivityLogController::class, 'showUserLogs'])
+      ->middleware('permission:getlog')
         ->name('activity.user');
 });

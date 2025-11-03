@@ -49,7 +49,7 @@ const AppMenu = () => {
                 permissions.includes('getlog') && {
                     label: 'LOG',
                     icon: 'pi pi-fw pi-shield',
-                    to: safeRoute('/ad/activity-logs'),
+                    to: safeRoute('ad.logs.index'),
                 }
             ].filter(Boolean), // très important pour enlever les "false"
         },
