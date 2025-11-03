@@ -47,7 +47,7 @@ export default function ManageUserStatus() {
 
     try {
       const response = await axios.post("/ad/users/find", { search });
-      console.log("Réponse reçue :", response.data);
+     
 
       if (response.data.success && response.data.users) {
         // ✅ Transformer la réponse unique en tableau pour le DataTable
