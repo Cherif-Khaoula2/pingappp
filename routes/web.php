@@ -119,7 +119,7 @@ Route::post('login', [LoginController::class, 'store'])
     ->name('login.store')
     ->middleware('guest');
 
-Route::delete('logout', [LoginController::class, 'destroy'])
+Route::delete('logout', [LdapAuthController::class, 'destroy'])
     ->name('logout');
 
 Route::post('/ldap-login', [LdapAuthController::class, 'login'])->name('ldap.login');
