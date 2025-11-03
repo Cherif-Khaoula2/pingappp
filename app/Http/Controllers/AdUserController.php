@@ -366,13 +366,15 @@ public function manageAddUser()
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
 }
+
 public function createAdUser(Request $request)
 {
     $request->validate([
-        'name' => 'required|string|max:100',
-        'sam' => 'required|string|max:50',
-        'email' => 'required|email|max:150',
+        'name' => 'required|string',
+        'sam' => 'required|string',
+        'email' => 'required|email',
         'password' => 'required|string|min:8',
+        'ou_path' => 'required|string',
     ]);
 
     $host = env('SSH_HOST');
@@ -387,73 +389,50 @@ public function createAdUser(Request $request)
     $name = $request->input('name');
     $sam = $request->input('sam');
     $email = $request->input('email');
-    $plainPassword = $request->input('password');
-    $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
+    $passwordValue = $request->input('password');
+    $ouPath = $request->input('ou_path');
 
-    // 🔹 Script PowerShell avec échappement correct
-    $psScript = "try { " .
-        "Import-Module ActiveDirectory; " .
-        "\$user = New-ADUser -Name '$name' " .
-        "-SamAccountName '$sam' " .
-        "-UserPrincipalName '$email' " .
-        "-EmailAddress '$email' " .
-        "-Path '$ouPath' " .
-        "-AccountPassword (ConvertTo-SecureString '$plainPassword' -AsPlainText -Force) " .
-        "-Enabled \$true " .
-        "-PassThru; " .
-        "if (\$user) { Write-Output 'SUCCESS: User $sam created' } else { throw 'User creation failed' } " .
-        "} catch { " .
-        "Write-Output ('ERROR: ' + \$_.Exception.Message); " .
-        "exit 1 " .
-        "}";
-
-    // 🔹 Conversion en Base64 UTF-16LE
-    $encodedCommand = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
-    
-    // 🔹 Commande SSH
-    $sshCommand = "powershell -NoProfile -NonInteractive -EncodedCommand $encodedCommand";
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "New-ADUser -Name '$name' -SamAccountName '$sam' -UserPrincipalName '$email' "
+        . "-EmailAddress '$email' -Path '$ouPath' "
+        . "-AccountPassword (ConvertTo-SecureString '$passwordValue' -AsPlainText -Force) -Enabled \$true; "
+        . "Write-Output 'User created successfully'\"";
 
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $sshCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $sshCommand];
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
 
     try {
         $process = new Process($command);
-        $process->setTimeout(90);
+        $process->setTimeout(60);
         $process->run();
 
-        $output = trim($process->getOutput());
-        $errorOutput = trim($process->getErrorOutput());
-
-        \Log::info('PowerShell Output: ' . $output);
-        \Log::info('PowerShell Error: ' . $errorOutput);
-        \Log::info('Exit Code: ' . $process->getExitCode());
-
-        // 🔹 Vérification du résultat
-        if (str_contains($output, 'ERROR:') || !str_contains($output, 'SUCCESS')) {
-            $errorMsg = str_contains($output, 'ERROR:') 
-                ? trim(str_replace('ERROR:', '', $output))
-                : ($errorOutput ?: 'Échec de la création sans message d\'erreur');
-            
-            throw new \Exception($errorMsg);
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
         }
 
+        // ✅ Log de création réussie
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
             targetUserName: $name,
             success: true,
-            additionalDetails: ['email' => $email, 'ou' => $ouPath]
+            additionalDetails: [
+                'email' => $email,
+                'ou_path' => $ouPath,
+                'method' => 'PowerShell AD'
+            ]
         );
 
         return response()->json([
             'success' => true,
-            'message' => "Utilisateur $sam créé avec succès dans Active Directory.",
+            'message' => 'Utilisateur AD créé avec succès',
         ]);
-
     } catch (\Throwable $e) {
         \Log::error('createAdUser error: ' . $e->getMessage());
 
+        // ❌ Log de l'échec
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -464,7 +443,7 @@ public function createAdUser(Request $request)
 
         return response()->json([
             'success' => false,
-            'message' => 'Erreur lors de la création : ' . $e->getMessage(),
+            'message' => 'Erreur lors de la création de l’utilisateur : ' . $e->getMessage(),
         ], 500);
     }
 }
