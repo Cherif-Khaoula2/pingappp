@@ -497,10 +497,10 @@ protected function sendAdUserCreationNotification($creator, $newUser)
         return;
     }
 
-    // ⚙️ Configurer le transport SMTP
-    $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&auto_tls=false');
-    $mailer = new SymfonyMailer($transport);
-
+ 
+  // ⚙️ Configurer le transport SMTP
+        $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&auto_tls=false');
+        $mailer = new SymfonyMailer($transport);
     foreach ($usersToNotify as $user) {
         $firstName = $user->first_name ?? '';
         $lastName = $user->last_name ?? '';
