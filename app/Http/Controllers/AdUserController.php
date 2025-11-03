@@ -394,7 +394,8 @@ public function createAdUser(Request $request)
     $email = $request->input('email');
     $logmail = $request->input('logmail');
     $userPassword = $request->input('password');
-    $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
+    $ouPath = $request->input('ou_path');
+    $accountType = $request->input('accountType'); 
 $userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
 $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
