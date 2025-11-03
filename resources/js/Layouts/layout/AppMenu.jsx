@@ -36,12 +36,12 @@ const AppMenu = () => {
                      {
                         label: 'Dashboard',
                         icon: 'pi pi-fw pi-home',
-                        to:('roles'),
+                        to:('dashboard'),
                     },
                      {
                         label: 'LOG',
                         icon: 'pi pi-fw pi-shield',
-                        to:('roles'),
+                        to:('/ad/activity-logs'),
                     }
                 ]
             },
