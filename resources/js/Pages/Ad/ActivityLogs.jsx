@@ -210,7 +210,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
                 </div>
                 <Button
                     icon="pi pi-download"
-                    label="Exporter CSV"
+                    label="Exporter Pdf"
                     severity="success"
                     onClick={exportLogs}
                     style={{
@@ -220,53 +220,6 @@ export default function ActivityLogs({ logs, stats, filters }) {
                 />
             </div>
 
-            {/* Statistiques */}
-            <div className="grid">
-                <div className="col-12 md:col-3">
-                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                        <div className="flex align-items-center justify-content-between">
-                            <div>
-                                <div className="text-white text-sm mb-1 opacity-80">Total aujourd'hui</div>
-                                <div className="text-white text-3xl font-bold">{stats?.total_today || 0}</div>
-                            </div>
-                            <i className="pi pi-chart-line text-white text-3xl opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-                <div className="col-12 md:col-3">
-                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
-                        <div className="flex align-items-center justify-content-between">
-                            <div>
-                                <div className="text-white text-sm mb-1 opacity-80">Connexions réussies</div>
-                                <div className="text-white text-3xl font-bold">{stats?.logins_today || 0}</div>
-                            </div>
-                            <i className="pi pi-check-circle text-white text-3xl opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-                <div className="col-12 md:col-3">
-                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}>
-                        <div className="flex align-items-center justify-content-between">
-                            <div>
-                                <div className="text-white text-sm mb-1 opacity-80">Échecs</div>
-                                <div className="text-white text-3xl font-bold">{stats?.failed_today || 0}</div>
-                            </div>
-                            <i className="pi pi-times-circle text-white text-3xl opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-                <div className="col-12 md:col-3">
-                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }}>
-                        <div className="flex align-items-center justify-content-between">
-                            <div>
-                                <div className="text-white text-sm mb-1 opacity-80">Blocages</div>
-                                <div className="text-white text-3xl font-bold">{stats?.blocks_today || 0}</div>
-                            </div>
-                            <i className="pi pi-lock text-white text-3xl opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Filtres */}
             <Card className="shadow-1">

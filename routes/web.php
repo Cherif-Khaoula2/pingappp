@@ -29,7 +29,7 @@ use App\Http\Controllers\AdActivityLogController;
 */
 
 Route::get('/', function () {
-    return redirect()->route('login');
+    return redirect()->route('ldap.login');
 });
 
 Route::get('/dashboard', function () {

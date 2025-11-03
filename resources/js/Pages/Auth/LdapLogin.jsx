@@ -91,12 +91,7 @@ export default function LdapLoginPage({ status }) {
                         </div>
 
                         <div className="flex align-items-center justify-content-end mb-5">
-                            <Link
-                                href={route('login')}
-                                className="font-medium no-underline text-primary text-sm hover:underline"
-                            >
-                                Se connecter via compte local
-                            </Link>
+                          
                         </div>
 
                         <PrimaryButton
