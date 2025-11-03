@@ -7,7 +7,7 @@ use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Inertia\Inertia;
 use App\Traits\LogsAdActivity;
-
+use App\Models\User;
 class AdUserController extends Controller
 {
     use LogsAdActivity;
