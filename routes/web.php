@@ -226,11 +226,5 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/ad/activity-logs-export', [AdActivityLogController::class, 'export'])
         ->name('ad.logs.export');
-      Route::get('/ad/users-activity', [AdActivityLogController::class, 'index'])
-    ->name('ad.users-activity');
-
-
-
-// Détails d'un utilisateur spécifique
-   Route::get('/ad/users-activity/{username}', [AdActivityLogController::class, 'userActivityDetail']);
+     
 });

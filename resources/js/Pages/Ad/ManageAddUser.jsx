@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { InputText } from "primereact/inputtext";
-import { Button } from "primereact/button";
 import { Card } from "primereact/card";
-import { Message } from "primereact/message";
+import { InputText } from "primereact/inputtext";
+import { Password } from "primereact/password";
 import { Dropdown } from "primereact/dropdown";
+import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
-import { FloatLabel } from "primereact/floatlabel";
+import { Dialog } from "primereact/dialog";
+import { Message } from "primereact/message";
 import Layout from "@/Layouts/layout/layout.jsx";
 
-export default function ManageAddUser() {
+const ManageAddUser = () => {
   const [form, setForm] = useState({
     name: "",
     sam: "",
@@ -20,19 +21,28 @@ export default function ManageAddUser() {
 
   const [accountType, setAccountType] = useState("AD");
   const [loading, setLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+
+  const accountOptions = [
+    { label: "Compte Active Directory (AD)", value: "AD" },
+    { label: "Compte AD + Exchange", value: "AD+Exchange" },
+  ];
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    setShowConfirmDialog(true);
+  };
+
+  const confirmCreate = async () => {
     setLoading(true);
     setMessage(null);
     setError(null);
-
     try {
       const payload = { ...form, accountType };
       const res = await axios.post("/ad/create-user", payload);
@@ -48,195 +58,267 @@ export default function ManageAddUser() {
       setError(err.response?.data?.message || "Erreur lors de la création de l'utilisateur.");
     } finally {
       setLoading(false);
+      setShowConfirmDialog(false);
     }
   };
 
-  const accountOptions = [
-    { label: "Compte Active Directory (AD)", value: "AD" },
-    { label: "Compte AD + Exchange", value: "AD+Exchange" },
-  ];
+  const dialogFooter = (
+    <div className="flex justify-content-end gap-2">
+      <Button
+        label="Annuler"
+        icon="pi pi-times"
+        outlined
+        onClick={() => setShowConfirmDialog(false)}
+        disabled={loading}
+      />
+      <Button
+        label={loading ? "Création..." : "Créer"}
+        icon={loading ? "pi pi-spin pi-spinner" : "pi pi-check"}
+        severity="success"
+        onClick={confirmCreate}
+        loading={loading}
+      />
+    </div>
+  );
 
   return (
     <Layout>
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-4 sm:p-6 lg:p-8">
-        <Card
-          title={
-            <div className="text-center pt-4">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl mb-4 shadow-xl transform hover:scale-105 transition-transform duration-300">
-                <i className="pi pi-user-plus text-white text-3xl"></i>
-              </div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-1 tracking-tight">
-                Créer un nouvel utilisateur
-              </h2>
-              <p className="text-gray-500 text-sm font-medium">
-                Active Directory / Exchange
+      <div className="grid">
+        <div className="col-12">
+          {/* Header */}
+          <div className="flex align-items-center gap-3 mb-4">
+            <i className="pi pi-user-plus text-primary text-3xl"></i>
+            <div>
+              <h1 className="text-900 text-3xl font-bold m-0">
+                Créer un utilisateur AD / Exchange
+              </h1>
+              <p className="text-600 mt-1 m-0">
+                Remplissez les informations nécessaires pour créer un compte Active Directory.
               </p>
             </div>
-          }
-          className="w-full max-w-2xl shadow-2xl border-0 rounded-3xl bg-white p-6 sm:p-8 lg:p-10 overflow-hidden backdrop-blur-sm hover:shadow-3xl transition-shadow duration-300"
-        >
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5 sm:gap-6">
-            {/* Type de compte */}
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-gray-700 text-sm uppercase tracking-wide flex items-center gap-2">
-                <i className="pi pi-tag text-indigo-600"></i>
-                Type de compte
-              </label>
-              <Dropdown
-                value={accountType}
-                options={accountOptions}
-                onChange={(e) => setAccountType(e.value)}
-                className="w-full border-2 border-gray-200 hover:border-indigo-400 focus:border-indigo-600 rounded-lg px-3 py-2 transition-all duration-300"
-              />
-            </div>
+          </div>
 
-            <Divider className="my-3">
-              <span className="px-4 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full">
-                INFORMATIONS UTILISATEUR
-              </span>
-            </Divider>
+          {/* Card */}
+          <Card className="shadow-3">
+            <form onSubmit={handleSubmit}>
+              <div className="grid">
 
-            {/* Champs du formulaire */}
-            <div className="flex flex-col gap-4">
-              <FloatLabel>
-                <InputText
-                  id="name"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  className="w-full border-2 border-gray-200 hover:border-indigo-400 focus:border-indigo-600 rounded-lg px-4 py-3 transition-all duration-300 shadow-sm focus:shadow-md"
-                  required
-                />
-                <label htmlFor="name" className="text-gray-600 font-medium flex items-center gap-2">
-                  <i className="pi pi-user mr-1 text-indigo-600"></i>
-                  Nom complet
-                </label>
-              </FloatLabel>
+                {/* Type de compte */}
+                <div className="col-12">
+                  <div className="field">
+                    <label className="block text-900 font-medium mb-2">
+                      Type de compte <span className="text-red-500">*</span>
+                    </label>
+                    <Dropdown
+                      value={accountType}
+                      options={accountOptions}
+                      onChange={(e) => setAccountType(e.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
 
-              <FloatLabel>
-                <InputText
-                  id="sam"
-                  name="sam"
-                  value={form.sam}
-                  onChange={handleChange}
-                  className="w-full border-2 border-gray-200 hover:border-indigo-400 focus:border-indigo-600 rounded-lg px-4 py-3 transition-all duration-300 shadow-sm focus:shadow-md"
-                  required
-                />
-                <label htmlFor="sam" className="text-gray-600 font-medium flex items-center gap-2">
-                  <i className="pi pi-id-card mr-1 text-indigo-600"></i>
-                  Nom d'utilisateur (SamAccountName)
-                </label>
-              </FloatLabel>
+                {/* Section infos utilisateur */}
+                <div className="col-12 mt-3">
+                  <div className="flex align-items-center gap-2 mb-3">
+                    <i className="pi pi-id-card text-primary text-2xl"></i>
+                    <h2 className="text-900 text-xl font-semibold m-0">Informations utilisateur</h2>
+                  </div>
+                  <Divider />
+                </div>
 
-              {accountType === "AD+Exchange" && (
-                <FloatLabel>
-                  <InputText
-                    id="email"
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    className="w-full border-2 border-gray-200 hover:border-indigo-400 focus:border-indigo-600 rounded-lg px-4 py-3 transition-all duration-300 shadow-sm focus:shadow-md"
-                    required
-                  />
-                  <label htmlFor="email" className="text-gray-600 font-medium flex items-center gap-2">
-                    <i className="pi pi-envelope mr-1 text-indigo-600"></i>
-                    Email
-                  </label>
-                </FloatLabel>
-              )}
+                <div className="col-12 md:col-6">
+                  <div className="field">
+                    <label htmlFor="name" className="block text-900 font-medium mb-2">
+                      Nom complet <span className="text-red-500">*</span>
+                    </label>
+                    <InputText
+                      id="name"
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
 
-              <FloatLabel>
-                <InputText
-                  id="password"
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  className="w-full border-2 border-gray-200 hover:border-indigo-400 focus:border-indigo-600 rounded-lg px-4 py-3 transition-all duration-300 shadow-sm focus:shadow-md"
-                  required
-                />
-                <label htmlFor="password" className="text-gray-600 font-medium flex items-center gap-2">
-                  <i className="pi pi-lock mr-1 text-indigo-600"></i>
-                  Mot de passe
-                </label>
-              </FloatLabel>
+                <div className="col-12 md:col-6">
+                  <div className="field">
+                    <label htmlFor="sam" className="block text-900 font-medium mb-2">
+                      Nom d'utilisateur (SamAccountName) <span className="text-red-500">*</span>
+                    </label>
+                    <InputText
+                      id="sam"
+                      name="sam"
+                      value={form.sam}
+                      onChange={handleChange}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
 
-              <FloatLabel>
-                <InputText
-                  id="ou_path"
-                  name="ou_path"
-                  value={form.ou_path}
-                  onChange={handleChange}
-                  className="w-full border-2 border-gray-200 hover:border-indigo-400 focus:border-indigo-600 rounded-lg px-4 py-3 transition-all duration-300 shadow-sm focus:shadow-md"
-                  required
-                />
-                <label htmlFor="ou_path" className="text-gray-600 font-medium flex items-center gap-2">
-                  <i className="pi pi-sitemap mr-1 text-indigo-600"></i>
-                  Chemin OU
-                </label>
-              </FloatLabel>
-            </div>
+                {accountType === "AD+Exchange" && (
+                  <div className="col-12">
+                    <div className="field">
+                      <label htmlFor="email" className="block text-900 font-medium mb-2">
+                        Adresse email <span className="text-red-500">*</span>
+                      </label>
+                      <InputText
+                        id="email"
+                        type="email"
+                        name="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
 
-            {/* Bouton */}
-            <Button
-              type="submit"
-              label={loading ? "Création en cours..." : "Créer l'utilisateur"}
-              icon={loading ? "pi pi-spin pi-spinner" : "pi pi-check"}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 border-none text-white py-4 text-base font-semibold rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-[1.03] active:scale-[0.97] transition-all duration-300 mt-4"
-              disabled={loading}
-            />
+                {/* Section Sécurité */}
+                <div className="col-12 mt-3">
+                  <div className="flex align-items-center gap-2 mb-3">
+                    <i className="pi pi-lock text-primary text-2xl"></i>
+                    <h2 className="text-900 text-xl font-semibold m-0">Sécurité</h2>
+                  </div>
+                  <Divider />
+                </div>
 
-            {/* Messages */}
-            {message && (
-              <Message
-                severity="success"
-                text={message}
-                className="w-full rounded-lg border-l-4 border-green-500 bg-green-50 px-3 py-2 mt-3 shadow-sm"
-              />
-            )}
-            {error && (
-              <Message
-                severity="error"
-                text={error}
-                className="w-full rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2 mt-3 shadow-sm"
-              />
-            )}
-          </form>
-        </Card>
+                <div className="col-12 md:col-6">
+                  <div className="field">
+                    <label htmlFor="password" className="block text-900 font-medium mb-2">
+                      Mot de passe <span className="text-red-500">*</span>
+                    </label>
+                    <Password
+                      id="password"
+                      name="password"
+                      value={form.password}
+                      onChange={handleChange}
+                      className="w-full"
+                      inputClassName="w-full"
+                      promptLabel="Choisissez un mot de passe"
+                      weakLabel="Faible"
+                      mediumLabel="Moyen"
+                      strongLabel="Fort"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <div className="field">
+                    <label htmlFor="ou_path" className="block text-900 font-medium mb-2">
+                      Chemin OU <span className="text-red-500">*</span>
+                    </label>
+                    <InputText
+                      id="ou_path"
+                      name="ou_path"
+                      value={form.ou_path}
+                      onChange={handleChange}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="col-12 mt-4">
+                  <Divider />
+                  <div className="flex justify-content-end gap-2">
+                    <Button
+                      type="button"
+                      label="Annuler"
+                      icon="pi pi-times"
+                      outlined
+                      onClick={() =>
+                        setForm({
+                          name: "",
+                          sam: "",
+                          email: "",
+                          password: "",
+                          ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
+                        })
+                      }
+                      disabled={loading}
+                    />
+                    <Button
+                      type="submit"
+                      label="Créer l'utilisateur"
+                      icon="pi pi-user-plus"
+                      loading={loading}
+                      style={{
+                        background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+                        border: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            {message && <Message severity="success" text={message} className="mt-3" />}
+            {error && <Message severity="error" text={error} className="mt-3" />}
+          </Card>
+        </div>
       </div>
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+      {/* Dialog de confirmation */}
+      <Dialog
+        visible={showConfirmDialog}
+        onHide={() => setShowConfirmDialog(false)}
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-check-circle text-green-600 text-2xl"></i>
+            <span>Confirmer la création</span>
+          </div>
         }
+        footer={dialogFooter}
+        style={{ width: "480px" }}
+        modal
+      >
+        <div className="text-center py-3">
+          <div
+            className="inline-flex align-items-center justify-content-center bg-green-100 border-circle mb-4"
+            style={{ width: "80px", height: "80px" }}
+          >
+            <i className="pi pi-user-plus text-5xl text-green-600"></i>
+          </div>
 
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
+          <h3 className="text-900 text-xl font-bold mb-2">
+            Créer un utilisateur Active Directory
+          </h3>
 
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
+          <p className="text-600 mb-3">
+            Êtes-vous sûr de vouloir créer ce compte ?
+          </p>
 
-        .animate-slideIn {
-          animation: slideIn 0.4s ease-out;
-        }
-      `}</style>
+          <div className="surface-100 border-round p-3 text-left">
+            <div className="flex align-items-center gap-2 mb-2">
+              <i className="pi pi-user text-600"></i>
+              <span className="text-900 font-medium">{form.name}</span>
+            </div>
+            <div className="flex align-items-center gap-2 mb-2">
+              <i className="pi pi-id-card text-600"></i>
+              <span className="text-700">{form.sam}</span>
+            </div>
+            {accountType === "AD+Exchange" && (
+              <div className="flex align-items-center gap-2 mb-2">
+                <i className="pi pi-envelope text-600"></i>
+                <span className="text-700">{form.email}</span>
+              </div>
+            )}
+            <div className="flex align-items-center gap-2">
+              <i className="pi pi-sitemap text-600"></i>
+              <span className="text-700">{form.ou_path}</span>
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </Layout>
   );
-}
+};
+
+export default ManageAddUser;

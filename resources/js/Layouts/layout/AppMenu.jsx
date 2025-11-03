@@ -31,12 +31,12 @@ const AppMenu = () => {
                     {
                         label: 'Gestion des rôles',
                         icon: 'pi pi-fw pi-shield',
-                        to: ('roles'),
+                        to: safeRoute('roles.index'),
                     },
                      {
                         label: 'Dashboard',
                         icon: 'pi pi-fw pi-home',
-                        to:('dashboard'),
+                        to: safeRoute('dashboard'),
                     },
                      {
                         label: 'LOG',
@@ -52,7 +52,7 @@ const AppMenu = () => {
                     {
                         label: 'Ajouter un utilisateur',
                         icon: 'pi pi-fw pi-user',
-                        to: ('/users'),
+                        to: ('/ad/add-user'),
                     },
                     {
                         label: 'Bloquer/Debloquer un utilisateur',
