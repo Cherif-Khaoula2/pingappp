@@ -486,9 +486,10 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
 protected function sendAdUserCreationNotification($creator, $newUser)
 {
-
 $usersToNotify = User::permission('superviserusers')->get();
-$usersToNotify->push($request->user());
+
+// Ajouter l'utilisateur qui a fait l'action
+$usersToNotify->push($creator);
 
 foreach ($usersToNotify as $user) {
     if (!$user->email) {
@@ -497,6 +498,7 @@ foreach ($usersToNotify as $user) {
     }
     \Log::info("Destinataire OK : {$user->email}");
 }
+
 
  
   // ⚙️ Configurer le transport SMTP
