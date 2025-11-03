@@ -1,8 +1,11 @@
-import { Head, router, Link } from '@inertiajs/react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 export default function ActivityLogs({ logs, stats, filters }) {
+    // Récupération de auth depuis usePage()
+    const { auth } = usePage().props;
+
     const [localFilters, setLocalFilters] = useState({
         action: filters.action || '',
         target_user: filters.target_user || '',
@@ -67,7 +70,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
     };
 
     return (
-        <AuthenticatedLayout>
+        <AuthenticatedLayout user={auth?.user}>
             <Head title="Logs d'activité AD" />
 
             <div className="py-12">
@@ -87,19 +90,19 @@ export default function ActivityLogs({ logs, stats, filters }) {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                         <div className="bg-white rounded-lg shadow p-6">
                             <div className="text-sm text-gray-600">Total aujourd'hui</div>
-                            <div className="text-3xl font-bold text-gray-900">{stats.total_today}</div>
+                            <div className="text-3xl font-bold text-gray-900">{stats?.total_today || 0}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-6">
                             <div className="text-sm text-gray-600">Connexions réussies</div>
-                            <div className="text-3xl font-bold text-green-600">{stats.logins_today}</div>
+                            <div className="text-3xl font-bold text-green-600">{stats?.logins_today || 0}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-6">
                             <div className="text-sm text-gray-600">Échecs</div>
-                            <div className="text-3xl font-bold text-red-600">{stats.failed_today}</div>
+                            <div className="text-3xl font-bold text-red-600">{stats?.failed_today || 0}</div>
                         </div>
                         <div className="bg-white rounded-lg shadow p-6">
                             <div className="text-sm text-gray-600">Blocages</div>
-                            <div className="text-3xl font-bold text-orange-600">{stats.blocks_today}</div>
+                            <div className="text-3xl font-bold text-orange-600">{stats?.blocks_today || 0}</div>
                         </div>
                     </div>
 
@@ -223,14 +226,14 @@ export default function ActivityLogs({ logs, stats, filters }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {logs.data.length === 0 ? (
+                                {logs?.data?.length === 0 ? (
                                     <tr>
                                         <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                                             Aucun log trouvé
                                         </td>
                                     </tr>
                                 ) : (
-                                    logs.data.map((log) => (
+                                    logs?.data?.map((log) => (
                                         <tr key={log.id} className="hover:bg-gray-50 transition">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 {new Date(log.created_at).toLocaleString('fr-FR')}
@@ -276,7 +279,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
                         </table>
 
                         {/* Pagination */}
-                        {logs.last_page > 1 && (
+                        {logs?.last_page > 1 && (
                             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                                 <div className="flex-1 flex justify-between sm:hidden">
                                     {logs.prev_page_url && (
