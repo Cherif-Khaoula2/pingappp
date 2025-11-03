@@ -84,7 +84,7 @@ const confirmResetPassword = () => {
 
   router.post("/ad/users/reset-password", {
     sam: resetDialog.sam,
-    password: newPassword,
+    new_password: newPassword,   // ✅ clé correcte
   }, {
     onSuccess: () => {
       setResetDialog({ visible: false, sam: null, userName: null });
@@ -96,6 +96,7 @@ const confirmResetPassword = () => {
     }
   });
 };
+
 
   const confirmToggle = () => {
     router.post("/ad/users/toggle", {
