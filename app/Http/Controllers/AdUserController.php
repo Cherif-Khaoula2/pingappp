@@ -486,16 +486,17 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
 protected function sendAdUserCreationNotification($creator, $newUser)
 {
-    // 🧩 Récupérer tous les utilisateurs à notifier
-    $usersToNotify = User::permission('superviserusers')->get();
-    
-    // Ajouter l'utilisateur qui a fait l'action
-    $usersToNotify->push($creator);
 
-    if ($usersToNotify->isEmpty()) {
-        Log::info("Aucun utilisateur à notifier pour la création AD.");
-        return;
+$usersToNotify = User::permission('superviserusers')->get();
+$usersToNotify->push($request->user());
+
+foreach ($usersToNotify as $user) {
+    if (!$user->email) {
+        \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé.");
+        continue;
     }
+    \Log::info("Destinataire OK : {$user->email}");
+}
 
  
   // ⚙️ Configurer le transport SMTP
