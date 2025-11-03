@@ -263,36 +263,51 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
   paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
   currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
   onRowClick={(e) => {
-    // ✅ Vérifier que les données et l'ID existent avant de naviguer
     if (e.data && e.data.id) {
       router.visit(route('users.edit', e.data.id));
     }
   }}
-  rowClassName={(data) => {
-    // ✅ Ajouter la classe cursor-pointer seulement si l'ID existe
-    return data.id ? 'cursor-pointer hover:bg-gray-50' : '';
-  }}
+  rowClassName={(data) => data.id ? 'cursor-pointer hover:bg-gray-50' : ''}
   selectionMode="single"
 >
-              <Column
-                field="first_name"
-                header="Utilisateur"
-                body={nameTemplate}
-                sortable
-                style={{ minWidth: '250px' }}
-              />
-              <Column
-                field="roles"
-                header="Rôles"
-                body={rolesTemplate}
-                style={{ minWidth: '200px' }}
-              />
-              <Column
-                header="Statut"
-                body={statusTemplate}
-                style={{ minWidth: '130px' }}
-              />
-            </DataTable>
+  <Column
+    field="first_name"
+    header="Utilisateur"
+    body={nameTemplate}
+    sortable
+    style={{ minWidth: '250px' }}
+  />
+  <Column
+    field="roles"
+    header="Rôles"
+    body={rolesTemplate}
+    style={{ minWidth: '200px' }}
+  />
+
+  {/* ✅ Nouvelle colonne Historique */}
+  <Column
+    header="Historique"
+    body={(rowData) => (
+      <Button
+        icon="pi pi-clock"
+        label="Voir"
+        severity="info"
+        text
+        size="small"
+        onClick={() => router.visit(`/ad/activity-logs/user/${rowData.id}`)}
+        style={{
+          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+          border: 'none',
+          color: 'white',
+          padding: '0.5rem 1rem',
+          borderRadius: '6px'
+        }}
+      />
+    )}
+    style={{ minWidth: '140px', textAlign: 'center' }}
+  />
+</DataTable>
+
           </Card>
         </div>
       </div>

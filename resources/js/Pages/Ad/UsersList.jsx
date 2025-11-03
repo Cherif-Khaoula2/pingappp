@@ -357,27 +357,6 @@ const confirmResetPassword = () => {
                 body={statusTemplate}
                 style={{ minWidth: '220px' }}
               />
-              <Column
-    header="Historique"
-    body={(rowData) => (
-      <Button
-        icon="pi pi-clock"
-        label="Voir"
-        severity="info"
-        text
-        size="small"
-        onClick={() => router.get(`/ad/activity-logs/user/${rowData.id}`)}
-        style={{
-          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          border: 'none',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '6px'
-        }}
-      />
-    )}
-    style={{ minWidth: '140px', textAlign: 'center' }}
-  />
             </DataTable>
           </Card>
         </div>
