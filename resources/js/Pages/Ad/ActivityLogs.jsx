@@ -208,16 +208,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
                         </p>
                     </div>
                 </div>
-                <Button
-                    icon="pi pi-download"
-                    label="Exporter Pdf"
-                    severity="success"
-                    onClick={exportLogs}
-                    style={{
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        border: 'none'
-                    }}
-                />
+            
             </div>
 
 

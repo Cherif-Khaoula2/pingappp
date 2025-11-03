@@ -180,121 +180,52 @@ const UsersEdit = () => {
                   <Divider />
                 </div>
 
-                <div className="col-12 md:col-6">
-                  <div className="field">
-                    <label htmlFor="first_name" className="block text-900 font-medium mb-2">
-                      Prénom <span className="text-red-500">*</span>
-                    </label>
-                    <InputText
-                      id="first_name"
-                      value={data.first_name}
-                      onChange={(e) => setData('first_name', e.target.value)}
-                      className={`w-full ${errors.first_name ? 'p-invalid' : ''}`}
-                      disabled={!canupdate}
-                    />
-                    {errors.first_name && (
-                      <small className="p-error block mt-1">{errors.first_name}</small>
-                    )}
-                  </div>
-                </div>
+              <div className="col-12 md:col-6">
+  <div className="field">
+    <label htmlFor="first_name" className="block text-900 font-medium mb-2">
+      Prénom
+    </label>
+    <InputText
+      id="first_name"
+      value={data.first_name} 
+      readOnly                 
+      className="w-full"
+    />
+  </div>
+</div>
 
-                <div className="col-12 md:col-6">
-                  <div className="field">
-                    <label htmlFor="last_name" className="block text-900 font-medium mb-2">
-                      Nom <span className="text-red-500">*</span>
-                    </label>
-                    <InputText
-                      id="last_name"
-                      value={data.last_name}
-                      onChange={(e) => setData('last_name', e.target.value)}
-                      className={`w-full ${errors.last_name ? 'p-invalid' : ''}`}
-                      disabled={!canupdate}
-                    />
-                    {errors.last_name && (
-                      <small className="p-error block mt-1">{errors.last_name}</small>
-                    )}
-                  </div>
-                </div>
+<div className="col-12 md:col-6">
+  <div className="field">
+    <label htmlFor="last_name" className="block text-900 font-medium mb-2">
+      Nom
+    </label>
+    <InputText
+      id="last_name"
+      value={data.last_name}   
+      readOnly                
+      className="w-full"
+    />
+  </div>
+</div>
 
-                <div className="col-12">
-                  <div className="field">
-                    <label htmlFor="email" className="block text-900 font-medium mb-2">
-                      Adresse email <span className="text-red-500">*</span>
-                    </label>
-                    <InputText
-                      id="email"
-                      type="email"
-                      value={data.email}
-                      onChange={(e) => setData('email', e.target.value)}
-                      className={`w-full ${errors.email ? 'p-invalid' : ''}`}
-                      disabled={!canupdate}
-                    />
-                    {errors.email && (
-                      <small className="p-error block mt-1">{errors.email}</small>
-                    )}
-                  </div>
-                </div>
+<div className="col-12">
+  <div className="field">
+    <label htmlFor="email" className="block text-900 font-medium mb-2">
+      Adresse email
+    </label>
+    <InputText
+      id="email"
+      type="email"
+      value={data.email}      
+      readOnly                
+      className="w-full"
+    />
+  </div>
+</div>
 
-                {/* Section Sécurité */}
-                {canupdate && (
-                  <>
-                    <div className="col-12 mt-4">
-                      <div className="flex align-items-center gap-2 mb-4">
-                        <i className="pi pi-lock text-primary text-2xl"></i>
-                        <h2 className="text-900 text-xl font-semibold m-0">
-                          Modifier le mot de passe
-                        </h2>
-                      </div>
-                      <Divider />
-                      <Message 
-                        severity="info" 
-                        text="Laissez vide si vous ne souhaitez pas changer le mot de passe" 
-                        className="w-full mb-3"
-                      />
-                    </div>
+               
 
-                    <div className="col-12 md:col-6">
-                      <div className="field">
-                        <label htmlFor="password" className="block text-900 font-medium mb-2">
-                          Nouveau mot de passe
-                        </label>
-                        <Password
-                          id="password"
-                          value={data.password}
-                          onChange={(e) => setData('password', e.target.value)}
-                          className={`w-full ${errors.password ? 'p-invalid' : ''}`}
-                          inputClassName="w-full"
-                          promptLabel="Choisissez un mot de passe"
-                          weakLabel="Faible"
-                          mediumLabel="Moyen"
-                          strongLabel="Fort"
-                        />
-                        {errors.password && (
-                          <small className="p-error block mt-1">{errors.password}</small>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="col-12 md:col-6">
-                      <div className="field">
-                        <label htmlFor="password_confirmation" className="block text-900 font-medium mb-2">
-                          Confirmer le mot de passe
-                        </label>
-                        <Password
-                          id="password_confirmation"
-                          value={data.password_confirmation}
-                          onChange={(e) => setData('password_confirmation', e.target.value)}
-                          className={`w-full ${errors.password_confirmation ? 'p-invalid' : ''}`}
-                          inputClassName="w-full"
-                          feedback={false}
-                        />
-                        {errors.password_confirmation && (
-                          <small className="p-error block mt-1">{errors.password_confirmation}</small>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
+                
 
                 {/* Section Rôles */}
                 {canviewrole && (
