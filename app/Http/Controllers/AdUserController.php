@@ -227,6 +227,62 @@ public function toggleUserStatus(Request $request)
         ], 500);
     }
 }
+public function resetPassword(Request $request)
+{
+    $request->validate([
+        'sam' => 'required|string',
+        'new_password' => 'required|string|min:8',
+    ]);
+
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    if (!$host || !$user) {
+        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+    }
+
+    $sam = $request->input('sam');
+    $newPassword = $request->input('new_password');
+
+    // 🪟 Commande PowerShell pour réinitialiser le mot de passe
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "Set-ADAccountPassword -Identity '$sam' -Reset -NewPassword (ConvertTo-SecureString '$newPassword' -AsPlainText -Force); "
+        . "Unlock-ADAccount -Identity '$sam'; "
+        . "Write-Output 'Password reset successfully'\"";
+
+    // 🔐 SSH avec clé ou mot de passe
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+
+    try {
+        $process = new Process($command);
+        $process->setTimeout(60);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        $output = trim($process->getOutput());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mot de passe réinitialisé avec succès',
+            'output' => $output,
+        ]);
+    } catch (\Throwable $e) {
+        \Log::error('resetPassword error: ' . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la réinitialisation du mot de passe : ' . $e->getMessage(),
+        ], 500);
+    }
+}
 
 
 }

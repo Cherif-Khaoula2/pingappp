@@ -182,5 +182,6 @@ Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('a
 Route::middleware('auth')->group(function () {
 Route::get('/ad/users', [AdUserController::class, 'adUsers'])->name('ad.users');
 Route::post('/ad/users/toggle', [AdUserController::class, 'toggleUserStatus'])->name('ad.users.toggle');
+Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword']);
 
 });

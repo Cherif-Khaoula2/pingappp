@@ -18,6 +18,12 @@ export default function UsersList() {
     action: null,
     userName: null,
   });
+const [resetDialog, setResetDialog] = useState({
+  visible: false,
+  sam: null,
+  userName: null,
+});
+const [newPassword, setNewPassword] = useState("");
 
   const formatAdDate = (value) => {
     if (!value) return "—";
@@ -61,6 +67,35 @@ export default function UsersList() {
       userName: user.name 
     });
   };
+const handleResetPasswordClick = (user) => {
+  setResetDialog({
+    visible: true,
+    sam: user.sam,
+    userName: user.name,
+  });
+  setNewPassword("");
+};
+
+const confirmResetPassword = () => {
+  if (!newPassword.trim()) {
+    alert("Veuillez saisir un mot de passe.");
+    return;
+  }
+
+  router.post("/ad/users/reset-password", {
+    sam: resetDialog.sam,
+    password: newPassword,
+  }, {
+    onSuccess: () => {
+      setResetDialog({ visible: false, sam: null, userName: null });
+      setNewPassword("");
+      alert("Mot de passe réinitialisé avec succès !");
+    },
+    onError: () => {
+      alert("Erreur lors de la réinitialisation du mot de passe.");
+    }
+  });
+};
 
   const confirmToggle = () => {
     router.post("/ad/users/toggle", {
@@ -161,7 +196,16 @@ export default function UsersList() {
               onClick={() => handleToggleClick(rowData, "unblock")}
             />
           </>
+          
         )}
+        <Button
+        icon="pi pi-refresh"
+        label="Réinitialiser"
+        text
+        size="small"
+        severity="info"
+        onClick={() => handleResetPasswordClick(rowData)}
+      />
       </div>
     );
   };
@@ -391,6 +435,80 @@ export default function UsersList() {
           />
         </div>
       </Dialog>
+      {/* Dialog de réinitialisation du mot de passe */}
+<Dialog
+  visible={resetDialog.visible}
+  onHide={() => setResetDialog({ visible: false, sam: null, userName: null })}
+  header={
+    <div className="flex align-items-center gap-3">
+      <div 
+        className="inline-flex align-items-center justify-content-center border-circle bg-blue-50"
+        style={{ width: '48px', height: '48px' }}
+      >
+        <i className="pi pi-refresh text-2xl text-blue-600"></i>
+      </div>
+      <span className="text-xl font-bold">
+        Réinitialiser le mot de passe
+      </span>
+    </div>
+  }
+  style={{ width: '450px' }}
+  draggable={false}
+  modal
+>
+  <div className="py-3">
+    <p className="text-700 text-lg mb-3">
+      Saisissez un nouveau mot de passe pour l’utilisateur :
+    </p>
+
+    <div className="p-3 bg-gray-50 border-round mb-3">
+      <div className="flex align-items-center gap-2 mb-2">
+        <i className="pi pi-user text-600"></i>
+        <span className="font-semibold text-900">{resetDialog.userName}</span>
+      </div>
+      <div className="flex align-items-center gap-2">
+        <i className="pi pi-id-card text-600"></i>
+        <span className="text-600 text-sm">{resetDialog.sam}</span>
+      </div>
+    </div>
+
+    <div className="p-inputgroup">
+      <span className="p-inputgroup-addon bg-blue-50 border-blue-200">
+        <i className="pi pi-key text-blue-600"></i>
+      </span>
+      <InputText
+        type="password"
+        placeholder="Nouveau mot de passe"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        style={{ height: '48px' }}
+      />
+    </div>
+  </div>
+
+  <div className="flex justify-content-end gap-2 mt-4">
+    <Button
+      label="Annuler"
+      icon="pi pi-times"
+      outlined
+      onClick={() => setResetDialog({ visible: false, sam: null, userName: null })}
+      style={{
+        borderColor: '#6b7280',
+        color: '#374151'
+      }}
+    />
+    <Button
+      label="Confirmer"
+      icon="pi pi-check"
+      onClick={confirmResetPassword}
+      style={{
+        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+        border: 'none'
+      }}
+    />
+  </div>
+</Dialog>
+
 
       <style>{`
         /* Card styling */
