@@ -372,7 +372,15 @@ public function createAdUser(Request $request)
         'name' => 'required|string|max:100',
         'sam' => 'required|string|max:50',
         'email' => 'required|email|max:150',
-        'password' => 'required|string|min:8',
+        'password' => [
+            'required',
+            'string',
+            'min:12',
+            'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/'
+        ],
+    ], [
+        'password.regex' => 'Le mot de passe doit contenir : 1 majuscule, 1 minuscule, 1 chiffre et 1 caractère spécial (@$!%*?&#)',
+        'password.min' => 'Le mot de passe doit contenir au moins 12 caractères',
     ]);
 
     $host = env('SSH_HOST');
@@ -390,34 +398,64 @@ public function createAdUser(Request $request)
     $plainPassword = $request->input('password');
     $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
 
-    // 🔹 Script PowerShell avec échappement correct
-    $psScript = "try { " .
-        "Import-Module ActiveDirectory; " .
-        "\$user = New-ADUser -Name '$name' " .
-        "-SamAccountName '$sam' " .
-        "-UserPrincipalName '$email' " .
-        "-EmailAddress '$email' " .
-        "-Path '$ouPath' " .
-        "-AccountPassword (ConvertTo-SecureString '$plainPassword' -AsPlainText -Force) " .
-        "-Enabled \$true " .
-        "-PassThru; " .
-        "if (\$user) { Write-Output 'SUCCESS: User $sam created' } else { throw 'User creation failed' } " .
-        "} catch { " .
-        "Write-Output ('ERROR: ' + \$_.Exception.Message); " .
-        "exit 1 " .
-        "}";
-
-    // 🔹 Conversion en Base64 UTF-16LE
-    $encodedCommand = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+    // 🔹 Vérifier si l'utilisateur existe déjà
+    $checkScript = "try { " .
+        "\$existingUser = Get-ADUser -Identity '$sam' -ErrorAction SilentlyContinue; " .
+        "if (\$existingUser) { Write-Output 'EXISTS'; exit 0 } else { Write-Output 'NOT_EXISTS'; exit 0 } " .
+        "} catch { Write-Output 'NOT_EXISTS'; exit 0 }";
     
-    // 🔹 Commande SSH
-    $sshCommand = "powershell -NoProfile -NonInteractive -EncodedCommand $encodedCommand";
-
+    $checkEncoded = base64_encode(mb_convert_encoding($checkScript, 'UTF-16LE', 'UTF-8'));
+    $checkCommand = "powershell -NoProfile -NonInteractive -EncodedCommand $checkEncoded";
+    
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $sshCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $sshCommand];
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $checkCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $checkCommand];
 
     try {
+        $process = new Process($command);
+        $process->setTimeout(30);
+        $process->run();
+        
+        if (str_contains(trim($process->getOutput()), 'EXISTS')) {
+            return response()->json([
+                'success' => false,
+                'message' => "L'utilisateur $sam existe déjà dans Active Directory.",
+            ], 422);
+        }
+
+        // 🔹 Créer l'utilisateur DÉSACTIVÉ d'abord
+        $psScript = "try { " .
+            "Import-Module ActiveDirectory; " .
+            "\$securePassword = ConvertTo-SecureString '$plainPassword' -AsPlainText -Force; " .
+            "New-ADUser -Name '$name' " .
+            "-SamAccountName '$sam' " .
+            "-UserPrincipalName '$email' " .
+            "-EmailAddress '$email' " .
+            "-Path '$ouPath' " .
+            "-AccountPassword \$securePassword " .
+            "-Enabled \$false " .
+            "-PasswordNeverExpires \$false " .
+            "-ChangePasswordAtLogon \$false; " .
+            // 🔹 Puis activer immédiatement après
+            "Enable-ADAccount -Identity '$sam'; " .
+            "\$verifyUser = Get-ADUser -Identity '$sam' -Properties Enabled; " .
+            "if (\$verifyUser.Enabled -eq \$true) { " .
+            "Write-Output 'SUCCESS: User $sam created and enabled' " .
+            "} else { " .
+            "Write-Output 'WARNING: User created but not enabled' " .
+            "} " .
+            "} catch { " .
+            "Write-Output ('ERROR: ' + \$_.Exception.Message); " .
+            "exit 1 " .
+            "}";
+
+        $encodedCommand = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+        $sshCommand = "powershell -NoProfile -NonInteractive -EncodedCommand $encodedCommand";
+
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $sshCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $sshCommand];
+
         $process = new Process($command);
         $process->setTimeout(90);
         $process->run();
@@ -427,15 +465,21 @@ public function createAdUser(Request $request)
 
         \Log::info('PowerShell Output: ' . $output);
         \Log::info('PowerShell Error: ' . $errorOutput);
-        \Log::info('Exit Code: ' . $process->getExitCode());
 
-        // 🔹 Vérification du résultat
-        if (str_contains($output, 'ERROR:') || !str_contains($output, 'SUCCESS')) {
-            $errorMsg = str_contains($output, 'ERROR:') 
-                ? trim(str_replace('ERROR:', '', $output))
-                : ($errorOutput ?: 'Échec de la création sans message d\'erreur');
+        // 🔹 Vérification stricte
+        if (str_contains($output, 'ERROR:')) {
+            $errorMsg = trim(str_replace('ERROR:', '', $output));
+            
+            // Message d'erreur spécifique pour politique de mot de passe
+            if (str_contains($errorMsg, 'password does not meet') || str_contains($errorMsg, '1325')) {
+                throw new \Exception('Le mot de passe ne respecte pas la politique du domaine. Veuillez utiliser un mot de passe plus complexe (12+ caractères, majuscules, minuscules, chiffres et caractères spéciaux).');
+            }
             
             throw new \Exception($errorMsg);
+        }
+
+        if (!str_contains($output, 'SUCCESS')) {
+            throw new \Exception('La création de l\'utilisateur a échoué sans message d\'erreur explicite.');
         }
 
         $this->logAdActivity(
@@ -448,7 +492,7 @@ public function createAdUser(Request $request)
 
         return response()->json([
             'success' => true,
-            'message' => "Utilisateur $sam créé avec succès dans Active Directory.",
+            'message' => "Utilisateur $sam créé et activé avec succès dans Active Directory.",
         ]);
 
     } catch (\Throwable $e) {
@@ -468,5 +512,4 @@ public function createAdUser(Request $request)
         ], 500);
     }
 }
-
 }
