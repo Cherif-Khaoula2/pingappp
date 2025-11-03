@@ -36,22 +36,34 @@ export default function ManageUserStatus() {
     return value;
   };
 
-  const handleSearch = () => {
-    if (!search.trim()) return;
 
-    router.get("/ad/users", { search }, {
-      preserveState: true,
-      preserveScroll: true,
-      onSuccess: (page) => {
-        const fetchedUsers = page.props?.users || [];
-        setUsers(fetchedUsers);
-        setError(fetchedUsers.length ? null : "Aucun utilisateur trouvé");
+
+const handleSearch = async () => {
+  if (!search.trim()) {
+    alert("Veuillez saisir un SamAccountName !");
+    return;
+  }
+
+  try {
+    const response = await fetch("/ad/users/find", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
       },
-      onError: () => {
-        setError("Erreur lors de la recherche d'utilisateur");
-      }
+      body: JSON.stringify({ search }),
     });
-  };
+
+    const data = await response.json();
+    if (data.success) {
+      setUsers(data.users);
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    alert("Erreur lors de la recherche de l'utilisateur.");
+  }
+};
 
   const handleToggleClick = (user, action) => {
     setConfirmDialog({
