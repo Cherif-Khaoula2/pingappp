@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AdActivityLog;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-
+use App\Models\User;
 class AdActivityLogController extends Controller
 {
     public function index(Request $request)
@@ -126,4 +126,21 @@ class AdActivityLogController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+public function showUserLogs($id)
+{
+    $user = \App\Models\User::findOrFail($id);
+
+    // 👉 adapte ici le nom de la colonne correcte
+    $logs = \App\Models\AdActivityLog::where('performed_by', $id)
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return Inertia::render('Ad/UserActivityHistory', [
+        'user' => $user,
+        'logs' => $logs
+    ]);
+}
+
+
+
 }

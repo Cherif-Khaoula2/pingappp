@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
@@ -7,104 +7,216 @@ import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Dialog } from "primereact/dialog";
-import { Message } from "primereact/message";
+import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
 
 const ManageAddUser = () => {
+  const toast = React.useRef(null);
+  
   const [form, setForm] = useState({
-  firstName: "",
-  lastName: "",
-  name: "", // champ recomposé pour backend
-  sam: "",
-  email: "",
-  logmail: "",
-  password: "",
-  ou_path: "",
-});
-const directions = [
-  "DJU", "DAS", "DPM", "DAU", "DFC", "DRH", "DQHSE", "DSPE", 
-  "DSI", "DAG", "DCM", "DG", "DLG", "DENG", "DRO", "DRHMD", 
-  "DRHRM", "PROJETS"
-];
-const [direction, setDirection] = useState(""); // choix simple
-const handleDirectionChange = (e) => {
-  const selected = e.value;
-  setDirection(selected);
-  setForm((prev) => ({
-    ...prev,
-    ou_path: `OU=${selected},OU=OuTempUsers,DC=sarpi-dz,DC=sg`
-  }));
-};
+    firstName: "",
+    lastName: "",
+    name: "",
+    sam: "",
+    email: "",
+    logmail: "",
+    password: "",
+    ou_path: "",
+  });
+
+  const directions = [
+    "DJU", "DAS", "DPM", "DAU", "DFC", "DRH", "DQHSE", "DSPE",
+    "DSI", "DAG", "DCM", "DG", "DLG", "DENG", "DRO", "DRHMD",
+    "DRHRM", "PROJETS"
+  ];
+
+  const [direction, setDirection] = useState("");
   const [accountType, setAccountType] = useState("AD");
+  const [passwordMode, setPasswordMode] = useState("auto");
   const [loading, setLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [message, setMessage] = useState(null);
-  const [error, setError] = useState(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [createdUserDetails, setCreatedUserDetails] = useState(null);
 
-  const accountOptions = [
-    { label: "Compte Active Directory (AD)", value: "AD" },
-    { label: "Compte AD + Exchange", value: "AD+Exchange" },
-  ];
-const handleChange = (e) => {
-  const { name, value } = e.target;
-  let newValue = value;
+  // Fonction pour formater le prénom
+  const formatFirstName = (name) => {
+    if (!name) return "";
+    const cleaned = name.trim();
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+  };
 
-  if (name === "sam") {
-    newValue = value.slice(0, 25); // tronque à 25 caractères max
-  }
+  // Fonction pour formater le nom
+  const formatLastName = (name) => {
+    if (!name) return "";
+    return name.trim().toUpperCase();
+  };
 
-  setForm((prev) => ({
-    ...prev,
-    [name]: newValue,
-    logmail:
-      accountType === "AD"
-        ? `${name === "sam" ? newValue : prev.sam}@sarpi-dz.sg`
-        : accountType === "AD+Exchange" && name === "sam"
-        ? `${newValue}@sarpi-dz.com`
-        : prev.logmail,
-    email: accountType === "AD+Exchange" && name === "sam" ? `${newValue}@sarpi-dz.com` : prev.email,
-    password: prev.password || generatePassword(),
-  }));
-};
+  // Générer mot de passe automatique
+  const generatePassword = () => {
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    return `S@rpi${randomDigits}`;
+  };
+
+  // Vérifier si l'utilisateur existe déjà
+  const checkUserExists = async (firstName, lastName) => {
+    try {
+      const response = await axios.post("/ad/check-user-exists", {
+        firstName: formatFirstName(firstName),
+        lastName: formatLastName(lastName)
+      });
+      return response.data.exists;
+    } catch (err) {
+      console.error("Erreur lors de la vérification:", err);
+      return false;
+    }
+  };
+
+  const handleDirectionChange = (e) => {
+    const selected = e.value;
+    setDirection(selected);
+    setForm((prev) => ({
+      ...prev,
+      ou_path: `OU=${selected},OU=OuTempUsers,DC=sarpi-dz,DC=sg`
+    }));
 
 
+  };
 
+  const handleAccountTypeChange = (type) => {
+    setAccountType(type);
+    
+    // Afficher notification du type de compte
+   
+  };
 
-// Fonction pour générer l'email depuis le SamAccountName
-const generateEmailFromSam = (sam) => {
-  if (!sam) return "";
-  return `${sam.toLowerCase()}@sarpi-dz.com`;
-};
+  const handlePasswordModeChange = (mode) => {
+    setPasswordMode(mode);
+    if (mode === "auto") {
+      const newPassword = generatePassword();
+      setForm((prev) => ({
+        ...prev,
+        password: newPassword
+      }));
+     
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        password: ""
+      }));
+    
+    }
+  };
 
-  const handleSubmit = (e) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    let newValue = value;
+
+    if (name === "sam") {
+      newValue = value.slice(0, 25);
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: newValue,
+      logmail:
+        accountType === "AD"
+          ? `${name === "sam" ? newValue : prev.sam}@sarpi-dz.sg`
+          : accountType === "AD+Exchange" && name === "sam"
+          ? `${newValue}@sarpi-dz.com`
+          : prev.logmail,
+      email: accountType === "AD+Exchange" && name === "sam" ? `${newValue}@sarpi-dz.com` : prev.email,
+    }));
+  };
+
+  const handleNameChange = (e) => {
+    const { name, value } = e.target;
+
+    setForm((prev) => {
+      const newForm = { ...prev };
+      
+      if (name === "firstName") {
+        newForm.firstName = formatFirstName(value);
+      } else if (name === "lastName") {
+        newForm.lastName = formatLastName(value);
+      }
+      
+      newForm.name = `${newForm.firstName} ${newForm.lastName}`.trim();
+      return newForm;
+    });
+  };
+
+  // Générer automatiquement le mot de passe si mode auto
+  useEffect(() => {
+    if (passwordMode === "auto" && !form.password) {
+      setForm((prev) => ({
+        ...prev,
+        password: generatePassword()
+      }));
+    }
+  }, [passwordMode]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Vérifier si l'utilisateur existe déjà
+    const exists = await checkUserExists(form.firstName, form.lastName);
+    if (exists) {
+      toast.current.show({
+        severity: 'error',
+        summary: 'Utilisateur existant',
+        detail: `L'utilisateur ${form.firstName} ${form.lastName} existe déjà !`,
+        life: 5000
+      });
+      return;
+    }
+    
     setShowConfirmDialog(true);
   };
 
- const confirmCreate = async () => {
-  setLoading(true);
-  setMessage(null);
-  setError(null);
-  try {
-    const payload = { ...form, accountType };
-    const res = await axios.post("/ad/create-user", payload);
-    setMessage(res.data.message || "Utilisateur créé avec succès !");
-    setForm({
-      name: "",
-      sam: "",
-      email: "",
-      logmail: "",
-      password: "",
-      ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
-    });
-  } catch (err) {
-    setError(err.response?.data?.message || "Erreur lors de la création de l'utilisateur.");
-  } finally {
-    setLoading(false);
-    setShowConfirmDialog(false);
-  }
-};
-
+  const confirmCreate = async () => {
+    setLoading(true);
+    try {
+      const payload = { ...form, accountType };
+      const res = await axios.post("/ad/create-user", payload);
+      
+      // Stocker les détails pour la popup de succès
+      setCreatedUserDetails({
+        name: form.name,
+        sam: form.sam,
+        email: form.email,
+        password: form.password,
+        direction: direction,
+        accountType: accountType
+      });
+      
+      setShowConfirmDialog(false);
+      setShowSuccessDialog(true);
+      
+      // Réinitialiser le formulaire
+      setForm({
+        firstName: "",
+        lastName: "",
+        name: "",
+        sam: "",
+        email: "",
+        logmail: "",
+        password: "",
+        ou_path: "",
+      });
+      setDirection("");
+      setPasswordMode("auto");
+    } catch (err) {
+      toast.current.show({
+        severity: 'error',
+        summary: 'Erreur de création',
+        detail: err.response?.data?.message || "Erreur lors de la création de l'utilisateur.",
+        life: 5000
+      });
+      setShowConfirmDialog(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const dialogFooter = (
     <div className="flex justify-content-end gap-2">
@@ -125,40 +237,25 @@ const generateEmailFromSam = (sam) => {
     </div>
   );
 
-
-// Générer SamAccountName : par exemple prénom.nom en minuscule sans accents
-const generateSamAccountName = (name) => {
-  if (!name) return "";
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, ".") // remplace les espaces et caractères spéciaux par des points
-    .replace(/\.+/g, "."); // éviter plusieurs points consécutifs
-};
-
-// Générer email : par exemple prenom.nom@sarpi-dz.com
-const generateEmail = (name) => {
-  if (!name) return "";
-  return `${generateSamAccountName(name)}@sarpi-dz.com`;
-};
-// Générer mot de passe automatique : S@rpi + 4 chiffres aléatoires
-const generatePassword = () => {
-  const randomDigits = Math.floor(1000 + Math.random() * 9000); // 4 chiffres
-  return `S@rpi${randomDigits}`;
-};
-
-const handleNameChange = (e) => {
-  const { name, value } = e.target;
-
-  setForm((prev) => {
-    const newForm = { ...prev, [name]: value };
-    // On recombine le prénom et le nom pour le backend
-    newForm.name = `${newForm.firstName} ${newForm.lastName}`.trim();
-    return newForm;
-  });
-};
+  const successDialogFooter = (
+    <div className="flex justify-content-center">
+      <Button
+        label="OK"
+        icon="pi pi-check"
+        onClick={() => setShowSuccessDialog(false)}
+        style={{
+          background: "linear-gradient(135deg, #10b981, #059669)",
+          border: "none",
+          minWidth: "120px"
+        }}
+      />
+    </div>
+  );
 
   return (
     <Layout>
+      <Toast ref={toast} position="top-center" />
+      
       <div className="grid">
         <div className="col-12">
           {/* Header */}
@@ -179,18 +276,85 @@ const handleNameChange = (e) => {
             <form onSubmit={handleSubmit}>
               <div className="grid">
 
-                {/* Type de compte */}
+                {/* Type de compte - Radio Buttons stylisés */}
                 <div className="col-12">
                   <div className="field">
-                    <label className="block text-900 font-medium mb-2">
+                    <label className="block text-900 font-medium mb-3">
                       Type de compte <span className="text-red-500">*</span>
                     </label>
-                    <Dropdown
-                      value={accountType}
-                      options={accountOptions}
-                      onChange={(e) => setAccountType(e.value)}
-                      className="w-full"
-                    />
+                    <div className="grid">
+                      <div className="col-12 md:col-6">
+                        <div
+                          onClick={() => handleAccountTypeChange("AD")}
+                          className={`p-4 border-2 border-round cursor-pointer transition-all ${
+                            accountType === "AD"
+                              ? "border-primary bg-primary-50 shadow-3"
+                              : "border-300 hover:border-400 hover:bg-gray-50"
+                          }`}
+                          style={{ transition: "all 0.3s ease" }}
+                        >
+                          <div className="flex align-items-center gap-3">
+                            <div
+                              className={`border-circle flex align-items-center justify-content-center ${
+                                accountType === "AD" ? "bg-primary" : "bg-gray-300"
+                              }`}
+                              style={{ width: "24px", height: "24px", transition: "all 0.3s" }}
+                            >
+                              {accountType === "AD" && (
+                                <i className="pi pi-check text-white" style={{ fontSize: "0.75rem" }}></i>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex align-items-center gap-2 mb-1">
+                                <i className="pi pi-server text-xl" style={{ color: accountType === "AD" ? "var(--primary-color)" : "#6c757d" }}></i>
+                                <span className={`font-bold ${accountType === "AD" ? "text-primary" : "text-700"}`}>
+                                  Active Directory (AD)
+                                </span>
+                              </div>
+                              <p className="text-600 text-sm m-0">
+                                Compte utilisateur standard pour l'authentification réseau
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-12 md:col-6">
+                        <div
+                          onClick={() => handleAccountTypeChange("AD+Exchange")}
+                          className={`p-4 border-2 border-round cursor-pointer transition-all ${
+                            accountType === "AD+Exchange"
+                              ? "border-primary bg-primary-50 shadow-3"
+                              : "border-300 hover:border-400 hover:bg-gray-50"
+                          }`}
+                          style={{ transition: "all 0.3s ease" }}
+                        >
+                          <div className="flex align-items-center gap-3">
+                            <div
+                              className={`border-circle flex align-items-center justify-content-center ${
+                                accountType === "AD+Exchange" ? "bg-primary" : "bg-gray-300"
+                              }`}
+                              style={{ width: "24px", height: "24px", transition: "all 0.3s" }}
+                            >
+                              {accountType === "AD+Exchange" && (
+                                <i className="pi pi-check text-white" style={{ fontSize: "0.75rem" }}></i>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex align-items-center gap-2 mb-1">
+                                <i className="pi pi-envelope text-xl" style={{ color: accountType === "AD+Exchange" ? "var(--primary-color)" : "#6c757d" }}></i>
+                                <span className={`font-bold ${accountType === "AD+Exchange" ? "text-primary" : "text-700"}`}>
+                                  AD + Exchange
+                                </span>
+                              </div>
+                              <p className="text-600 text-sm m-0">
+                                Compte avec boîte mail et accès messagerie Exchange
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -204,54 +368,56 @@ const handleNameChange = (e) => {
                 </div>
 
                 <div className="col-12 md:col-6">
-  <div className="field">
-    <label htmlFor="firstName" className="block text-900 font-medium mb-2">
-      Prénom <span className="text-red-500">*</span>
-    </label>
-    <InputText
-      id="firstName"
-      name="firstName"
-      value={form.firstName}
-      onChange={handleNameChange}
-      className="w-full"
-      required
-    />
-  </div>
-</div>
+                  <div className="field">
+                    <label htmlFor="firstName" className="block text-900 font-medium mb-2">
+                      Prénom <span className="text-red-500">*</span>
+                    </label>
+                    <InputText
+                      id="firstName"
+                      name="firstName"
+                      value={form.firstName}
+                      onChange={handleNameChange}
+                      className="w-full"
+                      placeholder="Ex: Mohamed"
+                      required
+                    />
+                    <small className="text-500">Première lettre en majuscule</small>
+                  </div>
+                </div>
 
-<div className="col-12 md:col-6">
-  <div className="field">
-    <label htmlFor="lastName" className="block text-900 font-medium mb-2">
-      Nom <span className="text-red-500">*</span>
-    </label>
-    <InputText
-      id="lastName"
-      name="lastName"
-      value={form.lastName}
-      onChange={handleNameChange}
-      className="w-full"
-      required
-    />
-  </div>
-</div>
-
+                <div className="col-12 md:col-6">
+                  <div className="field">
+                    <label htmlFor="lastName" className="block text-900 font-medium mb-2">
+                      Nom <span className="text-red-500">*</span>
+                    </label>
+                    <InputText
+                      id="lastName"
+                      name="lastName"
+                      value={form.lastName}
+                      onChange={handleNameChange}
+                      className="w-full"
+                      placeholder="Ex: BENALI"
+                      required
+                    />
+                    <small className="text-500">Tout en majuscules</small>
+                  </div>
+                </div>
 
                 <div className="col-12 md:col-6">
                   <div className="field">
                     <label htmlFor="sam" className="block text-900 font-medium mb-2">
                       Nom d'utilisateur (SamAccountName) <span className="text-red-500">*</span>
                     </label>
-                <InputText
-  id="sam"
-  name="sam"
-  value={form.sam}
-  onChange={handleChange}
-  className="w-full"
-  maxLength={25} // ✅ limite côté frontend
-  required
-/>
-
-
+                    <InputText
+                      id="sam"
+                      name="sam"
+                      value={form.sam}
+                      onChange={handleChange}
+                      className="w-full"
+                      maxLength={25}
+                      placeholder="Ex: m.benali"
+                      required
+                    />
                   </div>
                 </div>
 
@@ -261,14 +427,13 @@ const handleNameChange = (e) => {
                       <label htmlFor="email" className="block text-900 font-medium mb-2">
                         Adresse email <span className="text-red-500">*</span>
                       </label>
-                     
-                       <InputText
-    id="email"
-    name="email"
-    value={form.email}
-    className="w-full"
-    disabled
-  />
+                      <InputText
+                        id="email"
+                        name="email"
+                        value={form.email}
+                        className="w-full"
+                        disabled
+                      />
                     </div>
                   </div>
                 )}
@@ -282,39 +447,132 @@ const handleNameChange = (e) => {
                   <Divider />
                 </div>
 
+                {/* Mode de mot de passe - Radio Buttons stylisés */}
+                <div className="col-12">
+                  <div className="field">
+                    <label className="block text-900 font-medium mb-3">
+                      Mode de mot de passe <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid">
+                      <div className="col-12 md:col-6">
+                        <div
+                          onClick={() => handlePasswordModeChange("auto")}
+                          className={`p-4 border-2 border-round cursor-pointer transition-all ${
+                            passwordMode === "auto"
+                              ? "border-green-500 bg-green-50 shadow-3"
+                              : "border-300 hover:border-400 hover:bg-gray-50"
+                          }`}
+                          style={{ transition: "all 0.3s ease" }}
+                        >
+                          <div className="flex align-items-center gap-3">
+                            <div
+                              className={`border-circle flex align-items-center justify-content-center ${
+                                passwordMode === "auto" ? "bg-green-500" : "bg-gray-300"
+                              }`}
+                              style={{ width: "24px", height: "24px", transition: "all 0.3s" }}
+                            >
+                              {passwordMode === "auto" && (
+                                <i className="pi pi-check text-white" style={{ fontSize: "0.75rem" }}></i>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex align-items-center gap-2 mb-1">
+                                <i className="pi pi-sparkles text-xl" style={{ color: passwordMode === "auto" ? "#22c55e" : "#6c757d" }}></i>
+                                <span className={`font-bold ${passwordMode === "auto" ? "text-green-700" : "text-700"}`}>
+                                  Génération automatique
+                                </span>
+                              </div>
+                              <p className="text-600 text-sm m-0">
+                                Mot de passe sécurisé généré automatiquement (S@rpi + 4 chiffres)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-12 md:col-6">
+                        <div
+                          onClick={() => handlePasswordModeChange("manual")}
+                          className={`p-4 border-2 border-round cursor-pointer transition-all ${
+                            passwordMode === "manual"
+                              ? "border-orange-500 bg-orange-50 shadow-3"
+                              : "border-300 hover:border-400 hover:bg-gray-50"
+                          }`}
+                          style={{ transition: "all 0.3s ease" }}
+                        >
+                          <div className="flex align-items-center gap-3">
+                            <div
+                              className={`border-circle flex align-items-center justify-content-center ${
+                                passwordMode === "manual" ? "bg-orange-500" : "bg-gray-300"
+                              }`}
+                              style={{ width: "24px", height: "24px", transition: "all 0.3s" }}
+                            >
+                              {passwordMode === "manual" && (
+                                <i className="pi pi-check text-white" style={{ fontSize: "0.75rem" }}></i>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex align-items-center gap-2 mb-1">
+                                <i className="pi pi-pencil text-xl" style={{ color: passwordMode === "manual" ? "#f97316" : "#6c757d" }}></i>
+                                <span className={`font-bold ${passwordMode === "manual" ? "text-orange-700" : "text-700"}`}>
+                                  Saisie manuelle
+                                </span>
+                              </div>
+                              <p className="text-600 text-sm m-0">
+                                Créez votre propre mot de passe personnalisé
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="col-12 md:col-6">
                   <div className="field">
                     <label htmlFor="password" className="block text-900 font-medium mb-2">
                       Mot de passe <span className="text-red-500">*</span>
                     </label>
-                  <InputText
-  id="password"
-  name="password"
-  value={form.password}
-  className="w-full"
-  disabled
-/>
-
+                    {passwordMode === "auto" ? (
+                      <InputText
+                        id="password"
+                        name="password"
+                        value={form.password}
+                        className="w-full"
+                        disabled
+                      />
+                    ) : (
+                      <Password
+                        id="password"
+                        name="password"
+                        value={form.password}
+                        onChange={handleChange}
+                        className="w-full"
+                        toggleMask
+                        feedback={true}
+                        required
+                      />
+                    )}
                   </div>
                 </div>
 
-               <div className="col-12 md:col-6">
-  <div className="field">
-    <label htmlFor="direction" className="block text-900 font-medium mb-2">
-      Direction <span className="text-red-500">*</span>
-    </label>
-    <Dropdown
-      id="direction"
-      value={direction}
-      options={directions.map((d) => ({ label: d, value: d }))}
-      onChange={handleDirectionChange}
-      placeholder="Choisir une direction"
-      className="w-full"
-      required
-    />
-  </div>
-</div>
-
+                <div className="col-12 md:col-6">
+                  <div className="field">
+                    <label htmlFor="direction" className="block text-900 font-medium mb-2">
+                      Direction <span className="text-red-500">*</span>
+                    </label>
+                    <Dropdown
+                      id="direction"
+                      value={direction}
+                      options={directions.map((d) => ({ label: d, value: d }))}
+                      onChange={handleDirectionChange}
+                      placeholder="Choisir une direction"
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                </div>
 
                 {/* Actions */}
                 <div className="col-12 mt-4">
@@ -325,15 +583,20 @@ const handleNameChange = (e) => {
                       label="Annuler"
                       icon="pi pi-times"
                       outlined
-                      onClick={() =>
+                      onClick={() => {
                         setForm({
+                          firstName: "",
+                          lastName: "",
                           name: "",
                           sam: "",
                           email: "",
+                          logmail: "",
                           password: "",
-                          ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
-                        })
-                      }
+                          ou_path: "",
+                        });
+                        setDirection("");
+                        setPasswordMode("auto");
+                      }}
                       disabled={loading}
                     />
                     <Button
@@ -350,9 +613,6 @@ const handleNameChange = (e) => {
                 </div>
               </div>
             </form>
-
-            {message && <Message severity="success" text={message} className="mt-3" />}
-            {error && <Message severity="error" text={error} className="mt-3" />}
           </Card>
         </div>
       </div>
@@ -402,18 +662,118 @@ const handleNameChange = (e) => {
                 <span className="text-700">{form.email}</span>
               </div>
             )}
-         <div className="flex align-items-center gap-2">
-  <i className="pi pi-sitemap text-600"></i>
-  <span className="text-700">{direction}</span>
-</div>
-
+            <div className="flex align-items-center gap-2 mb-2">
+              <i className="pi pi-sitemap text-600"></i>
+              <span className="text-700">{direction}</span>
+            </div>
             <div className="flex align-items-center gap-2">
-  <i className="pi pi-lock text-600"></i>
-  <span className="text-700">{form.password}</span>
-</div>
-
+              <i className="pi pi-lock text-600"></i>
+              <span className="text-700">{form.password}</span>
+            </div>
           </div>
         </div>
+      </Dialog>
+
+      {/* Dialog de succès avec détails */}
+      <Dialog
+        visible={showSuccessDialog}
+        onHide={() => setShowSuccessDialog(false)}
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-check-circle text-green-600 text-2xl"></i>
+            <span>Utilisateur créé avec succès !</span>
+          </div>
+        }
+        footer={successDialogFooter}
+        style={{ width: "550px" }}
+        modal
+      >
+        {createdUserDetails && (
+          <div className="py-3">
+            <div className="text-center mb-4">
+              <div
+                className="inline-flex align-items-center justify-content-center bg-green-100 border-circle mb-3"
+                style={{ width: "100px", height: "100px" }}
+              >
+                <i className="pi pi-check text-6xl text-green-600"></i>
+              </div>
+              <h3 className="text-900 text-2xl font-bold mb-2">
+                Compte créé avec succès !
+              </h3>
+              <p className="text-600">
+                L'utilisateur a été ajouté à Active Directory
+              </p>
+            </div>
+
+            <Divider />
+
+            <div className="surface-50 border-round p-4">
+              <h4 className="text-900 font-semibold mb-3 flex align-items-center gap-2">
+                <i className="pi pi-info-circle text-primary"></i>
+                Détails du compte créé
+              </h4>
+
+              <div className="grid">
+                <div className="col-12">
+                  <div className="flex align-items-start gap-3 mb-3 p-2 surface-0 border-round">
+                    <i className="pi pi-user text-primary text-xl mt-1"></i>
+                    <div className="flex-1">
+                      <div className="text-500 text-sm mb-1">Nom complet</div>
+                      <div className="text-900 font-semibold">{createdUserDetails.name}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-12">
+                  <div className="flex align-items-start gap-3 mb-3 p-2 surface-0 border-round">
+                    <i className="pi pi-id-card text-primary text-xl mt-1"></i>
+                    <div className="flex-1">
+                      <div className="text-500 text-sm mb-1">Nom d'utilisateur</div>
+                      <div className="text-900 font-semibold">{createdUserDetails.sam}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {createdUserDetails.accountType === "AD+Exchange" && (
+                  <div className="col-12">
+                    <div className="flex align-items-start gap-3 mb-3 p-2 surface-0 border-round">
+                      <i className="pi pi-envelope text-primary text-xl mt-1"></i>
+                      <div className="flex-1">
+                        <div className="text-500 text-sm mb-1">Email</div>
+                        <div className="text-900 font-semibold">{createdUserDetails.email}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="col-12">
+                  <div className="flex align-items-start gap-3 mb-3 p-2 surface-0 border-round">
+                    <i className="pi pi-sitemap text-primary text-xl mt-1"></i>
+                    <div className="flex-1">
+                      <div className="text-500 text-sm mb-1">Direction</div>
+                      <div className="text-900 font-semibold">{createdUserDetails.direction}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="col-12">
+                  <div className="flex align-items-start gap-3 p-2 bg-yellow-50 border-round border-1 border-yellow-200">
+                    <i className="pi pi-lock text-yellow-700 text-xl mt-1"></i>
+                    <div className="flex-1">
+                      <div className="text-yellow-700 text-sm font-semibold mb-1">
+                        Mot de passe temporaire
+                      </div>
+                      <div className="text-900 font-bold text-lg">{createdUserDetails.password}</div>
+                      <small className="text-yellow-700">
+                        ⚠️ Veuillez noter ce mot de passe et le communiquer à l'utilisateur
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </Dialog>
     </Layout>
   );

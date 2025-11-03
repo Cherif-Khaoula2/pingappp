@@ -226,6 +226,7 @@ Route::middleware('auth')->group(function () {
 
 
 
+
 // Routes protégées pour les logs d'activité AD
 Route::middleware(['auth'])->group(function () {
     
@@ -238,5 +239,6 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/ad/activity-logs-export', [AdActivityLogController::class, 'export'])
         ->name('ad.logs.export');
-     
+      Route::get('/ad/activity-logs/user/{id}', [AdActivityLogController::class, 'showUserLogs'])
+        ->name('activity.user');
 });
