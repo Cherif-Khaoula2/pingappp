@@ -142,17 +142,7 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
               }}
             />
           )}
-          {canadd && (
-            <Button
-              label="Créer un utilisateur"
-              icon="pi pi-user-plus"
-              onClick={() => router.visit(route('users.create'))}
-              style={{
-                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                border: 'none'
-              }}
-            />
-          )}
+       
         </div>
       </div>
 
@@ -264,7 +254,7 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
   currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
   onRowClick={(e) => {
     if (e.data && e.data.id) {
-      router.visit(route('users.edit', e.data.id));
+      router.visit(route('activity.user', rowData.id));
     }
   }}
   rowClassName={(data) => data.id ? 'cursor-pointer hover:bg-gray-50' : ''}
