@@ -11,7 +11,7 @@ import { Avatar } from 'primereact/avatar';
 import Layout from "@/Layouts/layout/layout.jsx";
 import { LayoutContext } from '@/Layouts/layout/context/layoutcontext';
 
-export default function AdDashboard({ 
+export default function Dashboard({ 
     stats = {}, 
     topConnectedUsers = [], 
     topBlockedUsers = [],
@@ -29,6 +29,21 @@ export default function AdDashboard({
     const { layoutConfig } = useContext(LayoutContext);
     const [selectedPeriod, setSelectedPeriod] = useState(period);
     const [chartOptions, setChartOptions] = useState({});
+
+    // 🔍 Debug: Afficher les données reçues
+    useEffect(() => {
+        console.log('📊 Dashboard Data:', {
+            stats,
+            dailyActivity,
+            actionBreakdown,
+            hourlyActivity,
+            topConnectedUsers,
+            topBlockedUsers,
+            topAdmins,
+            recentFailures,
+            recentCreations
+        });
+    }, []);
 
     const periodOptions = [
         { label: 'Dernières 24h', value: 1 },
@@ -71,11 +86,13 @@ export default function AdDashboard({
 
     // 📊 Données pour le graphique d'activité quotidienne
     const dailyActivityData = {
-        labels: dailyActivity.map(d => new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })),
+        labels: Array.isArray(dailyActivity) && dailyActivity.length > 0 
+            ? dailyActivity.map(d => new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }))
+            : [],
         datasets: [
             {
                 label: 'Succès',
-                data: dailyActivity.map(d => d.success || 0),
+                data: Array.isArray(dailyActivity) ? dailyActivity.map(d => d.success || 0) : [],
                 backgroundColor: 'rgba(16, 185, 129, 0.2)',
                 borderColor: '#10b981',
                 borderWidth: 2,
@@ -83,7 +100,7 @@ export default function AdDashboard({
             },
             {
                 label: 'Échecs',
-                data: dailyActivity.map(d => d.failed || 0),
+                data: Array.isArray(dailyActivity) ? dailyActivity.map(d => d.failed || 0) : [],
                 backgroundColor: 'rgba(239, 68, 68, 0.2)',
                 borderColor: '#ef4444',
                 borderWidth: 2,
@@ -94,19 +111,21 @@ export default function AdDashboard({
 
     // 📊 Données pour le graphique par type d'action
     const actionData = {
-        labels: actionBreakdown.map(a => {
-            const labels = {
-                login: 'Connexions',
-                logout: 'Déconnexions',
-                block_user: 'Blocages',
-                unblock_user: 'Déblocages',
-                reset_password: 'Réinit. MDP',
-                create_user: 'Créations'
-            };
-            return labels[a.action] || a.action;
-        }),
+        labels: Array.isArray(actionBreakdown) && actionBreakdown.length > 0
+            ? actionBreakdown.map(a => {
+                const labels = {
+                    login: 'Connexions',
+                    logout: 'Déconnexions',
+                    block_user: 'Blocages',
+                    unblock_user: 'Déblocages',
+                    reset_password: 'Réinit. MDP',
+                    create_user: 'Créations'
+                };
+                return labels[a.action] || a.action;
+            })
+            : [],
         datasets: [{
-            data: actionBreakdown.map(a => a.count || 0),
+            data: Array.isArray(actionBreakdown) ? actionBreakdown.map(a => a.count || 0) : [],
             backgroundColor: [
                 '#6366f1',
                 '#8b5cf6',
@@ -120,10 +139,12 @@ export default function AdDashboard({
 
     // 📊 Données pour le graphique des heures de pointe
     const hourlyData = {
-        labels: hourlyActivity.map(h => `${h.hour}h`),
+        labels: Array.isArray(hourlyActivity) && hourlyActivity.length > 0
+            ? hourlyActivity.map(h => `${h.hour}h`)
+            : [],
         datasets: [{
             label: 'Activités',
-            data: hourlyActivity.map(h => h.count || 0),
+            data: Array.isArray(hourlyActivity) ? hourlyActivity.map(h => h.count || 0) : [],
             backgroundColor: 'rgba(99, 102, 241, 0.2)',
             borderColor: '#6366f1',
             borderWidth: 2,
@@ -369,10 +390,13 @@ export default function AdDashboard({
                 {/* Activité quotidienne */}
                 <div className="col-12 xl:col-8">
                     <Card className="shadow-2" title="Activité quotidienne">
-                        {dailyActivity.length > 0 ? (
+                        {Array.isArray(dailyActivity) && dailyActivity.length > 0 ? (
                             <Chart type="line" data={dailyActivityData} options={chartOptions} />
                         ) : (
-                            <div className="text-center text-600 py-4">Aucune donnée disponible</div>
+                            <div className="text-center text-600 py-6">
+                                <i className="pi pi-chart-line text-400 mb-3" style={{ fontSize: '3rem' }}></i>
+                                <p>Aucune donnée d'activité disponible</p>
+                            </div>
                         )}
                     </Card>
                 </div>
@@ -380,10 +404,13 @@ export default function AdDashboard({
                 {/* Répartition par type d'action */}
                 <div className="col-12 xl:col-4">
                     <Card className="shadow-2" title="Répartition par action">
-                        {actionBreakdown.length > 0 ? (
+                        {Array.isArray(actionBreakdown) && actionBreakdown.length > 0 ? (
                             <Chart type="doughnut" data={actionData} />
                         ) : (
-                            <div className="text-center text-600 py-4">Aucune donnée disponible</div>
+                            <div className="text-center text-600 py-6">
+                                <i className="pi pi-chart-pie text-400 mb-3" style={{ fontSize: '3rem' }}></i>
+                                <p>Aucune donnée disponible</p>
+                            </div>
                         )}
                     </Card>
                 </div>
@@ -391,10 +418,13 @@ export default function AdDashboard({
                 {/* Heures de pointe */}
                 <div className="col-12">
                     <Card className="shadow-2" title="Heures de pointe">
-                        {hourlyActivity.length > 0 ? (
+                        {Array.isArray(hourlyActivity) && hourlyActivity.length > 0 ? (
                             <Chart type="bar" data={hourlyData} options={chartOptions} />
                         ) : (
-                            <div className="text-center text-600 py-4">Aucune donnée disponible</div>
+                            <div className="text-center text-600 py-6">
+                                <i className="pi pi-clock text-400 mb-3" style={{ fontSize: '3rem' }}></i>
+                                <p>Aucune donnée horaire disponible</p>
+                            </div>
                         )}
                     </Card>
                 </div>
@@ -410,10 +440,10 @@ export default function AdDashboard({
                                 <i className="pi pi-users mr-2 text-blue-500"></i>
                                 Top connexions
                             </h3>
-                            <Tag value={topConnectedUsers.length} severity="info" />
+                            <Tag value={topConnectedUsers?.length || 0} severity="info" />
                         </div>
                         <DataTable 
-                            value={topConnectedUsers} 
+                            value={topConnectedUsers || []} 
                             stripedRows
                             emptyMessage="Aucune donnée"
                         >
@@ -440,10 +470,10 @@ export default function AdDashboard({
                                 <i className="pi pi-lock mr-2 text-red-500"></i>
                                 Utilisateurs bloqués
                             </h3>
-                            <Tag value={topBlockedUsers.length} severity="danger" />
+                            <Tag value={topBlockedUsers?.length || 0} severity="danger" />
                         </div>
                         <DataTable 
-                            value={topBlockedUsers} 
+                            value={topBlockedUsers || []} 
                             stripedRows
                             emptyMessage="Aucune donnée"
                         >
@@ -470,10 +500,10 @@ export default function AdDashboard({
                                 <i className="pi pi-shield mr-2 text-purple-500"></i>
                                 Admins les plus actifs
                             </h3>
-                            <Tag value={topAdmins.length} severity="help" />
+                            <Tag value={topAdmins?.length || 0} severity="help" />
                         </div>
                         <DataTable 
-                            value={topAdmins} 
+                            value={topAdmins || []} 
                             stripedRows
                             emptyMessage="Aucune donnée"
                         >
@@ -510,7 +540,7 @@ export default function AdDashboard({
                             </Link>
                         </div>
                         <DataTable 
-                            value={recentFailures} 
+                            value={recentFailures || []} 
                             stripedRows
                             emptyMessage="Aucun échec récent"
                         >
@@ -538,7 +568,7 @@ export default function AdDashboard({
                             </Link>
                         </div>
                         <DataTable 
-                            value={recentCreations} 
+                            value={recentCreations || []} 
                             stripedRows
                             emptyMessage="Aucune création récente"
                         >
