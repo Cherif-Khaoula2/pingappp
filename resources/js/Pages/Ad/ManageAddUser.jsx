@@ -43,6 +43,7 @@ export default function ManageAddUser() {
           <div>
             <label>Nom complet</label>
             <InputText
+             name="name"
              
               value={form.name}
               onChange={handleChange}
