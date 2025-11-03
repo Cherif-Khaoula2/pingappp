@@ -390,26 +390,27 @@ public function createAdUser(Request $request)
     $plainPassword = $request->input('password');
     $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
 
-    // 🔹 Script PowerShell sans problème d'échappement
+    // 🔹 Script PowerShell avec échappement correct
     $psScript = "try { " .
         "Import-Module ActiveDirectory; " .
-        "New-ADUser -Name '$name' " .
+        "\$user = New-ADUser -Name '$name' " .
         "-SamAccountName '$sam' " .
         "-UserPrincipalName '$email' " .
         "-EmailAddress '$email' " .
         "-Path '$ouPath' " .
         "-AccountPassword (ConvertTo-SecureString '$plainPassword' -AsPlainText -Force) " .
-        "-Enabled `$true; " .
-        "Write-Output 'SUCCESS: User $sam created' " .
+        "-Enabled \$true " .
+        "-PassThru; " .
+        "if (\$user) { Write-Output 'SUCCESS: User $sam created' } else { throw 'User creation failed' } " .
         "} catch { " .
-        "Write-Output ('ERROR: ' + `$_.Exception.Message); " .
+        "Write-Output ('ERROR: ' + \$_.Exception.Message); " .
         "exit 1 " .
         "}";
 
-    // 🔹 Conversion en Base64 UTF-16LE (format PowerShell)
+    // 🔹 Conversion en Base64 UTF-16LE
     $encodedCommand = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     
-    // 🔹 Commande SSH avec EncodedCommand
+    // 🔹 Commande SSH
     $sshCommand = "powershell -NoProfile -NonInteractive -EncodedCommand $encodedCommand";
 
     $command = $keyPath && file_exists($keyPath)
@@ -467,6 +468,5 @@ public function createAdUser(Request $request)
         ], 500);
     }
 }
-
 
 }
