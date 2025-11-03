@@ -366,7 +366,6 @@ public function manageAddUser()
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
 }
-
 public function createAdUser(Request $request)
 {
     $request->validate([
@@ -374,7 +373,6 @@ public function createAdUser(Request $request)
         'sam' => 'required|string',
         'email' => 'required|email',
         'password' => 'required|string|min:8',
-        'ou_path' => 'required|string',
     ]);
 
     $host = env('SSH_HOST');
@@ -389,53 +387,61 @@ public function createAdUser(Request $request)
     $name = $request->input('name');
     $sam = $request->input('sam');
     $email = $request->input('email');
-    $passwordValue = $request->input('password');
-    $ouPath = $request->input('ou_path');
+    $userPassword = $request->input('password');
 
-    // ✅ Commande PowerShell bien échappée
-    $psCommand = <<<EOT
-powershell -NoProfile -NonInteractive -Command "Import-Module ActiveDirectory; try { New-ADUser -Name \\"$name\\" -SamAccountName \\"$sam\\" -UserPrincipalName \\"$email\\" -EmailAddress \\"$email\\" -Path \\"$ouPath\\" -AccountPassword (ConvertTo-SecureString \\"$passwordValue\\" -AsPlainText -Force) -Enabled \$true; Start-Sleep -Seconds 2; if (Get-ADUser -Identity \\"$sam\\") { Write-Output \\"Utilisateur AD créé avec succès\\" } else { Write-Output \\"Échec de la création de l’utilisateur\\" } } catch { Write-Error \$_; exit 1 }"
-EOT;
+    // Chemin de l'OU dans AD
+    $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
 
-    // ✅ Commande SSH avec option pour éviter l’erreur de permission
+    // ✅ Commande PowerShell à exécuter à distance
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "New-ADUser -Name '$name' "
+        . "-SamAccountName '$sam' "
+        . "-UserPrincipalName '$email' "
+        . "-EmailAddress '$email' "
+        . "-Path '$ouPath' "
+        . "-AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) "
+        . "-Enabled \$true; "
+        . "Write-Output 'User created successfully'\"";
+
+    // ✅ Choix de la méthode de connexion SSH
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', "{$user}@{$host}", $psCommand];
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
 
     try {
         $process = new Process($command);
         $process->setTimeout(60);
         $process->run();
 
-        $output = $process->getOutput();
-        $errorOutput = $process->getErrorOutput();
-
         if (!$process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
 
-        // ✅ Log de création
+        $output = trim($process->getOutput());
+
+        // ✅ Log de la création réussie
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
             targetUserName: $name,
-            success: str_contains($output, 'créé avec succès'),
+            success: true,
             additionalDetails: [
                 'email' => $email,
-                'ou_path' => $ouPath,
-                'method' => 'PowerShell AD',
-                'output' => $output,
-                'error' => $errorOutput,
+                'method' => 'PowerShell AD'
             ]
         );
 
         return response()->json([
-            'success' => str_contains($output, 'créé avec succès'),
-            'message' => trim($output),
+            'success' => true,
+            'message' => 'Utilisateur créé avec succès.',
+            'output' => $output
         ]);
-    } catch (\Throwable $e) {
-        \Log::error('createAdUser error: ' . $e->getMessage());
 
+    } catch (\Throwable $e) {
+        \Log::error('createUserAd error: ' . $e->getMessage());
+
+        // ❌ Log de l'échec
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -450,5 +456,6 @@ EOT;
         ], 500);
     }
 }
+
 
 }
