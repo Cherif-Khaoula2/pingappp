@@ -331,7 +331,7 @@ public function findUser(Request $request)
 
     $psCommand = "powershell -NoProfile -NonInteractive -Command \""
         . "Import-Module ActiveDirectory; "
-        . "Get-ADUser -Filter 'SamAccountName -like \"*$search*\"' "
+        . "Get-ADUser -Identity '$search' " 
         . "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | "
         . "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | ConvertTo-Json\"";
 
