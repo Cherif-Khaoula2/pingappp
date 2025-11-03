@@ -31,7 +31,7 @@ const AppMenu = () => {
                     {
                         label: 'Gestion des rôles',
                         icon: 'pi pi-fw pi-shield',
-                        to:('roles'),
+                        to: ('roles'),
                     },
                      {
                         label: 'Dashboard',
@@ -62,7 +62,7 @@ const AppMenu = () => {
                      {
                         label: 'Réinitialiser Mot pour un utilisateur',
                         icon: 'pi pi-fw pi-shield',
-                        to:('/roles'),
+                        to:('/ad/users/manage-password'),
                     },
                     {
                         label: 'Voir la liste des utilisateurs ',

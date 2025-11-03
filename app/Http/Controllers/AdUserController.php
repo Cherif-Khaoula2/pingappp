@@ -282,10 +282,7 @@ class AdUserController extends Controller
                 ]
             );
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Mot de passe réinitialisé avec succès',
-            ]);
+           
         } catch (\Throwable $e) {
             \Log::error('resetPassword error: ' . $e->getMessage());
 
