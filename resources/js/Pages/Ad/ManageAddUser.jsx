@@ -15,6 +15,7 @@ const ManageAddUser = () => {
     name: "",
     sam: "",
     email: "",
+    logmail : "",
     password: "",
     ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
   });
@@ -29,38 +30,66 @@ const ManageAddUser = () => {
     { label: "Compte Active Directory (AD)", value: "AD" },
     { label: "Compte AD + Exchange", value: "AD+Exchange" },
   ];
+const handleChange = (e) => {
+  const { name, value } = e.target;
+  let newValue = value;
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  if (name === "sam") {
+    newValue = value.slice(0, 25); // tronque à 25 caractères max
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    [name]: newValue,
+    logmail:
+      accountType === "AD"
+        ? `${name === "sam" ? newValue : prev.sam}@sarpi-dz.sg`
+        : accountType === "AD+Exchange" && name === "sam"
+        ? `${newValue}@sarpi-dz.com`
+        : prev.logmail,
+    email: accountType === "AD+Exchange" && name === "sam" ? `${newValue}@sarpi-dz.com` : prev.email,
+    password: prev.password || generatePassword(),
+  }));
+};
+
+
+
+
+// Fonction pour générer l'email depuis le SamAccountName
+const generateEmailFromSam = (sam) => {
+  if (!sam) return "";
+  return `${sam.toLowerCase()}@sarpi-dz.com`;
+};
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setShowConfirmDialog(true);
   };
 
-  const confirmCreate = async () => {
-    setLoading(true);
-    setMessage(null);
-    setError(null);
-    try {
-      const payload = { ...form, accountType };
-      const res = await axios.post("/ad/create-user", payload);
-      setMessage(res.data.message || "Utilisateur créé avec succès !");
-      setForm({
-        name: "",
-        sam: "",
-        email: "",
-        password: "",
-        ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de la création de l'utilisateur.");
-    } finally {
-      setLoading(false);
-      setShowConfirmDialog(false);
-    }
-  };
+ const confirmCreate = async () => {
+  setLoading(true);
+  setMessage(null);
+  setError(null);
+  try {
+    const payload = { ...form, accountType };
+    const res = await axios.post("/ad/create-user", payload);
+    setMessage(res.data.message || "Utilisateur créé avec succès !");
+    setForm({
+      name: "",
+      sam: "",
+      email: "",
+      logmail: "",
+      password: "",
+      ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
+    });
+  } catch (err) {
+    setError(err.response?.data?.message || "Erreur lors de la création de l'utilisateur.");
+  } finally {
+    setLoading(false);
+    setShowConfirmDialog(false);
+  }
+};
+
 
   const dialogFooter = (
     <div className="flex justify-content-end gap-2">
@@ -80,6 +109,29 @@ const ManageAddUser = () => {
       />
     </div>
   );
+
+
+// Générer SamAccountName : par exemple prénom.nom en minuscule sans accents
+const generateSamAccountName = (name) => {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ".") // remplace les espaces et caractères spéciaux par des points
+    .replace(/\.+/g, "."); // éviter plusieurs points consécutifs
+};
+
+// Générer email : par exemple prenom.nom@sarpi-dz.com
+const generateEmail = (name) => {
+  if (!name) return "";
+  return `${generateSamAccountName(name)}@sarpi-dz.com`;
+};
+// Générer mot de passe automatique : S@rpi + 4 chiffres aléatoires
+const generatePassword = () => {
+  const randomDigits = Math.floor(1000 + Math.random() * 9000); // 4 chiffres
+  return `S@rpi${randomDigits}`;
+};
+
+
 
   return (
     <Layout>
@@ -132,14 +184,14 @@ const ManageAddUser = () => {
                     <label htmlFor="name" className="block text-900 font-medium mb-2">
                       Nom complet <span className="text-red-500">*</span>
                     </label>
-                    <InputText
-                      id="name"
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                      className="w-full"
-                      required
-                    />
+                  <InputText
+  id="name"
+  name="name"
+  value={form.name}
+  onChange={handleChange}
+  className="w-full"
+  required
+/>
                   </div>
                 </div>
 
@@ -148,14 +200,17 @@ const ManageAddUser = () => {
                     <label htmlFor="sam" className="block text-900 font-medium mb-2">
                       Nom d'utilisateur (SamAccountName) <span className="text-red-500">*</span>
                     </label>
-                    <InputText
-                      id="sam"
-                      name="sam"
-                      value={form.sam}
-                      onChange={handleChange}
-                      className="w-full"
-                      required
-                    />
+                <InputText
+  id="sam"
+  name="sam"
+  value={form.sam}
+  onChange={handleChange}
+  className="w-full"
+  maxLength={25} // ✅ limite côté frontend
+  required
+/>
+
+
                   </div>
                 </div>
 
@@ -165,15 +220,14 @@ const ManageAddUser = () => {
                       <label htmlFor="email" className="block text-900 font-medium mb-2">
                         Adresse email <span className="text-red-500">*</span>
                       </label>
-                      <InputText
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={form.email}
-                        onChange={handleChange}
-                        className="w-full"
-                        required
-                      />
+                     
+                       <InputText
+    id="email"
+    name="email"
+    value={form.email}
+    className="w-full"
+    disabled
+  />
                     </div>
                   </div>
                 )}
@@ -192,19 +246,14 @@ const ManageAddUser = () => {
                     <label htmlFor="password" className="block text-900 font-medium mb-2">
                       Mot de passe <span className="text-red-500">*</span>
                     </label>
-                    <Password
-                      id="password"
-                      name="password"
-                      value={form.password}
-                      onChange={handleChange}
-                      className="w-full"
-                      inputClassName="w-full"
-                      promptLabel="Choisissez un mot de passe"
-                      weakLabel="Faible"
-                      mediumLabel="Moyen"
-                      strongLabel="Fort"
-                      required
-                    />
+                  <InputText
+  id="password"
+  name="password"
+  value={form.password}
+  className="w-full"
+  disabled
+/>
+
                   </div>
                 </div>
 
@@ -313,6 +362,10 @@ const ManageAddUser = () => {
             <div className="flex align-items-center gap-2">
               <i className="pi pi-sitemap text-600"></i>
               <span className="text-700">{form.ou_path}</span>
+            </div>
+             <div className="flex align-items-center gap-2">
+              <i className="pi pi-sitemap text-600"></i>
+              <span className="text-700">{form.password}</span>
             </div>
           </div>
         </div>

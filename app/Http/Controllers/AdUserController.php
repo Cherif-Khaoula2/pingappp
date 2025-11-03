@@ -371,8 +371,9 @@ public function createAdUser(Request $request)
 {
     $request->validate([
         'name' => 'required|string',
-        'sam' => 'required|string',
-        'email' => 'required|email',
+        'sam' => 'required|string|max:25',
+        'email' => 'nullable|email',
+        'logmail' => 'required|logmail',
         'password' => 'required|string|min:8',
     ]);
 
@@ -391,20 +392,23 @@ public function createAdUser(Request $request)
     $name = $request->input('name');
     $sam = $request->input('sam');
     $email = $request->input('email');
+    $logmail = $request->input('logmail');
     $userPassword = $request->input('password');
     $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
+$userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
+$emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
     // ✅ Commande AD exécutée directement (sans préfixe powershell/import)
-    $adCommand = "
-        New-ADUser -Name '$name' `
-            -SamAccountName '$sam' `
-            -UserPrincipalName '$email' `
-            -EmailAddress '$email' `
-            -Path '$ouPath' `
-            -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
-            -Enabled \$true;
-        Write-Output 'User created successfully';
-    ";
+   $adCommand = "
+    New-ADUser -Name '$name' `
+        -SamAccountName '$sam' `
+        -UserPrincipalName '$userPrincipalName' `
+        -EmailAddress '$emailAddress' `
+        -Path '$ouPath' `
+        -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
+        -Enabled \$true;
+    Write-Output 'User created successfully';
+";
 
     // ✅ Préparation de la commande SSH
     $command = $keyPath && file_exists($keyPath)
