@@ -23,12 +23,12 @@ export default function ActivityLogs({ logs, stats, filters }) {
 
     const actionOptions = [
         { label: 'Toutes les actions', value: '' },
-        { label: '🔑 Connexion', value: 'login' },
-        { label: '🚪 Déconnexion', value: 'logout' },
-        { label: '🔒 Blocage', value: 'block_user' },
-        { label: '🔓 Déblocage', value: 'unblock_user' },
-        { label: '🔄 Reset mot de passe', value: 'reset_password' },
-        { label: '➕ Création', value: 'create_user' },
+        { label: 'Connexion', value: 'login' },
+        { label: 'Déconnexion', value: 'logout' },
+        { label: 'Blocage', value: 'block_user' },
+        { label: 'Déblocage', value: 'unblock_user' },
+        { label: 'Reset mot de passe', value: 'reset_password' },
+        { label: 'Création AD', value: 'create_user' },
     ];
 
     const handleFilterChange = (key, value) => {
