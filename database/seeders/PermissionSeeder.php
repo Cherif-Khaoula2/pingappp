@@ -25,6 +25,13 @@ class PermissionSeeder extends Seeder
             'deleterole',
             'updaterole',
             'getallrole',
+            'addaduser',
+            'blockaduser',
+            'resetpswaduser',
+            'getalladuser',
+            'superviserusers',
+            'getaduser',
+            'getlog'
 
         ];
 

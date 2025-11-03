@@ -184,31 +184,43 @@ Route::middleware('auth')->group(function () {
 
     // 🔍 Page principale des utilisateurs AD
     Route::get('/ad/users', [AdUserController::class, 'adUsers'])
+    ->middleware('permission:getalladuser')
         ->name('ad.users');
+
+
+     // 🔎 Recherche d’un utilisateur via SamAccountName
+    Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
+    ->middleware('permission:getaduser')
+        ->name('ad.users.find');
+
 
     // 🔐 Page spéciale pour bloquer / débloquer un utilisateur
     Route::get('/ad/users/manage-lock', [AdUserController::class, 'manageLock'])
+    ->middleware('permission:blockaduser')
         ->name('ad.users.manage-lock');
-
-    // 🔎 Recherche d’un utilisateur via SamAccountName
-    Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
-        ->name('ad.users.find');
 
     // 🚫 Changer l’état d’un utilisateur (bloquer / débloquer)
     Route::post('/ad/users/toggle', [AdUserController::class, 'toggleUserStatus'])
+    ->middleware('permission:blockaduser')
         ->name('ad.users.toggle');
 
     // 🔑 Réinitialiser le mot de passe d’un utilisateur AD
     Route::get('/ad/users/manage-password', [AdUserController::class, 'managePassword'])
+    ->middleware('permission:resetpswaduser')
         ->name('ad.users.manage-password');
 
-    Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
-        ->name('ad.users.find');
-
     Route::post('/ad/users/reset-password', [AdUserController::class, 'resetPassword'])
+    ->middleware('permission:resetpswaduser')
         ->name('ad.users.reset-password');
-        Route::get('/ad/add-user', [AdUserController::class, 'manageAddUser'])->name('ad.add-user');
-Route::post('/ad/create-user', [AdUserController::class, 'createAdUser'])->name('ad.create-user');
+
+
+    // 🔑 Ajouter un utilisateur AD
+    Route::get('/ad/add-user', [AdUserController::class, 'manageAddUser'])
+    ->middleware('permission:addaduser')
+    ->name('ad.add-user');
+    Route::post('/ad/create-user', [AdUserController::class, 'createAdUser'])
+    ->middleware('permission:addaduser')
+    ->name('ad.create-user');
 
 });
 

@@ -14,8 +14,10 @@ class AdUserController extends Controller
 
     public function index()
     {
-        return Inertia::render('Ad/IpConfigPage');
-    }
+        $permissions = Auth::user()->getAllPermissions()->pluck('name')->toArray();
+        return Inertia::render('Ad/IpConfigPage', [
+    'userPermissions' => $permissions,
+]);}
 
     public function ipConfig(Request $request)
     {
@@ -84,6 +86,7 @@ class AdUserController extends Controller
 
     public function adUsers(Request $request)
     {
+        $this->authorize('getalladuser'); 
         $host = env('SSH_HOST');
         $user = env('SSH_USER');
         $password = env('SSH_PASSWORD');
@@ -163,7 +166,8 @@ class AdUserController extends Controller
     }
 
     public function toggleUserStatus(Request $request)
-    {
+    { 
+        $this->authorize('blockaduser'); 
         $request->validate([
             'sam' => 'required|string',
             'action' => 'required|in:block,unblock',
@@ -233,6 +237,7 @@ class AdUserController extends Controller
 
     public function resetPassword(Request $request)
     {
+        $this->authorize('resetpswaduser'); 
         $request->validate([
             'sam' => 'required|string',
             'new_password' => 'required|string|min:8',
@@ -306,7 +311,7 @@ public function manageLock()
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
 }
 public function findUser(Request $request)
-{
+{ $this->authorize('getaduser'); 
     $request->validate([
         'search' => 'required|string'
     ]);
@@ -368,7 +373,7 @@ public function manageAddUser()
 }
 
 public function createAdUser(Request $request)
-{
+{ $this->authorize('addaduser'); 
     $request->validate([
         'name' => 'required|string',
         'sam' => 'required|string|max:25',
@@ -438,7 +443,16 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
                 'method' => 'Direct AD over SSH'
             ]
         );
-
+ // ✉️ Envoi de notification avant le return
+        $this->sendAdUserCreationNotification(
+            $request->user(),
+            [
+                'name' => $name,
+                'sam' => $sam,
+                'email' => $email,
+                'accountType' => $accountType
+            ]
+        );
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur créé avec succès.',
@@ -466,4 +480,63 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
 
 
+protected function sendAdUserCreationNotification($creator, $newUser)
+{
+    // 🧩 Récupérer tous les utilisateurs à notifier
+    $usersToNotify = User::permission('superviserusers')->get();
+    
+    // Ajouter l'utilisateur qui a fait l'action
+    $usersToNotify->push($creator);
+
+    if ($usersToNotify->isEmpty()) {
+        Log::info("Aucun utilisateur à notifier pour la création AD.");
+        return;
+    }
+
+    // ⚙️ Configurer le transport SMTP
+    $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&auto_tls=false');
+    $mailer = new SymfonyMailer($transport);
+
+    foreach ($usersToNotify as $user) {
+        $firstName = $user->first_name ?? '';
+        $lastName = $user->last_name ?? '';
+
+        // 🔗 Lien éventuel vers l’AD ou doc interne
+        $lien = '#'; // tu peux mettre un vrai lien si besoin
+
+        $email = (new Email())
+            ->from('TOSYS <contact@tosys.sarpi-dz.com>')
+            ->to($user->email)
+            ->subject("[ADAPP] Nouvel utilisateur AD créé : {$newUser['sam']}")
+            ->html("
+                <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
+                    <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
+
+                    <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a créé un nouvel utilisateur AD :</p>
+
+                    <table style='border-collapse: collapse; margin: 15px 0;'>
+                        <tr><td style='padding: 5px 10px;'><strong>Nom :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['name']) . "</td></tr>
+                        <tr><td style='padding: 5px 10px;'><strong>SamAccountName :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['sam']) . "</td></tr>
+                        <tr><td style='padding: 5px 10px;'><strong>Email :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['email'] ?? '-') . "</td></tr>
+                        <tr><td style='padding: 5px 10px;'><strong>Type de compte :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['accountType'] ?? '-') . "</td></tr>
+                    </table>
+
+                    <p style='margin: 20px 0;'>
+                        <a href='" . $lien . "' target='_blank' style='background-color: #81a6c5ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;'>
+                          🔗 Voir les détails
+                        </a>
+                    </p>
+
+                    <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
+                    <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système ADAPP.</p>
+                </div>
+            ");
+
+        try {
+            $mailer->send($email);
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            Log::error("Erreur d'envoi de mail (notification AD) : " . $e->getMessage());
+        }
+    }
+}
 }
