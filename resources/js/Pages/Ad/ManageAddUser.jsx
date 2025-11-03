@@ -12,7 +12,7 @@ import Layout from "@/Layouts/layout/layout.jsx";
 import 'primeicons/primeicons.css';
 import 'primereact/resources/themes/lara-light-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
-const [mounted, setMounted] = useState(false);
+const [ setMounted] = useState(false);
 
 useEffect(() => {
   setMounted(true);
