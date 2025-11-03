@@ -37,7 +37,6 @@ export default function ManageUserStatus() {
   };
 
 
-
 const handleSearch = async () => {
   if (!search.trim()) {
     alert("Veuillez saisir un SamAccountName !");
