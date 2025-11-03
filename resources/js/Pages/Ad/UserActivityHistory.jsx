@@ -106,13 +106,6 @@ export default function UserActivityHistory({ user, logs }) {
                     </p>
                 </div>
             </div>
-            <Button
-                icon="pi pi-arrow-left"
-                label="Retour"
-                onClick={() => router.visit('/ad/activity-logs')}
-                outlined
-                className="p-button-secondary"
-            />
         </div>
     );
 
