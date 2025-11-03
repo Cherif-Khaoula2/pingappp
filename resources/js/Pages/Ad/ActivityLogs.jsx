@@ -1,334 +1,608 @@
+import React, { useState } from 'react';
 import { Head, router, Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Card } from 'primereact/card';
+import { Button } from 'primereact/button';
+import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
+import { Calendar } from 'primereact/calendar';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Tag } from 'primereact/tag';
+import { Chip } from 'primereact/chip';
+import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function ActivityLogs({ logs, stats, filters }) {
-    // Récupération de auth depuis usePage()
     const { auth } = usePage().props;
 
     const [localFilters, setLocalFilters] = useState({
         action: filters.action || '',
         target_user: filters.target_user || '',
-        status: filters.status || '',
-        start_date: filters.start_date || '',
-        end_date: filters.end_date || '',
+        start_date: filters.start_date ? new Date(filters.start_date) : null,
+        end_date: filters.end_date ? new Date(filters.end_date) : null,
     });
+
+    const actionOptions = [
+        { label: 'Toutes les actions', value: '' },
+        { label: '🔑 Connexion', value: 'login' },
+        { label: '🚪 Déconnexion', value: 'logout' },
+        { label: '🔒 Blocage', value: 'block_user' },
+        { label: '🔓 Déblocage', value: 'unblock_user' },
+        { label: '🔄 Reset mot de passe', value: 'reset_password' },
+        { label: '➕ Création', value: 'create_user' },
+    ];
 
     const handleFilterChange = (key, value) => {
         const newFilters = { ...localFilters, [key]: value };
         setLocalFilters(newFilters);
         
-        router.get('/ad/activity-logs', newFilters, {
+        const queryParams = {
+            action: newFilters.action,
+            target_user: newFilters.target_user,
+            start_date: newFilters.start_date ? formatDateForQuery(newFilters.start_date) : '',
+            end_date: newFilters.end_date ? formatDateForQuery(newFilters.end_date) : '',
+        };
+        
+        router.get('/ad/activity-logs', queryParams, {
             preserveState: true,
             preserveScroll: true,
         });
+    };
+
+    const formatDateForQuery = (date) => {
+        if (!date) return '';
+        const d = new Date(date);
+        return d.toISOString().split('T')[0];
     };
 
     const resetFilters = () => {
         setLocalFilters({
             action: '',
             target_user: '',
-            status: '',
-            start_date: '',
-            end_date: '',
+            start_date: null,
+            end_date: null,
         });
         router.get('/ad/activity-logs');
     };
 
     const exportLogs = () => {
-        window.location.href = `/ad/activity-logs-export?${new URLSearchParams(localFilters).toString()}`;
+        const params = new URLSearchParams({
+            action: localFilters.action,
+            target_user: localFilters.target_user,
+            start_date: localFilters.start_date ? formatDateForQuery(localFilters.start_date) : '',
+            end_date: localFilters.end_date ? formatDateForQuery(localFilters.end_date) : '',
+        });
+        window.location.href = `/ad/activity-logs-export?${params.toString()}`;
     };
 
-    const getActionBadge = (action) => {
-        const badges = {
-            login: 'bg-blue-100 text-blue-800',
-            logout: 'bg-gray-100 text-gray-800',
-            block_user: 'bg-red-100 text-red-800',
-            unblock_user: 'bg-green-100 text-green-800',
-            reset_password: 'bg-yellow-100 text-yellow-800',
-            create_user: 'bg-purple-100 text-purple-800',
+    const getActionConfig = (action) => {
+        const configs = {
+            login: { icon: 'pi-sign-in', severity: 'info', label: 'Connexion' },
+            logout: { icon: 'pi-sign-out', severity: null, label: 'Déconnexion' },
+            block_user: { icon: 'pi-lock', severity: 'danger', label: 'Blocage' },
+            unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage' },
+            reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset MDP' },
+            create_user: { icon: 'pi-user-plus', severity: 'help', label: 'Création' },
         };
-        return badges[action] || 'bg-gray-100 text-gray-800';
+        return configs[action] || { icon: 'pi-question', severity: null, label: action };
     };
 
-    const getActionLabel = (action) => {
-        const labels = {
-            login: '🔑 Connexion',
-            logout: '🚪 Déconnexion',
-            block_user: '🔒 Blocage',
-            unblock_user: '🔓 Déblocage',
-            reset_password: '🔄 Reset MDP',
-            create_user: '➕ Création',
-        };
-        return labels[action] || action;
-    };
-
-    const getStatusBadge = (status) => {
-        return status === 'success'
-            ? 'bg-green-100 text-green-800'
-            : 'bg-red-100 text-red-800';
-    };
-
-    return (
-        <AuthenticatedLayout user={auth?.user}>
-            <Head title="Logs d'activité AD" />
-
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    
-                    {/* En-tête */}
-                    <div className="mb-6">
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            📊 Logs d'activité Active Directory
-                        </h1>
-                        <p className="mt-2 text-gray-600">
-                            Traçabilité complète des actions sur les utilisateurs AD
-                        </p>
+    // Templates
+    const dateTemplate = (rowData) => {
+        return (
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-clock text-600"></i>
+                <div>
+                    <div className="font-medium text-900">
+                        {new Date(rowData.created_at).toLocaleDateString('fr-FR')}
                     </div>
-
-                    {/* Statistiques rapides */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="text-sm text-gray-600">Total aujourd'hui</div>
-                            <div className="text-3xl font-bold text-gray-900">{stats?.total_today || 0}</div>
-                        </div>
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="text-sm text-gray-600">Connexions réussies</div>
-                            <div className="text-3xl font-bold text-green-600">{stats?.logins_today || 0}</div>
-                        </div>
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="text-sm text-gray-600">Échecs</div>
-                            <div className="text-3xl font-bold text-red-600">{stats?.failed_today || 0}</div>
-                        </div>
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="text-sm text-gray-600">Blocages</div>
-                            <div className="text-3xl font-bold text-orange-600">{stats?.blocks_today || 0}</div>
-                        </div>
-                    </div>
-
-                    {/* Filtres */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h3 className="text-lg font-semibold mb-4">🔍 Filtres</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Action
-                                </label>
-                                <select
-                                    value={localFilters.action}
-                                    onChange={(e) => handleFilterChange('action', e.target.value)}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                >
-                                    <option value="">Toutes les actions</option>
-                                    <option value="login">Connexion</option>
-                                    <option value="logout">Déconnexion</option>
-                                    <option value="block_user">Blocage</option>
-                                    <option value="unblock_user">Déblocage</option>
-                                    <option value="reset_password">Reset mot de passe</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Utilisateur ciblé
-                                </label>
-                                <input
-                                    type="text"
-                                    value={localFilters.target_user}
-                                    onChange={(e) => handleFilterChange('target_user', e.target.value)}
-                                    placeholder="Rechercher un utilisateur..."
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Statut
-                                </label>
-                                <select
-                                    value={localFilters.status}
-                                    onChange={(e) => handleFilterChange('status', e.target.value)}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                >
-                                    <option value="">Tous les statuts</option>
-                                    <option value="success">Réussi</option>
-                                    <option value="failed">Échoué</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Date début
-                                </label>
-                                <input
-                                    type="date"
-                                    value={localFilters.start_date}
-                                    onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Date fin
-                                </label>
-                                <input
-                                    type="date"
-                                    value={localFilters.end_date}
-                                    onChange={(e) => handleFilterChange('end_date', e.target.value)}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            <div className="flex items-end gap-2">
-                                <button
-                                    onClick={resetFilters}
-                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
-                                >
-                                    Réinitialiser
-                                </button>
-                                <button
-                                    onClick={exportLogs}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
-                                >
-                                    📥 Exporter CSV
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Table des logs */}
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Date/Heure
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Action
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Utilisateur ciblé
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Effectué par
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        IP
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Statut
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {logs?.data?.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                                            Aucun log trouvé
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    logs?.data?.map((log) => (
-                                        <tr key={log.id} className="hover:bg-gray-50 transition">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(log.created_at).toLocaleString('fr-FR')}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActionBadge(log.action)}`}>
-                                                    {getActionLabel(log.action)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {log.target_user}
-                                                </div>
-                                                {log.target_user_name && (
-                                                    <div className="text-sm text-gray-500">
-                                                        {log.target_user_name}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {log.performed_by_name}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {log.ip_address || '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(log.status)}`}>
-                                                    {log.status === 'success' ? '✅ Réussi' : '❌ Échoué'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <Link
-                                                    href={`/ad/activity-logs/${log.id}`}
-                                                    className="text-blue-600 hover:text-blue-800 font-medium"
-                                                >
-                                                    Détails →
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-
-                        {/* Pagination */}
-                        {logs?.last_page > 1 && (
-                            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                                <div className="flex-1 flex justify-between sm:hidden">
-                                    {logs.prev_page_url && (
-                                        <Link
-                                            href={logs.prev_page_url}
-                                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                                        >
-                                            Précédent
-                                        </Link>
-                                    )}
-                                    {logs.next_page_url && (
-                                        <Link
-                                            href={logs.next_page_url}
-                                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                                        >
-                                            Suivant
-                                        </Link>
-                                    )}
-                                </div>
-                                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                    <div>
-                                        <p className="text-sm text-gray-700">
-                                            Affichage de <span className="font-medium">{logs.from}</span> à{' '}
-                                            <span className="font-medium">{logs.to}</span> sur{' '}
-                                            <span className="font-medium">{logs.total}</span> résultats
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                            {logs.links.map((link, index) => (
-                                                <Link
-                                                    key={index}
-                                                    href={link.url || '#'}
-                                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                                        link.active
-                                                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                                    } ${!link.url ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                                />
-                                            ))}
-                                        </nav>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    <div className="text-sm text-600">
+                        {new Date(rowData.created_at).toLocaleTimeString('fr-FR')}
                     </div>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        );
+    };
+
+    const actionTemplate = (rowData) => {
+        const config = getActionConfig(rowData.action);
+        return (
+            <Tag 
+                icon={`pi ${config.icon}`}
+                value={config.label} 
+                severity={config.severity}
+                className="font-medium"
+            />
+        );
+    };
+
+    const targetUserTemplate = (rowData) => {
+        const initial = rowData.target_user ? rowData.target_user.charAt(0).toUpperCase() : 'U';
+        return (
+            <div className="flex align-items-center gap-2">
+                <div 
+                    className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
+                    style={{
+                        width: '32px',
+                        height: '32px',
+                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                        fontSize: '0.875rem'
+                    }}
+                >
+                    {initial}
+                </div>
+                <div>
+                    <div className="font-medium text-900">{rowData.target_user}</div>
+                    {rowData.target_user_name && (
+                        <div className="text-sm text-600">{rowData.target_user_name}</div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const performedByTemplate = (rowData) => {
+        return (
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-user text-600"></i>
+                <span className="text-900">{rowData.performed_by_name}</span>
+            </div>
+        );
+    };
+
+    const ipTemplate = (rowData) => {
+        return (
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-globe text-600"></i>
+                <span className="text-700 font-mono text-sm">
+                    {rowData.ip_address || '—'}
+                </span>
+            </div>
+        );
+    };
+
+    const statusTemplate = (rowData) => {
+        return (
+            <Tag 
+                icon={rowData.status === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'}
+                value={rowData.status === 'success' ? 'Réussi' : 'Échoué'} 
+                severity={rowData.status === 'success' ? 'success' : 'danger'}
+            />
+        );
+    };
+
+    const actionsTemplate = (rowData) => {
+        return (
+            <Button
+                icon="pi pi-eye"
+                label="Détails"
+                text
+                size="small"
+                onClick={() => router.visit(`/ad/activity-logs/${rowData.id}`)}
+                style={{ color: '#6366f1' }}
+            />
+        );
+    };
+
+    // Header avec statistiques
+    const tableHeader = (
+        <div className="flex flex-column gap-4">
+            {/* Titre et export */}
+            <div className="flex align-items-center justify-content-between flex-wrap gap-3">
+                <div className="flex align-items-center gap-3">
+                    <div 
+                        className="inline-flex align-items-center justify-content-center border-circle" 
+                        style={{ 
+                            width: '56px', 
+                            height: '56px',
+                            background: 'linear-gradient(135deg, #667eea, #764ba2)'
+                        }}
+                    >
+                        <i className="pi pi-list text-3xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 className="text-900 text-3xl font-bold m-0">
+                            Logs d'activité Active Directory
+                        </h1>
+                        <p className="text-600 mt-1 m-0">
+                            Traçabilité complète des actions sur les utilisateurs
+                        </p>
+                    </div>
+                </div>
+                <Button
+                    icon="pi pi-download"
+                    label="Exporter CSV"
+                    severity="success"
+                    onClick={exportLogs}
+                    style={{
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        border: 'none'
+                    }}
+                />
+            </div>
+
+            {/* Statistiques */}
+            <div className="grid">
+                <div className="col-12 md:col-3">
+                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                        <div className="flex align-items-center justify-content-between">
+                            <div>
+                                <div className="text-white text-sm mb-1 opacity-80">Total aujourd'hui</div>
+                                <div className="text-white text-3xl font-bold">{stats?.total_today || 0}</div>
+                            </div>
+                            <i className="pi pi-chart-line text-white text-3xl opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-12 md:col-3">
+                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+                        <div className="flex align-items-center justify-content-between">
+                            <div>
+                                <div className="text-white text-sm mb-1 opacity-80">Connexions réussies</div>
+                                <div className="text-white text-3xl font-bold">{stats?.logins_today || 0}</div>
+                            </div>
+                            <i className="pi pi-check-circle text-white text-3xl opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-12 md:col-3">
+                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}>
+                        <div className="flex align-items-center justify-content-between">
+                            <div>
+                                <div className="text-white text-sm mb-1 opacity-80">Échecs</div>
+                                <div className="text-white text-3xl font-bold">{stats?.failed_today || 0}</div>
+                            </div>
+                            <i className="pi pi-times-circle text-white text-3xl opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-12 md:col-3">
+                    <div className="p-3 border-round" style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' }}>
+                        <div className="flex align-items-center justify-content-between">
+                            <div>
+                                <div className="text-white text-sm mb-1 opacity-80">Blocages</div>
+                                <div className="text-white text-3xl font-bold">{stats?.blocks_today || 0}</div>
+                            </div>
+                            <i className="pi pi-lock text-white text-3xl opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filtres */}
+            <Card className="shadow-1">
+                <div className="grid">
+                    <div className="col-12 md:col-3">
+                        <label className="block text-900 font-medium mb-2">
+                            <i className="pi pi-filter mr-2"></i>
+                            Action
+                        </label>
+                        <Dropdown
+                            value={localFilters.action}
+                            options={actionOptions}
+                            onChange={(e) => handleFilterChange('action', e.value)}
+                            placeholder="Toutes les actions"
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="col-12 md:col-3">
+                        <label className="block text-900 font-medium mb-2">
+                            <i className="pi pi-user mr-2"></i>
+                            Utilisateur ciblé
+                        </label>
+                        <InputText
+                            value={localFilters.target_user}
+                            onChange={(e) => handleFilterChange('target_user', e.target.value)}
+                            placeholder="Rechercher..."
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="col-12 md:col-2">
+                        <label className="block text-900 font-medium mb-2">
+                            <i className="pi pi-calendar mr-2"></i>
+                            Date début
+                        </label>
+                        <Calendar
+                            value={localFilters.start_date}
+                            onChange={(e) => handleFilterChange('start_date', e.value)}
+                            dateFormat="dd/mm/yy"
+                            placeholder="Début"
+                            showIcon
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="col-12 md:col-2">
+                        <label className="block text-900 font-medium mb-2">
+                            <i className="pi pi-calendar mr-2"></i>
+                            Date fin
+                        </label>
+                        <Calendar
+                            value={localFilters.end_date}
+                            onChange={(e) => handleFilterChange('end_date', e.value)}
+                            dateFormat="dd/mm/yy"
+                            placeholder="Fin"
+                            showIcon
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="col-12 md:col-2">
+                        <label className="block text-900 font-medium mb-2 opacity-0">Actions</label>
+                        <Button
+                            icon="pi pi-times"
+                            label="Réinitialiser"
+                            outlined
+                            onClick={resetFilters}
+                            className="w-full"
+                            style={{
+                                borderColor: '#6b7280',
+                                color: '#374151'
+                            }}
+                        />
+                    </div>
+                </div>
+
+                {/* Filtres actifs */}
+                {(localFilters.action || localFilters.target_user || localFilters.start_date || localFilters.end_date) && (
+                    <div className="mt-3 flex align-items-center gap-2 flex-wrap">
+                        <span className="text-600 font-medium">Filtres actifs:</span>
+                        {localFilters.action && (
+                            <Chip 
+                                label={`Action: ${actionOptions.find(o => o.value === localFilters.action)?.label}`}
+                                removable
+                                onRemove={() => handleFilterChange('action', '')}
+                            />
+                        )}
+                        {localFilters.target_user && (
+                            <Chip 
+                                label={`Utilisateur: ${localFilters.target_user}`}
+                                removable
+                                onRemove={() => handleFilterChange('target_user', '')}
+                            />
+                        )}
+                        {localFilters.start_date && (
+                            <Chip 
+                                label={`Début: ${localFilters.start_date.toLocaleDateString('fr-FR')}`}
+                                removable
+                                onRemove={() => handleFilterChange('start_date', null)}
+                            />
+                        )}
+                        {localFilters.end_date && (
+                            <Chip 
+                                label={`Fin: ${localFilters.end_date.toLocaleDateString('fr-FR')}`}
+                                removable
+                                onRemove={() => handleFilterChange('end_date', null)}
+                            />
+                        )}
+                    </div>
+                )}
+            </Card>
+        </div>
+    );
+
+    const currentPage = logs?.current_page || 1;
+    const perPage = logs?.per_page || 10;
+    const total = logs?.total || 0;
+
+    return (
+        <Layout>
+            <Head title="Logs d'activité AD" />
+
+            <div className="grid">
+                <div className="col-12">
+                    <Card className="shadow-2">
+                        <DataTable
+                            value={logs?.data || []}
+                            header={tableHeader}
+                            lazy
+                            paginator
+                            first={(currentPage - 1) * perPage}
+                            rows={perPage}
+                            totalRecords={total}
+                            onPage={(e) => {
+                                const page = (e.first / e.rows) + 1;
+                                const queryParams = {
+                                    action: localFilters.action,
+                                    target_user: localFilters.target_user,
+                                    start_date: localFilters.start_date ? formatDateForQuery(localFilters.start_date) : '',
+                                    end_date: localFilters.end_date ? formatDateForQuery(localFilters.end_date) : '',
+                                    page
+                                };
+                                router.get('/ad/activity-logs', queryParams, {
+                                    preserveState: true,
+                                    preserveScroll: true
+                                });
+                            }}
+                            rowsPerPageOptions={[10, 25, 50, 100]}
+                            emptyMessage={
+                                <div className="text-center py-6">
+                                    <i className="pi pi-inbox text-400 mb-3" style={{ fontSize: '3rem' }}></i>
+                                    <h3 className="text-900 text-xl font-medium mb-2">
+                                        Aucun log trouvé
+                                    </h3>
+                                    <p className="text-600">
+                                        Essayez de modifier vos filtres de recherche
+                                    </p>
+                                </div>
+                            }
+                            stripedRows
+                            responsiveLayout="scroll"
+                            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                            currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} logs"
+                        >
+                            <Column
+                                field="created_at"
+                                header="Date/Heure"
+                                body={dateTemplate}
+                                sortable
+                                style={{ minWidth: '180px' }}
+                            />
+                            <Column
+                                field="action"
+                                header="Action"
+                                body={actionTemplate}
+                                sortable
+                                style={{ minWidth: '140px' }}
+                            />
+                            <Column
+                                field="target_user"
+                                header="Utilisateur ciblé"
+                                body={targetUserTemplate}
+                                sortable
+                                style={{ minWidth: '220px' }}
+                            />
+                            <Column
+                                field="performed_by_name"
+                                header="Effectué par"
+                                body={performedByTemplate}
+                                sortable
+                                style={{ minWidth: '180px' }}
+                            />
+                            <Column
+                                field="ip_address"
+                                header="Adresse IP"
+                                body={ipTemplate}
+                                style={{ minWidth: '160px' }}
+                            />
+                            <Column
+                                field="status"
+                                header="Statut"
+                                body={statusTemplate}
+                                sortable
+                                style={{ minWidth: '120px' }}
+                            />
+                            <Column
+                                header="Actions"
+                                body={actionsTemplate}
+                                style={{ minWidth: '120px' }}
+                            />
+                        </DataTable>
+                    </Card>
+                </div>
+            </div>
+
+            <style>{`
+                /* Card styling */
+                :global(.p-card) {
+                    border-radius: 12px;
+                    border: 1px solid #e5e7eb;
+                }
+
+                :global(.p-card .p-card-body) {
+                    padding: 0;
+                }
+
+                :global(.p-card .p-card-content) {
+                    padding: 0;
+                }
+
+                /* DataTable styling */
+                :global(.p-datatable .p-datatable-header) {
+                    background: white;
+                    border-bottom: 1px solid #e5e7eb;
+                    padding: 1.5rem;
+                }
+
+                :global(.p-datatable .p-datatable-thead > tr > th) {
+                    background: #f9fafb;
+                    color: #374151;
+                    font-weight: 600;
+                    padding: 1rem;
+                    border-bottom: 2px solid #e5e7eb;
+                }
+
+                :global(.p-datatable .p-datatable-tbody > tr) {
+                    transition: all 0.2s ease;
+                }
+
+                :global(.p-datatable .p-datatable-tbody > tr:hover) {
+                    background: #f9fafb;
+                }
+
+                :global(.p-datatable .p-datatable-tbody > tr > td) {
+                    padding: 1rem;
+                }
+
+                /* Input & Dropdown styling */
+                :global(.p-inputtext),
+                :global(.p-dropdown) {
+                    border-radius: 8px;
+                    border: 1px solid #e5e7eb;
+                }
+
+                :global(.p-inputtext:focus),
+                :global(.p-dropdown:not(.p-disabled).p-focus) {
+                    border-color: #6366f1;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+                }
+
+                /* Calendar */
+                :global(.p-calendar .p-inputtext) {
+                    border-radius: 8px;
+                }
+
+                /* Button styling */
+                :global(.p-button) {
+                    border-radius: 8px;
+                    font-weight: 600;
+                    transition: all 0.2s ease;
+                }
+
+                :global(.p-button:not(.p-button-outlined):not(.p-button-text):not(:disabled):hover) {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+
+                /* Tag styling */
+                :global(.p-tag) {
+                    border-radius: 6px;
+                    padding: 0.35rem 0.7rem;
+                    font-size: 0.875rem;
+                }
+
+                /* Chip styling */
+                :global(.p-chip) {
+                    background: #f3f4f6;
+                    color: #374151;
+                    border-radius: 6px;
+                }
+
+                /* Shadow */
+                :global(.shadow-1) {
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                }
+
+                :global(.shadow-2) {
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+                }
+
+                /* Paginator */
+                :global(.p-paginator) {
+                    background: #f9fafb;
+                    border-top: 1px solid #e5e7eb;
+                    padding: 1rem 1.5rem;
+                }
+
+                :global(.p-paginator .p-paginator-pages .p-paginator-page) {
+                    border-radius: 6px;
+                    min-width: 2.5rem;
+                    height: 2.5rem;
+                }
+
+                :global(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    border-color: #667eea;
+                }
+
+                /* Responsive */
+                @media (max-width: 768px) {
+                    :global(.p-datatable .p-datatable-header) {
+                        padding: 1rem;
+                    }
+                }
+            `}</style>
+        </Layout>
     );
 }
