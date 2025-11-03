@@ -302,10 +302,12 @@ class AdUserController extends Controller
                 errorMessage: $e->getMessage()
             );
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la réinitialisation : ' . $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la réinitialisation du mot de passe : ' . $e->getMessage(),
+        ], 500);
     }
+}
+
+
 }
