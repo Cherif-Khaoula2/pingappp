@@ -6,17 +6,18 @@ import { InputText } from "primereact/inputtext";
 import { Card } from "primereact/card";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Dialog } from "primereact/dialog";
 import { Tag } from "primereact/tag";
+import { Dialog } from "primereact/dialog";
 import Layout from "@/Layouts/layout/layout.jsx";
 
-export default function ResetUserPassword() {
+export default function ManageUserStatus() {
   const [search, setSearch] = useState("");
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]); // Tableau pour la DataTable
   const [error, setError] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({
     visible: false,
     sam: null,
+    action: null,
     userName: null,
   });
 
@@ -46,16 +47,17 @@ export default function ResetUserPassword() {
 
     try {
       const response = await axios.post("/ad/users/find", { search });
+     
 
       if (response.data.success && response.data.users) {
-        setUsers([
-          {
-            name: response.data.users.Name,
-            sam: response.data.users.SamAccountName,
-            email: response.data.users.EmailAddress,
-            lastLogon: formatAdDate(response.data.users.LastLogonDate),
-          },
-        ]);
+        // ✅ Transformer la réponse unique en tableau pour le DataTable
+        setUsers([{
+          name: response.data.users.Name,
+          sam: response.data.users.SamAccountName,
+          email: response.data.users.EmailAddress,
+          enabled: response.data.users.Enabled,
+          lastLogon: formatAdDate(response.data.users.LastLogonDate),
+        }]);
         setError(null);
       } else {
         setUsers([]);
@@ -68,26 +70,35 @@ export default function ResetUserPassword() {
   };
 
   // 🔹 Ouverture du popup de confirmation
-  const handleResetClick = (user) => {
+  const handleToggleClick = (user, action) => {
     setConfirmDialog({
       visible: true,
       sam: user.sam,
+      action,
       userName: user.name,
     });
   };
 
-  // 🔹 Confirmation de la réinitialisation
-  const confirmReset = () => {
+  // 🔹 Confirmation du blocage/déblocage
+  const confirmToggle = () => {
     router.post(
-      "/ad/users/reset-password",
-      { sam: confirmDialog.sam },
+      "/ad/users/toggle",
+      {
+        sam: confirmDialog.sam,
+        action: confirmDialog.action,
+      },
       {
         onSuccess: () => {
-          setConfirmDialog({ visible: false, sam: null, userName: null });
-          alert("Mot de passe réinitialisé avec succès !");
+          setConfirmDialog({
+            visible: false,
+            sam: null,
+            action: null,
+            userName: null,
+          });
+          handleSearch(); // rafraîchir les données
         },
         onError: () => {
-          alert("Erreur lors de la réinitialisation du mot de passe.");
+          alert("Erreur lors du changement de statut");
         },
       }
     );
@@ -113,15 +124,34 @@ export default function ResetUserPassword() {
     </div>
   );
 
-  const actionTemplate = (rowData) => (
-    <Button
-      icon="pi pi-refresh"
-      label="Réinitialiser"
-      severity="info"
-      text
-      size="small"
-      onClick={() => handleResetClick(rowData)}
-    />
+  const statusTemplate = (rowData) => (
+    <div className="flex align-items-center gap-3">
+      {rowData.enabled ? (
+        <>
+          <Tag severity="success" value="Actif" icon="pi pi-check-circle" />
+          <Button
+            icon="pi pi-lock"
+            label="Bloquer"
+            severity="danger"
+            text
+            size="small"
+            onClick={() => handleToggleClick(rowData, "block")}
+          />
+        </>
+      ) : (
+        <>
+          <Tag severity="danger" value="Bloqué" icon="pi pi-ban" />
+          <Button
+            icon="pi pi-unlock"
+            label="Débloquer"
+            severity="success"
+            text
+            size="small"
+            onClick={() => handleToggleClick(rowData, "unblock")}
+          />
+        </>
+      )}
+    </div>
   );
 
   return (
@@ -131,18 +161,18 @@ export default function ResetUserPassword() {
           <Card className="shadow-2">
             <div className="flex flex-column gap-3 p-4">
               <div className="flex align-items-center gap-3 mb-2">
-                <i className="pi pi-key text-3xl text-indigo-600"></i>
+                <i className="pi pi-lock text-3xl text-indigo-600"></i>
                 <div>
                   <h1 className="text-900 text-2xl font-bold m-0">
-                    Réinitialisation mot de passe AD
+                    Blocage / Déblocage AD
                   </h1>
                   <p className="text-600 m-0">
-                    Recherchez un utilisateur et réinitialisez son mot de passe.
+                    Rechercher un utilisateur par son SAMAccountName
                   </p>
                 </div>
               </div>
 
-              {/* 🔹 Champ de recherche */}
+              {/* Champ de recherche */}
               <div className="p-inputgroup">
                 <span className="p-inputgroup-addon">
                   <i className="pi pi-search"></i>
@@ -171,7 +201,7 @@ export default function ResetUserPassword() {
                 </div>
               )}
 
-              {/* 🔹 Tableau utilisateur */}
+              {/* Tableau utilisateur */}
               <DataTable
                 value={users}
                 emptyMessage="Aucun utilisateur affiché."
@@ -190,13 +220,9 @@ export default function ResetUserPassword() {
                   style={{ minWidth: "200px" }}
                 />
                 <Column
-                  field="lastLogon"
-                  header="Dernière connexion"
-                  style={{ minWidth: "200px" }}
-                />
-                <Column
-                  header="Action"
-                  body={actionTemplate}
+                  field="enabled"
+                  header="Statut"
+                  body={statusTemplate}
                   style={{ minWidth: "180px" }}
                 />
               </DataTable>
@@ -205,11 +231,16 @@ export default function ResetUserPassword() {
         </div>
       </div>
 
-      {/* 🔹 Pop-up de confirmation */}
+      {/* Pop-up de confirmation */}
       <Dialog
         visible={confirmDialog.visible}
         onHide={() =>
-          setConfirmDialog({ visible: false, sam: null, userName: null })
+          setConfirmDialog({
+            visible: false,
+            sam: null,
+            action: null,
+            userName: null,
+          })
         }
         header={
           <div className="flex align-items-center gap-3">
@@ -218,13 +249,25 @@ export default function ResetUserPassword() {
               style={{
                 width: "48px",
                 height: "48px",
-                background: "#eef2ff",
+                background:
+                  confirmDialog.action === "block" ? "#fef2f2" : "#f0fdf4",
               }}
             >
-              <i className="pi pi-key text-indigo-600 text-2xl"></i>
+              <i
+                className={`pi ${
+                  confirmDialog.action === "block" ? "pi-lock" : "pi-unlock"
+                } text-2xl`}
+                style={{
+                  color:
+                    confirmDialog.action === "block" ? "#dc2626" : "#16a34a",
+                }}
+              ></i>
             </div>
             <span className="text-xl font-bold">
-              Confirmer la réinitialisation
+              {confirmDialog.action === "block"
+                ? "Bloquer"
+                : "Débloquer"}{" "}
+              l'utilisateur
             </span>
           </div>
         }
@@ -234,8 +277,16 @@ export default function ResetUserPassword() {
         <div className="py-3">
           <p className="text-700 text-lg mb-3">
             Êtes-vous sûr de vouloir{" "}
-            <strong className="text-indigo-600">réinitialiser</strong> le mot de
-            passe de :
+            <strong
+              className={
+                confirmDialog.action === "block"
+                  ? "text-red-600"
+                  : "text-green-600"
+              }
+            >
+              {confirmDialog.action === "block" ? "bloquer" : "débloquer"}
+            </strong>{" "}
+            cet utilisateur ?
           </p>
 
           <div className="p-3 bg-gray-50 border-round">
@@ -258,14 +309,21 @@ export default function ResetUserPassword() {
             icon="pi pi-times"
             outlined
             onClick={() =>
-              setConfirmDialog({ visible: false, sam: null, userName: null })
+              setConfirmDialog({
+                visible: false,
+                sam: null,
+                action: null,
+                userName: null,
+              })
             }
           />
           <Button
             label="Confirmer"
             icon="pi pi-check"
-            onClick={confirmReset}
-            severity="info"
+            onClick={confirmToggle}
+            severity={
+              confirmDialog.action === "block" ? "danger" : "success"
+            }
           />
         </div>
       </Dialog>

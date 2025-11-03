@@ -17,9 +17,22 @@ const ManageAddUser = () => {
     email: "",
     logmail : "",
     password: "",
-    ou_path: "OU=OuTempUsers,DC=sarpi-dz,DC=sg",
+    ou_path: "",
   });
-
+const directions = [
+  "DJU", "DAS", "DPM", "DAU", "DFC", "DRH", "DQHSE", "DSPE", 
+  "DSI", "DAG", "DCM", "DG", "DLG", "DENG", "DRO", "DRHMD", 
+  "DRHRM", "PROJETS"
+];
+const [direction, setDirection] = useState(""); // choix simple
+const handleDirectionChange = (e) => {
+  const selected = e.value;
+  setDirection(selected);
+  setForm((prev) => ({
+    ...prev,
+    ou_path: `OU=${selected},OU=OuTempUsers,DC=sarpi-dz,DC=sg`
+  }));
+};
   const [accountType, setAccountType] = useState("AD");
   const [loading, setLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -257,21 +270,23 @@ const generatePassword = () => {
                   </div>
                 </div>
 
-                <div className="col-12 md:col-6">
-                  <div className="field">
-                    <label htmlFor="ou_path" className="block text-900 font-medium mb-2">
-                      Chemin OU <span className="text-red-500">*</span>
-                    </label>
-                    <InputText
-                      id="ou_path"
-                      name="ou_path"
-                      value={form.ou_path}
-                      onChange={handleChange}
-                      className="w-full"
-                      required
-                    />
-                  </div>
-                </div>
+               <div className="col-12 md:col-6">
+  <div className="field">
+    <label htmlFor="direction" className="block text-900 font-medium mb-2">
+      Direction <span className="text-red-500">*</span>
+    </label>
+    <Dropdown
+      id="direction"
+      value={direction}
+      options={directions.map((d) => ({ label: d, value: d }))}
+      onChange={handleDirectionChange}
+      placeholder="Choisir une direction"
+      className="w-full"
+      required
+    />
+  </div>
+</div>
+
 
                 {/* Actions */}
                 <div className="col-12 mt-4">
