@@ -7,6 +7,10 @@ use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Inertia\Inertia;
 use App\Traits\LogsAdActivity;
+use Symfony\Component\Mailer\Mailer as SymfonyMailer;
+use Symfony\Component\Mailer\Transport;
+use Symfony\Component\Mime\Email;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 class AdUserController extends Controller
 {
