@@ -365,8 +365,7 @@ public function manageAddUser()
 {
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
-}
-public function createAdUser(Request $request)
+}public function createAdUser(Request $request)
 {
     $request->validate([
         'name' => 'required|string',
@@ -381,32 +380,34 @@ public function createAdUser(Request $request)
     $keyPath = env('SSH_KEY_PATH');
 
     if (!$host || !$user) {
-        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+        return response()->json([
+            'success' => false,
+            'message' => 'Configuration SSH manquante'
+        ], 500);
     }
 
     $name = $request->input('name');
     $sam = $request->input('sam');
     $email = $request->input('email');
     $userPassword = $request->input('password');
-
-    // Chemin de l'OU dans AD
     $ouPath = "OU=OuTempUsers,DC=sarpi-dz,DC=sg";
 
-    // ✅ Commande PowerShell à exécuter à distance
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
-        . "Import-Module ActiveDirectory; "
-        . "New-ADUser -Name '$name' "
-        . "-SamAccountName '$sam' "
-        . "-UserPrincipalName '$email' "
-        . "-EmailAddress '$email' "
-        . "-Path '$ouPath' "
-        . "-AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) "
-        . "Write-Output 'User created successfully'\"";
+    // ✅ Commande AD exécutée directement (sans préfixe powershell/import)
+    $adCommand = "
+        New-ADUser -Name '$name' `
+            -SamAccountName '$sam' `
+            -UserPrincipalName '$email' `
+            -EmailAddress '$email' `
+            -Path '$ouPath' `
+            -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
+            -Enabled \$true;
+        Write-Output 'User created successfully';
+    ";
 
-    // ✅ Choix de la méthode de connexion SSH
+    // ✅ Préparation de la commande SSH
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
 
     try {
         $process = new Process($command);
@@ -419,7 +420,7 @@ public function createAdUser(Request $request)
 
         $output = trim($process->getOutput());
 
-        // ✅ Log de la création réussie
+        // ✅ Log de succès
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -427,7 +428,7 @@ public function createAdUser(Request $request)
             success: true,
             additionalDetails: [
                 'email' => $email,
-                'method' => 'PowerShell AD'
+                'method' => 'Direct AD over SSH'
             ]
         );
 
@@ -440,7 +441,7 @@ public function createAdUser(Request $request)
     } catch (\Throwable $e) {
         \Log::error('createUserAd error: ' . $e->getMessage());
 
-        // ❌ Log de l'échec
+        // ❌ Log de l’échec
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -455,6 +456,7 @@ public function createAdUser(Request $request)
         ], 500);
     }
 }
+
 
 
 }
