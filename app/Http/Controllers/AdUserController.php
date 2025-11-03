@@ -392,21 +392,15 @@ public function createAdUser(Request $request)
     $passwordValue = $request->input('password');
     $ouPath = $request->input('ou_path');
 
-    // Commande PowerShell avec gestion d'erreur
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
-        . "Import-Module ActiveDirectory; "
-        . "try { "
-        . "New-ADUser -Name '$name' -SamAccountName '$sam' -UserPrincipalName '$email' "
-        . "-EmailAddress '$email' -Path '$ouPath' "
-        . "-AccountPassword (ConvertTo-SecureString '$passwordValue' -AsPlainText -Force) -Enabled \$true; "
-        . "Start-Sleep -Seconds 2; "
-        . "if (Get-ADUser -Identity '$sam') { Write-Output 'Utilisateur AD créé avec succès' } "
-        . "else { Write-Output 'Échec de la création de l’utilisateur' } "
-        . "} catch { Write-Error \$_; exit 1 }\"";
+    // ✅ Commande PowerShell bien échappée
+    $psCommand = <<<EOT
+powershell -NoProfile -NonInteractive -Command "Import-Module ActiveDirectory; try { New-ADUser -Name \\"$name\\" -SamAccountName \\"$sam\\" -UserPrincipalName \\"$email\\" -EmailAddress \\"$email\\" -Path \\"$ouPath\\" -AccountPassword (ConvertTo-SecureString \\"$passwordValue\\" -AsPlainText -Force) -Enabled \$true; Start-Sleep -Seconds 2; if (Get-ADUser -Identity \\"$sam\\") { Write-Output \\"Utilisateur AD créé avec succès\\" } else { Write-Output \\"Échec de la création de l’utilisateur\\" } } catch { Write-Error \$_; exit 1 }"
+EOT;
 
+    // ✅ Commande SSH avec option pour éviter l’erreur de permission
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', "{$user}@{$host}", $psCommand];
 
     try {
         $process = new Process($command);
@@ -420,7 +414,7 @@ public function createAdUser(Request $request)
             throw new ProcessFailedException($process);
         }
 
-        // Log de création
+        // ✅ Log de création
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
