@@ -83,9 +83,9 @@ class LdapAuthController extends Controller
                 );
 
                 return back()->withErrors([
-                    'error' => 'Vous n'êtes pas autorisé à accéder à cette application. 
-                    Veuillez contacter l\'administrateur Tosys.'
-                ]);
+    'error' => "Vous n'êtes pas autorisé à accéder à cette application. Veuillez contacter l'administrateur Tosys."
+]);
+
             }
 
             // ✅ Connexion réussie
