@@ -219,6 +219,15 @@ class AdUserController extends Controller
                 ]
             );
 
+        // 📧 Envoyer la notification email
+        $userData = [
+            'sam' => $sam,
+            'name' => $userName ?? $sam,
+            'email' => $userEmail ?? null,
+            'ouPath' => $ouPath ?? null,
+        ];
+        
+        $this->sendBlockNotification(auth()->user(), $userData, $action);
             
         } catch (\Throwable $e) {
             \Log::error('toggleUserStatus error: ' . $e->getMessage());
@@ -454,6 +463,7 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
                 'name' => $name,
                 'sam' => $sam,
                 'email' => $email,
+                'ouPath' => $ouPath,
                 'accountType' => $accountType
             ]
         );
@@ -512,7 +522,7 @@ protected function sendAdUserCreationNotification($creator, $newUser)
         $email = (new Email())
             ->from('TOSYS <contact@tosys.sarpi-dz.com>')
             ->to($user->email)
-            ->subject("[ADAPP] Nouvel utilisateur AD créé : {$newUser['sam']}")
+            ->subject("[TOSYSAPP] Nouvel utilisateur AD créé : {$newUser['sam']}")
             ->html("
                 <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
                     <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
@@ -521,13 +531,10 @@ protected function sendAdUserCreationNotification($creator, $newUser)
                         <tr><td style='padding: 5px 10px;'><strong>Nom :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['name']) . "</td></tr>
                         <tr><td style='padding: 5px 10px;'><strong>SamAccountName :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['sam']) . "</td></tr>
                         <tr><td style='padding: 5px 10px;'><strong>Email :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['email'] ?? '-') . "</td></tr>
+                        <tr><td style='padding: 5px 10px;'><strong>Direction :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['ouPath'] ?? '-') . "</td></tr>
                         <tr><td style='padding: 5px 10px;'><strong>Type de compte :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['accountType'] ?? '-') . "</td></tr>
                     </table>
-                    <p style='margin: 20px 0;'>
-                        <a href='" . $lien . "' target='_blank' style='background-color: #81a6c5ff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;'>
-                          🔗 Voir les détails
-                        </a>
-                    </p>
+                    
                     <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
                     <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système ADAPP.</p>
                 </div>
@@ -541,4 +548,95 @@ protected function sendAdUserCreationNotification($creator, $newUser)
         }
     }
 }
+
+protected function sendBlockNotification($creator, $userData, $action)
+{
+    $usersToNotify = User::permission('superviserusers')->get();
+
+    // ✅ Ajouter le créateur seulement s'il n'est pas déjà dans la liste
+    if (!$usersToNotify->contains('id', $creator->id)) {
+        $usersToNotify->push($creator);
+    }
+
+    // 🔍 Filtrer les utilisateurs sans email
+    $usersToNotify = $usersToNotify->filter(function($user) {
+        if (!$user->email) {
+            \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé.");
+            return false;
+        }
+        return true;
+    });
+
+    // ⚙️ Configurer le transport SMTP
+    $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&verify_peer=false');
+    $mailer = new SymfonyMailer($transport);
+
+    // 🎨 Définir les couleurs et textes selon l'action
+    $actionText = $action === 'block' ? 'bloqué' : 'débloqué';
+    $actionColor = $action === 'block' ? '#e74c3c' : '#27ae60';
+    $actionIcon = $action === 'block' ? '🔒' : '🔓';
+
+    foreach ($usersToNotify as $user) {
+        $firstName = $user->first_name ?? '';
+        $lastName = $user->last_name ?? '';
+
+        $email = (new Email())
+            ->from('TOSYS <contact@tosys.sarpi-dz.com>')
+            ->to($user->email)
+            ->subject("[TOSYSAPP] Compte AD {$actionText} : {$userData['sam']}")
+            ->html("
+                <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
+                    <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
+                    
+                    <div style='background-color: {$actionColor}; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                        <p style='margin: 0; font-size: 16px;'>
+                            {$actionIcon} <strong>Compte utilisateur {$actionText}</strong>
+                        </p>
+                    </div>
+
+                    <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a <strong>{$actionText}</strong> le compte AD suivant :</p>
+
+                    <table style='border-collapse: collapse; margin: 15px 0; width: 100%; max-width: 600px;'>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Nom :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['name'] ?? '-') . "</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>SamAccountName :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['sam']) . "</td>
+                        </tr>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Email :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['email'] ?? '-') . "</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Direction :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($userData['ouPath'] ?? '-') . "</td>
+                        </tr>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Action :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6; color: {$actionColor}; font-weight: bold;'>
+                                " . strtoupper($actionText) . "
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>
+                        </tr>
+                    </table>
+
+                    <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
+                    <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système TOSYSAPP.</p>
+                </div>
+            ");
+
+        try {
+            $mailer->send($email);
+            \Log::info("Email de notification ({$actionText}) envoyé avec succès à : {$user->email}");
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            \Log::error("Erreur d'envoi de mail (notification {$actionText}) à {$user->email} : " . $e->getMessage());
+        }
+    }
+}
+
 }
