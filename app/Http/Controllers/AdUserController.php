@@ -373,7 +373,7 @@ public function createAdUser(Request $request)
         'name' => 'required|string',
         'sam' => 'required|string|max:25',
         'email' => 'nullable|email',
-        'logmail' => 'required|logmail',
+        'logmail' => 'required|string',
         'password' => 'required|string|min:8',
     ]);
 
