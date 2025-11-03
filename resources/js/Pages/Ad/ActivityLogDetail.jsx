@@ -1,235 +1,477 @@
+import React from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Card } from 'primereact/card';
+import { Button } from 'primereact/button';
+import { Tag } from 'primereact/tag';
+import { Divider } from 'primereact/divider';
+import { Timeline } from 'primereact/timeline';
+import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function ActivityLogDetail({ log }) {
-    // Récupération de auth depuis usePage()
     const { auth } = usePage().props;
 
-    const getActionLabel = (action) => {
-        const labels = {
-            login: '🔑 Connexion',
-            logout: '🚪 Déconnexion',
-            block_user: '🔒 Blocage utilisateur',
-            unblock_user: '🔓 Déblocage utilisateur',
-            reset_password: '🔄 Réinitialisation mot de passe',
-            create_user: '➕ Création utilisateur',
+    const getActionConfig = (action) => {
+        const configs = {
+            login: { icon: 'pi-sign-in', severity: 'info', label: 'Connexion', color: '#3b82f6' },
+            logout: { icon: 'pi-sign-out', severity: null, label: 'Déconnexion', color: '#6b7280' },
+            block_user: { icon: 'pi-lock', severity: 'danger', label: 'Blocage utilisateur', color: '#ef4444' },
+            unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage utilisateur', color: '#10b981' },
+            reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Réinitialisation mot de passe', color: '#f59e0b' },
+            create_user: { icon: 'pi-user-plus', severity: 'help', label: 'Création utilisateur', color: '#8b5cf6' },
         };
-        return labels[action] || action;
+        return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
 
-    return (
-        <AuthenticatedLayout user={auth?.user}>
-            <Head title={`Log #${log?.id || 'N/A'}`} />
+    const actionConfig = log ? getActionConfig(log.action) : null;
 
-            <div className="py-12">
-                <div className="max-w-4xl mx-auto sm:px-6 lg:px-8">
-                    
-                    {/* Bouton retour */}
-                    <div className="mb-6">
-                        <Link
-                            href="/ad/activity-logs"
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                            ← Retour aux logs
-                        </Link>
-                    </div>
+    // Timeline events
+    const timelineEvents = log ? [
+        {
+            status: 'Demande initiée',
+            icon: 'pi pi-play-circle',
+            color: '#3b82f6',
+            description: `Par ${log.performed_by_name || 'N/A'}`,
+            detail: `Depuis ${log.ip_address || 'IP inconnue'}`
+        },
+        {
+            status: 'Action en cours',
+            icon: `pi ${actionConfig?.icon}`,
+            color: actionConfig?.color,
+            description: actionConfig?.label,
+            detail: `Cible: ${log.target_user || 'N/A'} ${log.target_user_name ? `(${log.target_user_name})` : ''}`
+        },
+        {
+            status: log.status === 'success' ? 'Action réussie' : 'Action échouée',
+            icon: log.status === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle',
+            color: log.status === 'success' ? '#10b981' : '#ef4444',
+            description: log.status === 'success' ? 'Opération terminée avec succès' : 'Échec de l\'opération',
+            detail: log.created_at ? new Date(log.created_at).toLocaleTimeString('fr-FR') : 'N/A'
+        }
+    ] : [];
 
-                    {/* Vérification si log existe */}
-                    {!log ? (
-                        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-                            <p className="text-gray-500 text-lg">Log introuvable</p>
+    const customizedMarker = (item) => {
+        return (
+            <span 
+                className="flex align-items-center justify-content-center border-circle shadow-2" 
+                style={{ 
+                    width: '3rem', 
+                    height: '3rem', 
+                    backgroundColor: item.color,
+                    color: 'white'
+                }}
+            >
+                <i className={`${item.icon} text-xl`}></i>
+            </span>
+        );
+    };
+
+    const customizedContent = (item) => {
+        return (
+            <Card className="shadow-1 border-1 border-200">
+                <div className="flex flex-column gap-2">
+                    <div className="text-900 font-semibold text-lg">{item.status}</div>
+                    <div className="text-700">{item.description}</div>
+                    {item.detail && (
+                        <div className="text-600 text-sm">
+                            <i className="pi pi-info-circle mr-2"></i>
+                            {item.detail}
                         </div>
-                    ) : (
-                        <>
-                            {/* En-tête */}
-                            <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h1 className="text-3xl font-bold text-gray-900">
-                                        Détails du log #{log.id}
-                                    </h1>
-                                    <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-                                        log.status === 'success'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
-                                    }`}>
-                                        {log.status === 'success' ? '✅ Réussi' : '❌ Échoué'}
-                                    </span>
-                                </div>
-
-                                {/* Informations principales */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">
-                                                Action effectuée
-                                            </label>
-                                            <div className="text-lg font-semibold text-gray-900">
-                                                {getActionLabel(log.action)}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">
-                                                Utilisateur ciblé
-                                            </label>
-                                            <div className="text-lg font-semibold text-gray-900">
-                                                {log.target_user || 'N/A'}
-                                            </div>
-                                            {log.target_user_name && (
-                                                <div className="text-sm text-gray-600">
-                                                    {log.target_user_name}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">
-                                                Effectué par
-                                            </label>
-                                            <div className="text-lg font-semibold text-gray-900">
-                                                {log.performed_by_name || 'N/A'}
-                                            </div>
-                                            {log.performer && (
-                                                <div className="text-sm text-gray-600">
-                                                    {log.performer.email}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">
-                                                Date et heure
-                                            </label>
-                                            <div className="text-lg font-semibold text-gray-900">
-                                                {log.created_at ? new Date(log.created_at).toLocaleString('fr-FR', {
-                                                    dateStyle: 'full',
-                                                    timeStyle: 'long'
-                                                }) : 'N/A'}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">
-                                                Adresse IP
-                                            </label>
-                                            <div className="text-lg font-semibold text-gray-900">
-                                                {log.ip_address || 'Non disponible'}
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">
-                                                User Agent
-                                            </label>
-                                            <div className="text-sm text-gray-700 break-words">
-                                                {log.user_agent || 'Non disponible'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Message d'erreur si échec */}
-                            {log.status === 'failed' && log.error_message && (
-                                <div className="bg-red-50 border-l-4 border-red-400 p-6 rounded-lg shadow mb-6">
-                                    <div className="flex items-start">
-                                        <div className="flex-shrink-0">
-                                            <svg className="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                        </div>
-                                        <div className="ml-3">
-                                            <h3 className="text-lg font-medium text-red-800 mb-2">
-                                                Message d'erreur
-                                            </h3>
-                                            <p className="text-red-700">
-                                                {log.error_message}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Détails supplémentaires */}
-                            {log.details && Object.keys(log.details).length > 0 && (
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                                        📋 Informations complémentaires
-                                    </h2>
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
-                                            {JSON.stringify(log.details, null, 2)}
-                                        </pre>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Timeline visuelle */}
-                            <div className="bg-white rounded-lg shadow p-6 mt-6">
-                                <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                                    ⏱️ Timeline de l'action
-                                </h2>
-                                <div className="relative">
-                                    <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                                    
-                                    <div className="relative flex items-start mb-8">
-                                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 font-bold text-lg z-10">
-                                            1
-                                        </div>
-                                        <div className="ml-6">
-                                            <div className="text-sm font-medium text-gray-900">
-                                                Demande initiée
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                Par {log.performed_by_name || 'N/A'} depuis {log.ip_address || 'IP inconnue'}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative flex items-start mb-8">
-                                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 font-bold text-lg z-10">
-                                            2
-                                        </div>
-                                        <div className="ml-6">
-                                            <div className="text-sm font-medium text-gray-900">
-                                                Action: {getActionLabel(log.action)}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                Cible: {log.target_user || 'N/A'} {log.target_user_name && `(${log.target_user_name})`}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="relative flex items-start">
-                                        <div className={`flex items-center justify-center w-16 h-16 rounded-full ${
-                                            log.status === 'success' 
-                                                ? 'bg-green-100 text-green-600' 
-                                                : 'bg-red-100 text-red-600'
-                                        } font-bold text-lg z-10`}>
-                                            3
-                                        </div>
-                                        <div className="ml-6">
-                                            <div className={`text-sm font-medium ${
-                                                log.status === 'success' 
-                                                    ? 'text-green-900' 
-                                                    : 'text-red-900'
-                                            }`}>
-                                                {log.status === 'success' ? 'Action réussie' : 'Action échouée'}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                {log.created_at ? new Date(log.created_at).toLocaleTimeString('fr-FR') : 'N/A'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
                     )}
                 </div>
+            </Card>
+        );
+    };
+
+    if (!log) {
+        return (
+            <Layout>
+                <Head title="Log introuvable" />
+                <div className="grid">
+                    <div className="col-12">
+                        <Card className="shadow-2">
+                            <div className="text-center py-8">
+                                <i className="pi pi-exclamation-triangle text-400 mb-4" style={{ fontSize: '4rem' }}></i>
+                                <h2 className="text-900 text-3xl font-bold mb-3">Log introuvable</h2>
+                                <p className="text-600 text-lg mb-4">Le log demandé n'existe pas ou a été supprimé</p>
+                                <Link href="/ad/activity-logs">
+                                    <Button 
+                                        icon="pi pi-arrow-left" 
+                                        label="Retour aux logs"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                            border: 'none'
+                                        }}
+                                    />
+                                </Link>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }<div className="text-900 font-bold text-xl mb-1">
+                                        {log.target_user || 'N/A'}
+                                    </div>
+
+    return (
+        <Layout>
+            <Head title={`Log #${log.id}`} />
+
+            <div className="grid">
+                {/* Bouton retour */}
+                <div className="col-12 mb-3">
+                    <Link href="/ad/activity-logs">
+                        <Button 
+                            icon="pi pi-arrow-left" 
+                            label="Retour aux logs"
+                            text
+                            style={{ color: '#6366f1' }}
+                        />
+                    </Link>
+                </div>
+
+                {/* En-tête avec informations principales */}
+                <div className="col-12">
+                    <Card className="shadow-2 mb-4">
+                        {/* Header */}
+                        <div className="flex align-items-start justify-content-between flex-wrap gap-4 mb-4">
+                            <div className="flex align-items-center gap-4">
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle" 
+                                    style={{ 
+                                        width: '64px', 
+                                        height: '64px',
+                                        background: `linear-gradient(135deg, ${actionConfig.color}, ${actionConfig.color}dd)`
+                                    }}
+                                >
+                                    <i className={`pi ${actionConfig.icon} text-4xl text-white`}></i>
+                                </div>
+                                <div>
+                                    <div className="flex align-items-center gap-2 mb-2">
+                                        <h1 className="text-900 text-3xl font-bold m-0">
+                                            Log : {log.target_user }
+                                        </h1>
+                                        <Tag 
+                                            icon={log.status === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'}
+                                            value={log.status === 'success' ? 'Réussi' : 'Échoué'} 
+                                            severity={log.status === 'success' ? 'success' : 'danger'}
+                                            style={{ fontSize: '1rem', padding: '0.5rem 1rem' }}
+                                        />
+                                    </div>
+                                    <p className="text-600 text-lg m-0">
+                                        {actionConfig.label}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Tag 
+                                icon={`pi ${actionConfig.icon}`}
+                                value={actionConfig.label} 
+                                severity={actionConfig.severity}
+                                style={{ 
+                                    fontSize: '1rem', 
+                                    padding: '0.75rem 1.5rem',
+                                    borderRadius: '8px'
+                                }}
+                            />
+                        </div>
+
+                        <Divider />
+
+                        {/* Grille d'informations */}
+                        <div className="grid mt-4">
+                            {/* Date et heure */}
+                            <div className="col-12 md:col-6 lg:col-4">
+                                <div className="surface-50 border-round-lg p-4 h-full">
+                                    <div className="flex align-items-center gap-3 mb-3">
+                                        <div 
+                                            className="inline-flex align-items-center justify-content-center border-circle bg-blue-100" 
+                                            style={{ width: '48px', height: '48px' }}
+                                        >
+                                            <i className="pi pi-clock text-2xl text-blue-600"></i>
+                                        </div>
+                                        <span className="text-600 font-semibold">Date et heure</span>
+                                    </div>
+                                    <div className="text-900 font-bold text-xl mb-1">
+                                        {new Date(log.created_at).toLocaleDateString('fr-FR', { 
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric'
+                                        })}
+                                    </div>
+                                    <div className="text-600">
+                                        {new Date(log.created_at).toLocaleTimeString('fr-FR', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit'
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Utilisateur ciblé */}
+                            <div className="col-12 md:col-6 lg:col-4">
+                                <div className="surface-50 border-round-lg p-4 h-full">
+                                    <div className="flex align-items-center gap-3 mb-3">
+                                        <div 
+                                            className="inline-flex align-items-center justify-content-center border-circle bg-purple-100" 
+                                            style={{ width: '48px', height: '48px' }}
+                                        >
+                                            <i className="pi pi-user text-2xl text-purple-600"></i>
+                                        </div>
+                                        <span className="text-600 font-semibold">Utilisateur ciblé</span>
+                                    </div>
+                                    <div className="text-900 font-bold text-xl mb-1">
+                                        {log.target_user || 'N/A'}
+                                    </div>
+                                    {log.target_user_name && (
+                                        <div className="text-600">{log.target_user_name}</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Effectué par */}
+                            <div className="col-12 md:col-6 lg:col-4">
+                                <div className="surface-50 border-round-lg p-4 h-full">
+                                    <div className="flex align-items-center gap-3 mb-3">
+                                        <div 
+                                            className="inline-flex align-items-center justify-content-center border-circle bg-green-100" 
+                                            style={{ width: '48px', height: '48px' }}
+                                        >
+                                            <i className="pi pi-users text-2xl text-green-600"></i>
+                                        </div>
+                                        <span className="text-600 font-semibold">Effectué par</span>
+                                    </div>
+                                    <div className="text-900 font-bold text-xl mb-1">
+                                        {log.performed_by_name || 'N/A'}
+                                    </div>
+                                    {log.performer && (
+                                        <div className="text-600">{log.performer.email}</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Adresse IP */}
+                            <div className="col-12 md:col-6 lg:col-4">
+                                <div className="surface-50 border-round-lg p-4 h-full">
+                                    <div className="flex align-items-center gap-3 mb-3">
+                                        <div 
+                                            className="inline-flex align-items-center justify-content-center border-circle bg-orange-100" 
+                                            style={{ width: '48px', height: '48px' }}
+                                        >
+                                            <i className="pi pi-globe text-2xl text-orange-600"></i>
+                                        </div>
+                                        <span className="text-600 font-semibold">Adresse IP</span>
+                                    </div>
+                                    <div className="text-900 font-bold text-xl font-mono">
+                                        {log.ip_address || 'Non disponible'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* User Agent */}
+                            <div className="col-12 md:col-6 lg:col-8">
+                                <div className="surface-50 border-round-lg p-4 h-full">
+                                    <div className="flex align-items-center gap-3 mb-3">
+                                        <div 
+                                            className="inline-flex align-items-center justify-content-center border-circle bg-indigo-100" 
+                                            style={{ width: '48px', height: '48px' }}
+                                        >
+                                            <i className="pi pi-desktop text-2xl text-indigo-600"></i>
+                                        </div>
+                                        <span className="text-600 font-semibold">User Agent</span>
+                                    </div>
+                                    <div className="text-900 text-sm font-mono" style={{ wordBreak: 'break-word' }}>
+                                        {log.user_agent || 'Non disponible'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Message d'erreur */}
+                {log.status === 'failed' && log.error_message && (
+                    <div className="col-12">
+                        <Card className="shadow-2 mb-4" style={{ borderLeft: '4px solid #ef4444' }}>
+                            <div className="flex align-items-start gap-4">
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle bg-red-100" 
+                                    style={{ width: '56px', height: '56px' }}
+                                >
+                                    <i className="pi pi-exclamation-circle text-3xl text-red-600"></i>
+                                </div>
+                                <div className="flex-1">
+                                    <h2 className="text-900 text-xl font-bold mb-3 flex align-items-center gap-2">
+                                        <i className="pi pi-times-circle text-red-600"></i>
+                                        Message d'erreur
+                                    </h2>
+                                    <div className="surface-50 border-round-lg p-4">
+                                        <p className="text-900 m-0 line-height-3">
+                                            {log.error_message}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Timeline */}
+                <div className="col-12">
+                    <Card className="shadow-2">
+                        <h2 className="text-900 text-2xl font-bold mb-4 flex align-items-center gap-3">
+                            <div 
+                                className="inline-flex align-items-center justify-content-center border-circle" 
+                                style={{ 
+                                    width: '48px', 
+                                    height: '48px',
+                                    background: 'linear-gradient(135deg, #667eea, #764ba2)'
+                                }}
+                            >
+                                <i className="pi pi-history text-2xl text-white"></i>
+                            </div>
+                            Timeline de l'action
+                        </h2>
+                        <Divider />
+                        <Timeline 
+                            value={timelineEvents} 
+                            align="alternate" 
+                            className="customized-timeline"
+                            marker={customizedMarker} 
+                            content={customizedContent} 
+                        />
+                    </Card>
+                </div>
+
+           
+
+                {/* Statistiques rapides */}
+                <div className="col-12">
+                    <Card className="shadow-2">
+                        <h2 className="text-900 text-xl font-bold mb-4 flex align-items-center gap-2">
+                            <i className="pi pi-chart-bar text-purple-600"></i>
+                            Résumé de l'opération
+                        </h2>
+                        <Divider />
+                        <div className="grid">
+                            <div className="col-12 md:col-4">
+                                <div className="text-center p-4 border-round-lg surface-50">
+                                    <i className="pi pi-calendar text-4xl text-blue-600 mb-3"></i>
+                                    <div className="text-600 text-sm mb-1">Horodatage</div>
+                                    <div className="text-900 font-bold">
+                                        {new Date(log.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-4">
+                                <div className="text-center p-4 border-round-lg surface-50">
+                                    <i className={`pi ${actionConfig.icon} text-4xl mb-3`} style={{ color: actionConfig.color }}></i>
+                                    <div className="text-600 text-sm mb-1">Type d'action</div>
+                                    <div className="text-900 font-bold">{actionConfig.label}</div>
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-4">
+                                <div className="text-center p-4 border-round-lg surface-50">
+                                    <i className={`pi ${log.status === 'success' ? 'pi-check-circle' : 'pi-times-circle'} text-4xl mb-3`} 
+                                       style={{ color: log.status === 'success' ? '#10b981' : '#ef4444' }}></i>
+                                    <div className="text-600 text-sm mb-1">Résultat</div>
+                                    <div className="text-900 font-bold">{log.status === 'success' ? 'Succès' : 'Échec'}</div>
+                                </div>
+                            </div>
+                           
+                        </div>
+                    </Card>
+                </div>
             </div>
-        </AuthenticatedLayout>
+
+            <style>{`
+                /* Card styling */
+                :global(.p-card) {
+                    border-radius: 12px;
+                    border: 1px solid #e5e7eb;
+                }
+
+                :global(.p-card .p-card-body) {
+                    padding: 1.5rem;
+                }
+
+                /* Timeline styling */
+                :global(.customized-timeline .p-timeline-event-content) {
+                    padding: 0 1rem;
+                }
+
+                :global(.customized-timeline .p-timeline-event-opposite) {
+                    flex: 0.5;
+                }
+
+                :global(.customized-timeline .p-card) {
+                    margin-top: 0;
+                }
+
+                /* Tag styling */
+                :global(.p-tag) {
+                    border-radius: 8px;
+                    font-weight: 600;
+                }
+
+                /* Button styling */
+                :global(.p-button) {
+                    border-radius: 8px;
+                    font-weight: 600;
+                    transition: all 0.2s ease;
+                }
+
+                :global(.p-button:not(.p-button-text):hover) {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+
+                /* Divider */
+                :global(.p-divider) {
+                    margin: 1.5rem 0;
+                }
+
+                /* Shadow utilities */
+                :global(.shadow-1) {
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                }
+
+                :global(.shadow-2) {
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+                }
+
+                /* Scrollbar styling */
+                ::-webkit-scrollbar {
+                    width: 8px;
+                    height: 8px;
+                }
+
+                ::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                    border-radius: 4px;
+                }
+
+                ::-webkit-scrollbar-thumb {
+                    background: #c1c1c1;
+                    border-radius: 4px;
+                }
+
+                ::-webkit-scrollbar-thumb:hover {
+                    background: #a1a1a1;
+                }
+
+                /* Responsive */
+                @media (max-width: 768px) {
+                    :global(.customized-timeline) {
+                        padding: 0;
+                    }
+
+                    :global(.customized-timeline .p-timeline-event-opposite) {
+                        display: none;
+                    }
+                }
+            `}</style>
+        </Layout>
     );
 }
