@@ -308,6 +308,10 @@ class AdUserController extends Controller
         ], 500);
     }
 }
+public function manageLock()
+{
+    return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
+}
 
 
 }
