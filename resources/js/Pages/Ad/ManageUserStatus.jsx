@@ -178,7 +178,7 @@ if (response.data.success && Array.isArray(response.data.users)) {
                   <i className="pi pi-search"></i>
                 </span>
                 <InputText
-                  placeholder="Saisir le SAMAccountName..."
+                  placeholder="Rechercher un utilisateur dans LDAP (nom, samaccountname, email)..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}

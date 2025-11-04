@@ -332,7 +332,6 @@ public function manageLock()
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
 }
 
-
 public function findUser(Request $request)
 {
     $this->authorize('getaduser');
@@ -425,37 +424,40 @@ public function findUser(Request $request)
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
+
         // ✅ Récupérer tous les samaccountname masqués depuis la BDD
         $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')
             ->map(fn($sam) => strtolower($sam))
             ->toArray();
 
         $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
-    $users = collect($adUsers)->map(function ($user) use ($existingEmails) {
-    $email = strtolower($user['EmailAddress'] ?? '');
-    $lastLogonRaw = $user['LastLogonDate'] ?? null;
 
-    // Conversion du format /Date(1761666126376)/ en date lisible
-    $lastLogon = null;
-    if ($lastLogonRaw && preg_match('/Date\((\d+)\)/', $lastLogonRaw, $matches)) {
-        $timestamp = intval($matches[1]) / 1000;
-        $lastLogon = date('Y-m-d H:i:s', $timestamp);
-    }
+        $users = collect($adUsers)->map(function ($user) use ($existingEmails, $hiddenSamAccounts) {
+            $email = strtolower($user['EmailAddress'] ?? '');
+            $sam = strtolower($user['SamAccountName'] ?? '');
+            $lastLogonRaw = $user['LastLogonDate'] ?? null;
 
-    return [
-        'name' => $user['Name'] ?? '',
-        'sam' => $user['SamAccountName'] ?? '',
-        'email' => $email,
-        'enabled' => (bool)($user['Enabled'] ?? false),
-        'is_local' => in_array($email, $existingEmails),
-        'last_logon' => $lastLogon,
-        'source' => 'active_directory'
-    ];
-})->filter(fn($user) => !empty($user['name']) && !empty($user['sam']))->values()->toArray();
+            // Conversion du format /Date(1761666126376)/ en date lisible
+            $lastLogon = null;
+            if ($lastLogonRaw && preg_match('/Date\((\d+)\)/', $lastLogonRaw, $matches)) {
+                $timestamp = intval($matches[1]) / 1000;
+                $lastLogon = date('Y-m-d H:i:s', $timestamp);
+            }
 
-
-
-
+            return [
+                'name' => $user['Name'] ?? '',
+                'sam' => $user['SamAccountName'] ?? '',
+                'email' => $email,
+                'enabled' => (bool)($user['Enabled'] ?? false),
+                'is_local' => in_array($email, $existingEmails),
+                'last_logon' => $lastLogon,
+                'source' => 'active_directory'
+            ];
+        })->filter(fn($user) =>
+            !empty($user['name']) &&
+            !empty($user['sam']) &&
+            !in_array(strtolower($user['sam']), $hiddenSamAccounts)
+        )->values()->toArray();
 
         return response()->json([
             'success' => true,
@@ -477,7 +479,6 @@ public function findUser(Request $request)
         ], 500);
     }
 }
-
 
 public function managePassword()
 {
