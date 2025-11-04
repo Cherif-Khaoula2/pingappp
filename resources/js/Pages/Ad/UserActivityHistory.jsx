@@ -13,7 +13,6 @@ import Layout from "@/Layouts/layout/layout.jsx";
 export default function UserActivityHistory({ user, logs }) {
     const [dateFilter, setDateFilter] = useState(null);
     const [actionFilter, setActionFilter] = useState('');
-    const [viewMode, setViewMode] = useState('all'); // 'all', 'target', 'performed'
 
     // Filtrer les logs localement
     const filteredLogs = logs.filter(log => {
@@ -54,7 +53,6 @@ export default function UserActivityHistory({ user, logs }) {
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
-
 
     // Templates pour le DataTable
     const dateTemplate = (rowData) => {
@@ -103,7 +101,9 @@ export default function UserActivityHistory({ user, logs }) {
                 {rowData.target_user_name && (
                     <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
                 )}
-                <div className="text-sm text-600">{rowData.target_user}</div>
+                {rowData.target_user && (
+                    <div className="text-sm text-600">{rowData.target_user}</div>
+                )}
             </div>
         );
     };
@@ -129,62 +129,69 @@ export default function UserActivityHistory({ user, logs }) {
         );
     };
 
-    // Template pour la Timeline
+    // Template pour la Timeline (Mobile)
     const timelineContent = (item) => {
         const config = getActionConfig(item.action);
+        const formatName = (name) => {
+            if (!name) return '';
+            return name.trim().replace(/\.$/, '');
+        };
+
         return (
             <Card className="shadow-1 mb-3">
-                <div className="flex align-items-start gap-3">
-                    <div 
-                        className="inline-flex align-items-center justify-content-center border-circle"
-                        style={{ 
-                            width: '40px', 
-                            height: '40px',
-                            background: config.color,
-                            color: 'white'
-                        }}
-                    >
-                        <i className={`pi ${config.icon}`}></i>
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex align-items-center justify-content-between mb-2">
-                            <h4 className="m-0 text-900 font-semibold">{config.label}</h4>
-                            <Tag 
-                                icon={item.status === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'}
-                                value={item.status === 'success' ? 'Réussi' : 'Échoué'} 
-                                severity={item.status === 'success' ? 'success' : 'danger'}
-                            />
+                <div className="flex flex-column gap-3">
+                    <div className="flex align-items-start gap-3">
+                        <div 
+                            className="inline-flex align-items-center justify-content-center border-circle flex-shrink-0"
+                            style={{ 
+                                width: '40px', 
+                                height: '40px',
+                                background: config.color,
+                                color: 'white'
+                            }}
+                        >
+                            <i className={`pi ${config.icon}`}></i>
                         </div>
-                        
-                        {item.target_user_name && (
-                            <div className="mb-2">
-                                <span className="text-600">Cible: </span>
-                                <span className="font-semibold text-900">{item.target_user_name}</span>
-                                <span className="text-600 text-sm ml-2">({item.target_user})</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex align-items-start justify-content-between gap-2 mb-2">
+                                <h4 className="m-0 text-900 font-semibold text-base">{config.label}</h4>
+                                <Tag 
+                                    icon={item.status === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'}
+                                    value={item.status === 'success' ? 'Réussi' : 'Échoué'} 
+                                    severity={item.status === 'success' ? 'success' : 'danger'}
+                                    className="flex-shrink-0"
+                                />
                             </div>
-                        )}
-                        
-                        <div className="flex align-items-center gap-3 text-sm text-600">
-                            <span>
-                                <i className="pi pi-clock mr-1"></i>
-                                {new Date(item.created_at).toLocaleString('fr-FR')}
-                            </span>
-                            {item.ip_address && (
-                                <span>
-                                    <i className="pi pi-globe mr-1"></i>
-                                    {item.ip_address}
-                                </span>
+                            
+                            {item.target_user_name && (
+                                <div className="mb-2">
+                                    <span className="text-600 text-sm">Cible: </span>
+                                    <span className="font-semibold text-900">{formatName(item.target_user_name)}</span>
+                                </div>
+                            )}
+                            
+                            <div className="flex flex-column gap-1 text-sm text-600">
+                                <div className="flex align-items-center gap-2">
+                                    <i className="pi pi-clock"></i>
+                                    <span>{new Date(item.created_at).toLocaleString('fr-FR')}</span>
+                                </div>
+                                {item.ip_address && (
+                                    <div className="flex align-items-center gap-2">
+                                        <i className="pi pi-globe"></i>
+                                        <span className="font-mono">{item.ip_address}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {item.error_message && (
+                                <div className="mt-2 p-2 bg-red-50 border-round">
+                                    <span className="text-red-600 text-sm">
+                                        <i className="pi pi-exclamation-triangle mr-1"></i>
+                                        {item.error_message}
+                                    </span>
+                                </div>
                             )}
                         </div>
-
-                        {item.error_message && (
-                            <div className="mt-2 p-2 bg-red-50 border-round">
-                                <span className="text-red-600 text-sm">
-                                    <i className="pi pi-exclamation-triangle mr-1"></i>
-                                    {item.error_message}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 </div>
             </Card>
@@ -219,46 +226,39 @@ export default function UserActivityHistory({ user, logs }) {
         <Layout>
             <Head title={`Historique - ${formatUserName(user)}`} />
 
-            <div className="grid">
+            <div className="activity-history-container">
                 {/* Header avec info utilisateur */}
-                <div className="col-12">
-                    <Card className="shadow-2 mb-4">
-                        <div className="flex align-items-center justify-content-between flex-wrap gap-3">
-                            <div className="flex align-items-center gap-3">
-                                <Link href="/ad/activity-logs">
-                                    <Button 
-                                        icon="pi pi-arrow-left" 
-                                        rounded 
-                                        text
-                                        severity="secondary"
-                                        className="mr-2"
-                                    />
-                                </Link>
-                             
-                                <div>
-                                    
-                                    <h1 className="text-900 text-3xl font-bold m-0">
-                                 {formatUserName(user)?.replace(/\./g, '')}
-                                       </h1>
-
-                                    <p className="text-600 mt-1 m-0">
-                                        <i className="pi pi-envelope mr-2"></i>
-                                        {user.email}
-                                    </p>
-                                </div>
+                <div className="header-card">
+                    <Card className="shadow-2">
+                        <div className="user-header">
+                            <Link href="/ad/activity-logs">
+                                <Button 
+                                    icon="pi pi-arrow-left" 
+                                    rounded 
+                                    text
+                                    severity="secondary"
+                                    className="back-button"
+                                />
+                            </Link>
+                            <div className="user-info">
+                                <h1 className="user-name">
+                                    {formatUserName(user)?.replace(/\./g, '')}
+                                </h1>
+                                <p className="user-email">
+                                    <i className="pi pi-envelope mr-2"></i>
+                                    {user.email}
+                                </p>
                             </div>
                         </div>
                     </Card>
                 </div>
 
-
-
                 {/* Filtres */}
-                <div className="col-12">
+                <div className="filters-card">
                     <Card className="shadow-1">
-                        <div className="grid">
-                            <div className="col-12 md:col-6">
-                                <label className="block text-900 font-medium mb-2">
+                        <div className="filters-grid">
+                            <div className="filter-item">
+                                <label className="filter-label">
                                     <i className="pi pi-filter mr-2"></i>
                                     Type d'action
                                 </label>
@@ -271,8 +271,8 @@ export default function UserActivityHistory({ user, logs }) {
                                 />
                             </div>
 
-                            <div className="col-12 md:col-6">
-                                <label className="block text-900 font-medium mb-2">
+                            <div className="filter-item">
+                                <label className="filter-label">
                                     <i className="pi pi-calendar mr-2"></i>
                                     Filtrer par date
                                 </label>
@@ -288,8 +288,8 @@ export default function UserActivityHistory({ user, logs }) {
                         </div>
 
                         {(dateFilter || actionFilter) && (
-                            <div className="mt-3 flex align-items-center gap-2">
-                                <span className="text-600 font-medium">{filteredLogs.length} résultat(s)</span>
+                            <div className="filter-actions">
+                                <span className="results-count">{filteredLogs.length} résultat(s)</span>
                                 <Button
                                     icon="pi pi-times"
                                     label="Réinitialiser"
@@ -305,10 +305,10 @@ export default function UserActivityHistory({ user, logs }) {
                     </Card>
                 </div>
 
-                {/* Timeline View (pour petits écrans et tablettes) */}
-                <div className="col-12 lg:hidden">
+                {/* Timeline View (Mobile & Tablette) */}
+                <div className="timeline-view">
                     <Card className="shadow-2">
-                        <h2 className="text-900 font-bold mb-4">
+                        <h2 className="timeline-title">
                             <i className="pi pi-history mr-2"></i>
                             Chronologie des actions
                         </h2>
@@ -320,12 +320,10 @@ export default function UserActivityHistory({ user, logs }) {
                                 className="customized-timeline"
                             />
                         ) : (
-                            <div className="text-center py-6">
-                                <i className="pi pi-inbox text-400 mb-3" style={{ fontSize: '3rem' }}></i>
-                                <h3 className="text-900 text-xl font-medium mb-2">
-                                    Aucune action trouvée
-                                </h3>
-                                <p className="text-600">
+                            <div className="empty-state">
+                                <i className="pi pi-inbox empty-icon"></i>
+                                <h3 className="empty-title">Aucune action trouvée</h3>
+                                <p className="empty-text">
                                     Aucune activité ne correspond à vos critères de recherche
                                 </p>
                             </div>
@@ -333,18 +331,16 @@ export default function UserActivityHistory({ user, logs }) {
                     </Card>
                 </div>
 
-                {/* Table View (pour grands écrans) */}
-                <div className="col-12 hidden lg:block">
+                {/* Table View (Desktop) */}
+                <div className="table-view">
                     <Card className="shadow-2">
                         <DataTable
                             value={filteredLogs}
                             emptyMessage={
-                                <div className="text-center py-6">
-                                    <i className="pi pi-inbox text-400 mb-3" style={{ fontSize: '3rem' }}></i>
-                                    <h3 className="text-900 text-xl font-medium mb-2">
-                                        Aucune action trouvée
-                                    </h3>
-                                    <p className="text-600">
+                                <div className="empty-state">
+                                    <i className="pi pi-inbox empty-icon"></i>
+                                    <h3 className="empty-title">Aucune action trouvée</h3>
+                                    <p className="empty-text">
                                         Aucune activité ne correspond à vos critères de recherche
                                     </p>
                                 </div>
@@ -396,10 +392,139 @@ export default function UserActivityHistory({ user, logs }) {
             </div>
 
             <style>{`
+                /* Container principal */
+                .activity-history-container {
+                    padding: 1rem;
+                    max-width: 100%;
+                }
+
+                /* Header Card */
+                .header-card {
+                    margin-bottom: 1rem;
+                }
+
+                .user-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                }
+
+                .back-button {
+                    flex-shrink: 0;
+                }
+
+                .user-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+
+                .user-name {
+                    color: #1f2937;
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    margin: 0 0 0.25rem 0;
+                    word-break: break-word;
+                }
+
+                .user-email {
+                    color: #6b7280;
+                    margin: 0;
+                    font-size: 0.9rem;
+                    display: flex;
+                    align-items: center;
+                    flex-wrap: wrap;
+                }
+
+                /* Filtres */
+                .filters-card {
+                    margin-bottom: 1rem;
+                }
+
+                .filters-grid {
+                    display: grid;
+                    grid-template-columns: 1fr;
+                    gap: 1rem;
+                }
+
+                .filter-item {
+                    width: 100%;
+                }
+
+                .filter-label {
+                    display: block;
+                    color: #1f2937;
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem;
+                }
+
+                .filter-actions {
+                    margin-top: 1rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                }
+
+                .results-count {
+                    color: #6b7280;
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                }
+
+                /* Timeline (visible sur mobile et tablette) */
+                .timeline-view {
+                    display: block;
+                }
+
+                .timeline-title {
+                    color: #1f2937;
+                    font-weight: 700;
+                    margin-bottom: 1.5rem;
+                    font-size: 1.25rem;
+                    display: flex;
+                    align-items: center;
+                }
+
+                /* Table (visible uniquement sur desktop) */
+                .table-view {
+                    display: none;
+                }
+
+                /* Empty state */
+                .empty-state {
+                    text-align: center;
+                    padding: 3rem 1rem;
+                }
+
+                .empty-icon {
+                    color: #9ca3af;
+                    font-size: 3rem;
+                    margin-bottom: 1rem;
+                    display: block;
+                }
+
+                .empty-title {
+                    color: #1f2937;
+                    font-size: 1.25rem;
+                    font-weight: 600;
+                    margin: 0 0 0.5rem 0;
+                }
+
+                .empty-text {
+                    color: #6b7280;
+                    margin: 0;
+                }
+
                 /* Card styling */
                 :global(.p-card) {
                     border-radius: 12px;
                     border: 1px solid #e5e7eb;
+                }
+
+                :global(.p-card .p-card-body) {
+                    padding: 1rem;
                 }
 
                 /* Timeline styling */
@@ -411,26 +536,14 @@ export default function UserActivityHistory({ user, logs }) {
                     flex: 1;
                 }
 
-                /* DataTable styling */
-                :global(.p-datatable .p-datatable-thead > tr > th) {
-                    background: #f9fafb;
-                    color: #374151;
-                    font-weight: 600;
-                    padding: 1rem;
-                    border-bottom: 2px solid #e5e7eb;
-                }
-
-                :global(.p-datatable .p-datatable-tbody > tr:hover) {
-                    background: #f9fafb;
-                }
-
-                :global(.p-datatable .p-datatable-tbody > tr > td) {
-                    padding: 1rem;
+                :global(.customized-timeline .p-card) {
+                    margin-bottom: 0.75rem;
                 }
 
                 /* Input styling */
                 :global(.p-inputtext),
-                :global(.p-dropdown) {
+                :global(.p-dropdown),
+                :global(.p-calendar) {
                     border-radius: 8px;
                     border: 1px solid #e5e7eb;
                 }
@@ -452,6 +565,7 @@ export default function UserActivityHistory({ user, logs }) {
                     border-radius: 6px;
                     padding: 0.35rem 0.7rem;
                     font-size: 0.875rem;
+                    white-space: nowrap;
                 }
 
                 /* Shadows */
@@ -463,8 +577,69 @@ export default function UserActivityHistory({ user, logs }) {
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
                 }
 
-                /* Responsive */
-                @media (max-width: 768px) {
+                /* === RESPONSIVE === */
+
+                /* Tablette */
+                @media (min-width: 640px) {
+                    .filters-grid {
+                        grid-template-columns: 1fr 1fr;
+                    }
+
+                    .user-name {
+                        font-size: 1.875rem;
+                    }
+                }
+
+                /* Desktop */
+                @media (min-width: 1024px) {
+                    .activity-history-container {
+                        padding: 1.5rem;
+                    }
+
+                    .header-card,
+                    .filters-card {
+                        margin-bottom: 1.5rem;
+                    }
+
+                    .timeline-view {
+                        display: none;
+                    }
+
+                    .table-view {
+                        display: block;
+                    }
+
+                    :global(.p-card .p-card-body) {
+                        padding: 1.5rem;
+                    }
+
+                    :global(.p-datatable .p-datatable-thead > tr > th) {
+                        background: #f9fafb;
+                        color: #374151;
+                        font-weight: 600;
+                        padding: 1rem;
+                        border-bottom: 2px solid #e5e7eb;
+                    }
+
+                    :global(.p-datatable .p-datatable-tbody > tr:hover) {
+                        background: #f9fafb;
+                    }
+
+                    :global(.p-datatable .p-datatable-tbody > tr > td) {
+                        padding: 1rem;
+                    }
+                }
+
+                /* Mobile très petit */
+                @media (max-width: 375px) {
+                    .user-name {
+                        font-size: 1.25rem;
+                    }
+
+                    .timeline-title {
+                        font-size: 1.1rem;
+                    }
+
                     :global(.customized-timeline) {
                         padding-left: 0;
                     }
