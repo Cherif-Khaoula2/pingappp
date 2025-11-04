@@ -281,7 +281,7 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
     body={(rowData) => (
       <Button
         icon="pi pi-clock"
-        label="Voir"
+        label="Voir Historique"
         severity="info"
         text
         size="small"

@@ -33,16 +33,14 @@ export default function LdapLoginPage({ status }) {
             <div className="flex align-items-center justify-content-center min-h-screen p-4">
                 <div className="surface-card p-6 shadow-4 border-round-xl w-full" style={{maxWidth: '600px', padding: '2.5rem'}}>
 
-                    {/* Header avec Logo */}
-                    <div className="text-center mb-6">
-                        <div className="topbar-logo mb-4">
-                            <span className="logo-symbol">To</span>
-                            <span className="logo-text">sys</span>
-                        </div>
-                        <h1 className="text-900 text-3xl font-semibold mb-2">Connexion LDAP</h1>
-                        <p className="text-600">Connectez-vous avec votre compte LDAP</p>
-                    </div>
-
+               <div className="text-center mb-6">
+    <div className="topbar-logo-split mb-4">
+        <span className="logo-part-blue">To</span>
+        <span className="logo-part-red">sys</span>
+    </div>
+    <h1 className="text-900 text-3xl font-semibold mb-2">Connexion LDAP</h1>
+    <p className="text-600">Connectez-vous avec votre compte LDAP</p>
+</div>
                     {/* Message de statut */}
                     {status && (
                         <div className="mb-4 p-3 border-round bg-green-50 border-1 border-green-200">
@@ -122,49 +120,68 @@ export default function LdapLoginPage({ status }) {
             </div>
 
             <style jsx>{`
-                .topbar-logo {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    font-family: 'Poppins', 'Inter', sans-serif;
-                    font-weight: 700;
-                    user-select: none;
-                }
+               .topbar-logo-split {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Poppins', 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 2.2rem;
+    letter-spacing: -0.04em;
+    user-select: none;
+    position: relative;
+}
 
-                .logo-symbol {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 42px;
-                    height: 42px;
-                    border-radius: 12px;
-                    background: linear-gradient(135deg, #155ecc, #6366f1);
-                    color: white;
-                    font-size: 1.4rem;
-                    font-weight: 800;
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-                    transition: transform 0.2s ease;
-                }
+.logo-part-blue {
+    color: #1e3a8a;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    padding-right: 2px;
+}
 
-                .logo-symbol:hover {
-                    transform: scale(1.05);
-                }
+.logo-part-blue::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 70%;
+    background: #ff7215ff;
+}
 
-                .logo-text {
-                    font-size: 1.5rem;
-                    letter-spacing: -0.02em;
-                    background: linear-gradient(90deg, #0e4fa5, #6366f1);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
+.logo-part-red {
+    color: #ef4444;
+    background: linear-gradient(135deg, #f59352ff, #dc2626);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    padding-left: 2px;
+}
 
-                @media (max-width: 768px) {
-                    .logo-text {
-                        font-size: 1.3rem;
-                    }
-                }
+.topbar-logo-split:hover .logo-part-blue {
+    animation: slideLeft 0.3s ease;
+}
 
+.topbar-logo-split:hover .logo-part-red {
+    animation: slideRight 0.3s ease;
+}
+
+@keyframes slideLeft {
+    50% { transform: translateX(-3px); }
+}
+
+@keyframes slideRight {
+    50% { transform: translateX(3px); }
+}
+
+@media (max-width: 768px) {
+    .topbar-logo-split {
+        font-size: 1.8rem;
+    }
+}
                 /* Amélioration des inputs */
                 :global(.p-inputtext) {
                     border-radius: 8px;

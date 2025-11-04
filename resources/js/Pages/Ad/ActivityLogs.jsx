@@ -81,7 +81,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
             block_user: { icon: 'pi-lock', severity: 'danger', label: 'Blocage' },
             unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage' },
             reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset MDP' },
-            create_user: { icon: 'pi-user-plus', severity: 'help', label: 'Création' },
+            create_user: { icon: 'pi-user-plus', severity: 'secondary', label: 'Création' },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action };
     };
@@ -115,39 +115,44 @@ export default function ActivityLogs({ logs, stats, filters }) {
         );
     };
 
-    const targetUserTemplate = (rowData) => {
-        const initial = rowData.target_user ? rowData.target_user.charAt(0).toUpperCase() : 'U';
+const targetUserTemplate = (rowData) => {
+        const formatName = (name) => {
+            if (!name) return '';
+            // Enlever le point à la fin s'il existe
+            name = name.trim().replace(/\.$/, '');
+            const parts = name.split(' ');
+            if (parts.length >= 2) {
+                const firstName = parts[0];
+                const lastName = parts.slice(1).join(' ').toUpperCase();
+                return `${firstName} ${lastName}`;
+            }
+            return name;
+        };
+
         return (
-            <div className="flex align-items-center gap-2">
-                <div 
-                    className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-                    style={{
-                        width: '32px',
-                        height: '32px',
-                        background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                        fontSize: '0.875rem'
-                    }}
-                >
-                    {initial}
-                </div>
-                <div>
-                    <div className="font-medium text-900">{rowData.target_user}</div>
-                    {rowData.target_user_name && (
-                        <div className="text-sm text-600">{rowData.target_user_name}</div>
-                    )}
-                </div>
+            <div>
+                {rowData.target_user_name && (
+                    <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
+                )}
+                <div className="text-sm text-600">{rowData.target_user}</div>
             </div>
         );
+    };
+const performedByTemplate = (rowData) => {
+    const formatName = (name) => {
+        if (!name) return '';
+        // Enlever le point à la fin s'il existe
+        return name.trim().replace(/\.$/, '');
     };
 
-    const performedByTemplate = (rowData) => {
-        return (
-            <div className="flex align-items-center gap-2">
-                <i className="pi pi-user text-600"></i>
-                <span className="text-900">{rowData.performed_by_name}</span>
-            </div>
-        );
-    };
+    return (
+        <div className="flex align-items-center gap-2">
+            <i className="pi pi-user text-600"></i>
+            <span className="text-900">{formatName(rowData.performed_by_name)}</span>
+        </div>
+    );
+};
+    
 
     const ipTemplate = (rowData) => {
         return (
@@ -375,11 +380,11 @@ export default function ActivityLogs({ logs, stats, filters }) {
                             responsiveLayout="scroll"
                             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                             currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} logs"
-                        >
+                            >
                             <Column
-                                field="created_at"
-                                header="Date/Heure"
-                                body={dateTemplate}
+                                field="performed_by_name"
+                                header="Administrateur (Effectuer par) "
+                                body={performedByTemplate}
                                 sortable
                                 style={{ minWidth: '180px' }}
                             />
@@ -392,25 +397,20 @@ export default function ActivityLogs({ logs, stats, filters }) {
                             />
                             <Column
                                 field="target_user"
-                                header="Utilisateur ciblé"
+                                header="Cible"
                                 body={targetUserTemplate}
                                 sortable
                                 style={{ minWidth: '220px' }}
                             />
+
                             <Column
-                                field="performed_by_name"
-                                header="Effectué par"
-                                body={performedByTemplate}
+                                field="created_at"
+                                header="Date/Heure"
+                                body={dateTemplate}
                                 sortable
                                 style={{ minWidth: '180px' }}
                             />
-                            <Column
-                                field="ip_address"
-                                header="Adresse IP"
-                                body={ipTemplate}
-                                style={{ minWidth: '160px' }}
-                            />
-                            <Column
+                             <Column
                                 field="status"
                                 header="Statut"
                                 body={statusTemplate}
@@ -418,7 +418,14 @@ export default function ActivityLogs({ logs, stats, filters }) {
                                 style={{ minWidth: '120px' }}
                             />
                             <Column
-                                header="Actions"
+                                field="ip_address"
+                                header="Adresse IP"
+                                body={ipTemplate}
+                                style={{ minWidth: '160px' }}
+                            />
+                           
+                            <Column
+                                header="Détails"
                                 body={actionsTemplate}
                                 style={{ minWidth: '120px' }}
                             />

@@ -44,11 +44,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-
-Route::get('/uikit/button', function () {
-    return Inertia::render('main/uikit/button/page');
-})->name('button');
-
 use App\Http\Controllers\PingController;
 
 Route::get('/ping', [PingController::class, 'index'])->name('ping');

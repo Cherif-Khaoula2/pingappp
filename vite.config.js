@@ -8,6 +8,16 @@ export default defineConfig({
             input: 'resources/js/app.jsx',
             refresh: true,
         }),
-        react(),
+        react({
+            // 🚫 Désactive le bouton violet (React Inspector)
+            babel: {
+                plugins: [],
+            },
+            fastRefresh: true,
+            jsxImportSource: 'react',
+            include: '**/*.{jsx,tsx}',
+            exclude: [],
+            devTools: false, // 👈 ligne clé : désactive le bouton
+        }),
     ],
 });
