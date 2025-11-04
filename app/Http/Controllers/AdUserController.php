@@ -12,6 +12,7 @@ use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Email;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
+use App\Models\AdHiddenAccount;
 class AdUserController extends Controller
 {
     use LogsAdActivity;
