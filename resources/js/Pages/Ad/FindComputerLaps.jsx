@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
-
+import Layout from "@/Layouts/layout/layout.jsx";
 export default function FindComputerLaps() {
   const [computer, setComputer] = useState("");
   const [rows, setRows] = useState([]);
@@ -42,6 +42,7 @@ export default function FindComputerLaps() {
   };
 
   return (
+    <Layout>
     <div style={{ maxWidth: 760, margin: "20px auto" }}>
       <h2>Recherche Ordinateur (AD) — LAPS</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -90,5 +91,6 @@ export default function FindComputerLaps() {
         </tbody>
       </table>
     </div>
+    </Layout>
   );
 }
