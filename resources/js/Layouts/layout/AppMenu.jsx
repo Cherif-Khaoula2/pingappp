@@ -38,38 +38,44 @@ const AppMenu = () => {
             items: [
                 permissions.includes('getalluser') && {
                     label: 'Gestion des utilisateurs',
-                    icon: 'pi pi-fw pi-user',
+                    icon: 'pi pi-fw pi-users',
                     to: safeRoute('users'),
                 },
+
                 permissions.includes('getallrole') && {
                     label: 'Gestion des rôles',
-                    icon: 'pi pi-fw pi-shield',
+                   icon: 'pi pi-fw pi-shield',
                     to: safeRoute('roles.index'),
+                },
+                 permissions.includes('getallhidden') && {
+                    label: 'Masquer utilisateur',
+                    icon: 'pi pi-fw pi-eye-slash', 
+                    to: safeRoute('hidden.list'),
                 },
                 permissions.includes('getlog') && {
                     label: 'LOG',
-                    icon: 'pi pi-fw pi-shield',
+                    icon: 'pi pi-fw pi-file',
                     to: safeRoute('ad.logs.index'),
                 }
             ].filter(Boolean), // très important pour enlever les "false"
         },
         {
             label: 'Gestion des utilisateurs',
-            icon: 'pi pi-fw pi-cog',
+            icon: 'pi pi-fw pi-user-edit',
             items: [
                 permissions.includes('addaduser') && {
                     label: 'Ajouter utilisateur',
-                    icon: 'pi pi-fw pi-user',
+                     icon: 'pi pi-fw pi-user-plus',
                     to: safeRoute('ad.add-user'),
                 },
                 permissions.includes('blockaduser') && {
                     label: 'Bloquer/Debloquer utilisateur',
-                    icon: 'pi pi-fw pi-shield',
+                   icon: 'pi pi-fw pi-user-minus',
                     to: safeRoute('ad.users.manage-lock'),
                 },
                 permissions.includes('resetpswaduser') && {
-                    label: 'Réinitialiser Mot de passe utilisateur',
-                    icon: 'pi pi-fw pi-shield',
+                    label: 'Réinitialiser Mdp utilisateur ',
+                      icon: 'pi pi-fw pi-key',
                     to: safeRoute('ad.users.manage-password'),
                 },
             ].filter(Boolean),

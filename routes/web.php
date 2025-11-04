@@ -246,3 +246,13 @@ Route::middleware(['auth'])->group(function () {
       ->middleware('permission:getlog')
         ->name('activity.user');
 });
+
+use App\Http\Controllers\AdHiddenAccountController;
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/hidden-users', [AdHiddenAccountController::class, 'index'])->name('hidden.index');
+    Route::post('/hidden-users', [AdHiddenAccountController::class, 'store'])->name('hidden.store');
+    Route::delete('/hidden-users/{adHiddenAccount}', [AdHiddenAccountController::class, 'destroy'])->name('hidden.destroy');
+    Route::get('/hidden/list', [AdHiddenAccountController::class, 'showHiddenList'])
+    ->name('hidden.list');
+});
