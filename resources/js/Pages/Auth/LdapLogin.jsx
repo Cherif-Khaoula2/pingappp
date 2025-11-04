@@ -69,9 +69,7 @@ export default function LdapLoginPage({ status }) {
                         {/* Formulaire de connexion LDAP */}
                         <form onSubmit={submit} className="login-form">
                             <div className="form-field">
-                                <label htmlFor="username" className="field-label">
-                                    Nom d'utilisateur
-                                </label>
+                               
                                 <div className="input-wrapper">
                                     <span className="input-icon">
                                         <i className="pi pi-user"></i>
@@ -85,16 +83,14 @@ export default function LdapLoginPage({ status }) {
                                         autoComplete="username"
                                         aria-invalid={!!errors.username}
                                         aria-describedby="username-error"
-                                        placeholder="prenom.nom"
+                                        placeholder="Prenom.nom"
                                     />
                                 </div>
                                 <InputError message={errors.username} className="error-message" id="username-error" />
                             </div>
 
                             <div className="form-field">
-                                <label htmlFor="password" className="field-label">
-                                    Mot de passe
-                                </label>
+                               
                                 <div className="input-wrapper">
                                     <span className="input-icon">
                                         <i className="pi pi-lock"></i>
@@ -108,6 +104,7 @@ export default function LdapLoginPage({ status }) {
                                         autoComplete="current-password"
                                         aria-invalid={!!errors.password}
                                         aria-describedby="password-error"
+                                        placeholder="Mot de passe"
                                     />
                                 </div>
                                 <InputError message={errors.password} className="error-message" id="password-error" />
@@ -175,7 +172,7 @@ export default function LdapLoginPage({ status }) {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+                    background: linear-gradient(135deg, #e9dcfaff 0%, #fae4cfff 100%);
                     overflow-y: auto;
                 }
 
@@ -258,25 +255,32 @@ export default function LdapLoginPage({ status }) {
                     margin-bottom: 2rem;
                 }
 
-                .logo-wrapper {
-                    margin-bottom: 1.2rem;
+               .logo-wrapper {
+                    margin-bottom: 1.5rem;
                 }
 
-                /* Logo "To | sys" */
+                @media (max-width: 768px) {
+                    .logo-wrapper {
+                        margin-bottom: 1rem;
+                    }
+                }
+
+                /* Styles du logo original "To | sys" */
                 .topbar-logo-split {
                     display: inline-flex;
                     align-items: center;
                     font-family: 'Poppins', 'Inter', sans-serif;
                     font-weight: 900;
-                    font-size: 2.8rem;
+                    font-size: 2.5rem;
                     letter-spacing: -0.04em;
                     user-select: none;
                     position: relative;
+                    transition: all 0.3s ease-in-out;
                 }
 
-                @media (max-width: 768px) {
+                @media (min-width: 640px) {
                     .topbar-logo-split {
-                        font-size: 2.5rem;
+                        font-size: 3.5rem;
                     }
                 }
 
@@ -306,6 +310,22 @@ export default function LdapLoginPage({ status }) {
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
                     padding-left: 3px;
+                }
+
+                .topbar-logo-split:hover .logo-part-blue {
+                    animation: slideLeft 0.3s ease;
+                }
+
+                .topbar-logo-split:hover .logo-part-red {
+                    animation: slideRight 0.3s ease;
+                }
+
+                @keyframes slideLeft {
+                    50% { transform: translateX(-4px); }
+                }
+
+                @keyframes slideRight {
+                    50% { transform: translateX(4px); }
                 }
 
                 /* Titre et sous-titre */
