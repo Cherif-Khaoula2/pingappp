@@ -517,6 +517,26 @@ public function createAdUser(Request $request)
 $userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
 $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
+// ✅ Vérification si SamAccountName existe déjà
+    $checkCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; Get-ADUser -Filter {SamAccountName -eq '$sam'} | Select-Object SamAccountName\"";
+
+    $sshOptions = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'LogLevel=ERROR'];
+    $checkProcess = new Process(
+        $keyPath && file_exists($keyPath)
+            ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $checkCommand])
+            : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $checkCommand])
+    );
+
+    $checkProcess->setTimeout(30);
+    $checkProcess->run();
+
+    if ($checkProcess->isSuccessful() && trim($checkProcess->getOutput()) !== '') {
+        return response()->json([
+            'success' => false,
+            'message' => "Un utilisateur avec le SamAccountName '$sam' existe déjà dans Active Directory."
+        ], 409);
+    }
+
     // ✅ Commande AD exécutée directement (sans préfixe powershell/import)
    $adCommand = "
     New-ADUser -Name '$name' `
