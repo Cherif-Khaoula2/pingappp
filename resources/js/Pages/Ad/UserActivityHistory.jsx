@@ -55,15 +55,6 @@ export default function UserActivityHistory({ user, logs }) {
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
 
-    // Statistiques de l'utilisateur
-    const userStats = {
-        total_actions: logs.length,
-        successful_logins: logs.filter(l => l.action === 'login' && l.status === 'success').length,
-        failed_logins: logs.filter(l => l.action === 'login' && l.status === 'failed').length,
-        blocks: logs.filter(l => l.action === 'block_user').length,
-        unblocks: logs.filter(l => l.action === 'unblock_user').length,
-        password_resets: logs.filter(l => l.action === 'reset_password').length,
-    };
 
     // Templates pour le DataTable
     const dateTemplate = (rowData) => {
@@ -243,20 +234,13 @@ export default function UserActivityHistory({ user, logs }) {
                                         className="mr-2"
                                     />
                                 </Link>
-                                <div 
-                                    className="inline-flex align-items-center justify-content-center border-circle" 
-                                    style={{ 
-                                        width: '56px', 
-                                        height: '56px',
-                                        background: 'linear-gradient(135deg, #667eea, #764ba2)'
-                                    }}
-                                >
-                                    <i className="pi pi-user text-3xl text-white"></i>
-                                </div>
+                             
                                 <div>
+                                    
                                     <h1 className="text-900 text-3xl font-bold m-0">
-                                        {formatUserName(user)}
-                                    </h1>
+                                 {formatUserName(user)?.replace(/\./g, '')}
+                                       </h1>
+
                                     <p className="text-600 mt-1 m-0">
                                         <i className="pi pi-envelope mr-2"></i>
                                         {user.email}
@@ -267,57 +251,7 @@ export default function UserActivityHistory({ user, logs }) {
                     </Card>
                 </div>
 
-                {/* Statistiques */}
-                <div className="col-12 md:col-4">
-                    <Card className="shadow-1" style={{ borderLeft: '4px solid #3b82f6' }}>
-                        <div className="flex align-items-center gap-3">
-                            <div 
-                                className="inline-flex align-items-center justify-content-center border-circle"
-                                style={{ width: '48px', height: '48px', background: '#eff6ff' }}
-                            >
-                                <i className="pi pi-list text-2xl text-blue-600"></i>
-                            </div>
-                            <div>
-                                <div className="text-600 font-medium mb-1">Total Actions</div>
-                                <div className="text-900 text-3xl font-bold">{userStats.total_actions}</div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
 
-                <div className="col-12 md:col-4">
-                    <Card className="shadow-1" style={{ borderLeft: '4px solid #10b981' }}>
-                        <div className="flex align-items-center gap-3">
-                            <div 
-                                className="inline-flex align-items-center justify-content-center border-circle"
-                                style={{ width: '48px', height: '48px', background: '#ecfdf5' }}
-                            >
-                                <i className="pi pi-check-circle text-2xl text-green-600"></i>
-                            </div>
-                            <div>
-                                <div className="text-600 font-medium mb-1">Connexions réussies</div>
-                                <div className="text-900 text-3xl font-bold">{userStats.successful_logins}</div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-
-                <div className="col-12 md:col-4">
-                    <Card className="shadow-1" style={{ borderLeft: '4px solid #ef4444' }}>
-                        <div className="flex align-items-center gap-3">
-                            <div 
-                                className="inline-flex align-items-center justify-content-center border-circle"
-                                style={{ width: '48px', height: '48px', background: '#fef2f2' }}
-                            >
-                                <i className="pi pi-times-circle text-2xl text-red-600"></i>
-                            </div>
-                            <div>
-                                <div className="text-600 font-medium mb-1">Connexions échouées</div>
-                                <div className="text-900 text-3xl font-bold">{userStats.failed_logins}</div>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
 
                 {/* Filtres */}
                 <div className="col-12">
@@ -438,7 +372,7 @@ export default function UserActivityHistory({ user, logs }) {
                             />
                             <Column
                                 field="target_user"
-                                header="Utilisateur ciblé"
+                                header="Cible"
                                 body={targetUserTemplate}
                                 sortable
                                 style={{ minWidth: '220px' }}
