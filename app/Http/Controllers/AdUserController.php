@@ -349,15 +349,10 @@ public function manageLock()
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // 🔍 Construction de la commande PowerShell
+    // 🔍 Construction de la commande PowerShell avec échappement correct
     if (empty($search)) {
-        // Récupérer les 50 premiers utilisateurs si pas de recherche
-        $psCommand = "powershell -NoProfile -NonInteractive -Command \""
-            . "Import-Module ActiveDirectory; "
-            . "Get-ADUser -Filter * -ResultSetSize 50 "
-            . "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | "
-            . "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | "
-            . "ConvertTo-Json\"";
+        // Récupérer les 50 premiers utilisateurs
+        $filter = '*';
     } else {
         $searchTerm = trim($search);
         $words = array_filter(explode(' ', $searchTerm));
@@ -366,28 +361,57 @@ public function manageLock()
             // Recherche multi-mots : tous les mots doivent être présents
             $filters = [];
             foreach ($words as $word) {
-                // Échapper les apostrophes et guillemets pour PowerShell
-                $escapedWord = str_replace(["'", '"'], ["''", '`"'], $word);
+                // Échapper pour PowerShell
+                $escapedWord = str_replace("'", "''", $word);
                 $filters[] = "(Name -like '*{$escapedWord}*' -or GivenName -like '*{$escapedWord}*' -or Surname -like '*{$escapedWord}*' -or SamAccountName -like '*{$escapedWord}*' -or EmailAddress -like '*{$escapedWord}*')";
             }
             $filter = implode(' -and ', $filters);
         } else {
-            // Recherche simple sur tous les champs
-            $escapedSearch = str_replace(["'", '"'], ["''", '`"'], $searchTerm);
+            // Recherche simple
+            $escapedSearch = str_replace("'", "''", $searchTerm);
             $filter = "Name -like '*{$escapedSearch}*' -or GivenName -like '*{$escapedSearch}*' -or Surname -like '*{$escapedSearch}*' -or SamAccountName -like '*{$escapedSearch}*' -or EmailAddress -like '*{$escapedSearch}*'";
         }
-        
-        $psCommand = "powershell -NoProfile -NonInteractive -Command \""
-            . "Import-Module ActiveDirectory; "
-            . "Get-ADUser -Filter '{$filter}' -ResultSetSize 50 "
-            . "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | "
-            . "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | "
-            . "ConvertTo-Json\"";
     }
 
-    $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+    // ✅ Construction correcte de la commande PowerShell
+    // Utiliser {filter} directement dans la commande, pas entre guillemets
+    $psScript = "Import-Module ActiveDirectory; " .
+                "\$filter = '{$filter}'; " .
+                "Get-ADUser -Filter \$filter -ResultSetSize 50 " .
+                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
+                "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
+                "ConvertTo-Json";
+
+    // Encoder en base64 pour éviter les problèmes d'échappement
+    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+    
+    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+
+    \Log::info('PowerShell command prepared', [
+        'script' => $psScript,
+        'filter' => $filter
+    ]);
+
+    // Commande SSH avec UserKnownHostsFile=/dev/null pour éviter le problème de known_hosts
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
+
+    if ($keyPath && file_exists($keyPath)) {
+        $command = array_merge(
+            ['ssh', '-i', $keyPath],
+            $sshOptions,
+            ["{$user}@{$host}", $psCommand]
+        );
+    } else {
+        $command = array_merge(
+            ['sshpass', '-p', $password, 'ssh'],
+            $sshOptions,
+            ["{$user}@{$host}", $psCommand]
+        );
+    }
 
     try {
         $process = new Process($command);
@@ -398,18 +422,32 @@ public function manageLock()
             \Log::error('PowerShell SSH Error', [
                 'exit_code' => $process->getExitCode(),
                 'error' => $process->getErrorOutput(),
-                'output' => $process->getOutput()
+                'output' => $process->getOutput(),
+                'filter' => $filter
             ]);
             throw new ProcessFailedException($process);
         }
 
         $output = trim($process->getOutput());
-        $adUsers = json_decode($output, true);
-
-        if (!$adUsers) {
+        
+        if (empty($output)) {
             return response()->json([
                 'success' => false, 
                 'message' => 'Aucun utilisateur trouvé',
+                'users' => []
+            ]);
+        }
+
+        $adUsers = json_decode($output, true);
+
+        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
+            \Log::error('JSON decode error', [
+                'error' => json_last_error_msg(),
+                'output' => $output
+            ]);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Erreur de décodage JSON',
                 'users' => []
             ]);
         }
@@ -433,14 +471,6 @@ public function manageLock()
             $uac = $user['userAccountControl'] ?? 512;
             $lastLogon = $user['LastLogonDate'] ?? null;
 
-            \Log::info("AD User: {$sam}", [
-                'name' => $name,
-                'email' => $email,
-                'enabled' => $enabled,
-                'uac' => $uac,
-                'last_logon' => $lastLogon
-            ]);
-
             return [
                 'name' => $name,
                 'sam' => $sam,
@@ -450,7 +480,6 @@ public function manageLock()
                 'last_logon' => $lastLogon,
             ];
         })->filter(function ($user) {
-            // Filtrer les utilisateurs sans nom ou sam
             return !empty($user['name']) && !empty($user['sam']);
         })->values()->toArray();
 
@@ -463,8 +492,10 @@ public function manageLock()
     } catch (\Throwable $e) {
         \Log::error('findUser error', [
             'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
         ]);
+        
         return response()->json([
             'success' => false,
             'message' => 'Erreur serveur : ' . $e->getMessage(),
