@@ -425,9 +425,13 @@ public function findUser(Request $request)
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
+        // ✅ Récupérer tous les samaccountname masqués depuis la BDD
+        $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')
+            ->map(fn($sam) => strtolower($sam))
+            ->toArray();
 
         $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
-$users = collect($adUsers)->map(function ($user) use ($existingEmails) {
+    $users = collect($adUsers)->map(function ($user) use ($existingEmails) {
     $email = strtolower($user['EmailAddress'] ?? '');
     $lastLogonRaw = $user['LastLogonDate'] ?? null;
 
