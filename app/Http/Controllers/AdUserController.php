@@ -237,7 +237,7 @@ class AdUserController extends Controller
             $this->logAdActivity(
                 action: $action === 'block' ? 'block_user' : 'unblock_user',
                 targetUser: $sam,
-                targetUserName: $name,
+                targetUserName: $userName,
                 success: false,
                 errorMessage: $e->getMessage()
             );
@@ -294,7 +294,7 @@ class AdUserController extends Controller
             $this->logAdActivity(
                 action: 'reset_password',
                 targetUser: $sam,
-                targetUserName: $name,
+                targetUserName: $userName,
                 success: true,
                 additionalDetails: [
                     'unlocked' => true,
