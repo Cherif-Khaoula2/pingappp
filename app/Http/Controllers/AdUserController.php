@@ -362,8 +362,9 @@ public function findUser(Request $request)
     if (empty($search)) {
         $filter = "Name -like {$bt}\"*{$bt}\"";
     } else {
-        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
-        $filter = "Name -like {$bt}\"*{$escapedSearch}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedSearch}*{$bt}\"";
+    
+$escapedSearch = str_replace(['"', "'"], ['`"', "''"], trim($search));
+$filter = "Name -like {$bt}\"*{$escapedSearch}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedSearch}*{$bt}\"";
     }
 
     $psScript = "Import-Module ActiveDirectory; " .
