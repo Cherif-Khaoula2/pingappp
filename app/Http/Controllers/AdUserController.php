@@ -484,10 +484,9 @@ public function manageAddUser()
     // Page React pour ajouter un utilisateur AD
     return inertia('Ad/ManageAddUser');
 }
-public function createAdUser(Request $request)
-{
-    $this->authorize('addaduser');
 
+public function createAdUser(Request $request)
+{ $this->authorize('addaduser'); 
     $request->validate([
         'name' => 'required|string',
         'sam' => 'required|string|max:25',
@@ -502,7 +501,10 @@ public function createAdUser(Request $request)
     $keyPath = env('SSH_KEY_PATH');
 
     if (!$host || !$user) {
-        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+        return response()->json([
+            'success' => false,
+            'message' => 'Configuration SSH manquante'
+        ], 500);
     }
 
     $name = $request->input('name');
@@ -511,46 +513,26 @@ public function createAdUser(Request $request)
     $logmail = $request->input('logmail');
     $userPassword = $request->input('password');
     $ouPath = $request->input('ou_path');
-    $accountType = $request->input('accountType');
+    $accountType = $request->input('accountType'); 
+$userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
+$emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
-    $userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
-    $emailAddress = $accountType === "AD+Exchange" ? $email : null;
+    // ✅ Commande AD exécutée directement (sans préfixe powershell/import)
+   $adCommand = "
+    New-ADUser -Name '$name' `
+        -SamAccountName '$sam' `
+        -UserPrincipalName '$userPrincipalName' `
+        -EmailAddress '$emailAddress' `
+        -Path '$ouPath' `
+        -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
+        -Enabled \$true;
+    Write-Output 'User created successfully';
+";
 
-    // ✅ Vérification si SamAccountName existe déjà
-    $checkCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; Get-ADUser -Filter {SamAccountName -eq '$sam'} | Select-Object SamAccountName\"";
-
-    $sshOptions = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'LogLevel=ERROR'];
-    $checkProcess = new Process(
-        $keyPath && file_exists($keyPath)
-            ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $checkCommand])
-            : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $checkCommand])
-    );
-
-    $checkProcess->setTimeout(30);
-    $checkProcess->run();
-
-    if ($checkProcess->isSuccessful() && trim($checkProcess->getOutput()) !== '') {
-        return response()->json([
-            'success' => false,
-            'message' => "Un utilisateur avec le SamAccountName '$sam' existe déjà dans Active Directory."
-        ], 409);
-    }
-
-    // ✅ Commande pour créer l'utilisateur
-    $adCommand = "
-        New-ADUser -Name '$name' `
-            -SamAccountName '$sam' `
-            -UserPrincipalName '$userPrincipalName' `
-            -EmailAddress '$emailAddress' `
-            -Path '$ouPath' `
-            -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
-            -Enabled \$true;
-        Write-Output 'User created successfully';
-    ";
-
+    // ✅ Préparation de la commande SSH
     $command = $keyPath && file_exists($keyPath)
-        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $adCommand])
-        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $adCommand]);
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
 
     try {
         $process = new Process($command);
@@ -563,26 +545,52 @@ public function createAdUser(Request $request)
 
         $output = trim($process->getOutput());
 
-        // ✅ Log et notification
-        $this->logAdActivity('create_user', $sam, $name, true, ['email' => $email, 'method' => 'Direct AD over SSH']);
-        $this->sendAdUserCreationNotification($request->user(), [
-            'name' => $name,
-            'sam' => $sam,
-            'email' => $email,
-            'ouPath' => $ouPath,
-            'accountType' => $accountType
+        // ✅ Log de succès
+        $this->logAdActivity(
+            action: 'create_user',
+            targetUser: $sam,
+            targetUserName: $name,
+            success: true,
+            additionalDetails: [
+                'email' => $email,
+                'method' => 'Direct AD over SSH'
+            ]
+        );
+ // ✉️ Envoi de notification avant le return
+        $this->sendAdUserCreationNotification(
+            $request->user(),
+            [
+                'name' => $name,
+                'sam' => $sam,
+                'email' => $email,
+                'ouPath' => $ouPath,
+                'accountType' => $accountType
+            ]
+        );
+        return response()->json([
+            'success' => true,
+            'message' => 'Utilisateur créé avec succès.',
+            'output' => $output
         ]);
-
-        return response()->json(['success' => true, 'message' => 'Utilisateur créé avec succès.', 'output' => $output]);
 
     } catch (\Throwable $e) {
         \Log::error('createUserAd error: ' . $e->getMessage());
-        $this->logAdActivity('create_user', $sam, $name, false, ['errorMessage' => $e->getMessage()]);
 
-        return response()->json(['success' => false, 'message' => 'Erreur lors de la création : ' . $e->getMessage()], 500);
+        // ❌ Log de l’échec
+        $this->logAdActivity(
+            action: 'create_user',
+            targetUser: $sam,
+            targetUserName: $name,
+            success: false,
+            errorMessage: $e->getMessage()
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la création de l’utilisateur : ' . $e->getMessage(),
+        ], 500);
     }
 }
-
 
 protected function sendAdUserCreationNotification($creator, $newUser)
 {
