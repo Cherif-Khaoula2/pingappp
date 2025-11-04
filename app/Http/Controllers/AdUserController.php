@@ -330,11 +330,12 @@ class AdUserController extends Controller
 public function manageLock()
 {
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
-}
-public function findUser(Request $request)
-{ $this->authorize('getaduser'); 
+}public function findUser(Request $request)
+{
+    $this->authorize('getaduser');
+
     $request->validate([
-        'search' => 'required|string'
+        'search' => 'nullable|string'
     ]);
 
     $search = $request->input('search');
@@ -348,15 +349,48 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
-        . "Import-Module ActiveDirectory; "
-        . "Get-ADUser -Identity '$search' " 
-        . "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | "
-        . "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | ConvertTo-Json\"";
+    // 🔍 Construction du filtre PowerShell
+    if (empty($search)) {
+        $filter = '*';
+    } else {
+        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], trim($search));
+        $bt = chr(96); // backtick
+        $filter = "Name -like {$bt}\"*{$escapedSearch}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedSearch}*{$bt}\"";
+    }
 
-    $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+    $psScript = "Import-Module ActiveDirectory; " .
+                "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
+                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl; " .
+                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
+                "ConvertTo-Json -Depth 3";
+
+    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+
+    \Log::info('PowerShell command prepared', [
+        'script' => $psScript,
+        'filter' => $filter
+    ]);
+
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
+
+    if ($keyPath && file_exists($keyPath)) {
+        $command = array_merge(
+            ['ssh', '-i', $keyPath],
+            $sshOptions,
+            ["{$user}@{$host}", $psCommand]
+        );
+    } else {
+        $command = array_merge(
+            ['sshpass', '-p', $password, 'ssh'],
+            $sshOptions,
+            ["{$user}@{$host}", $psCommand]
+        );
+    }
 
     try {
         $process = new Process($command);
@@ -364,23 +398,75 @@ public function findUser(Request $request)
         $process->run();
 
         if (!$process->isSuccessful()) {
+            \Log::error('PowerShell SSH Error', [
+                'exit_code' => $process->getExitCode(),
+                'error' => $process->getErrorOutput(),
+                'output' => $process->getOutput(),
+                'filter' => $filter
+            ]);
             throw new ProcessFailedException($process);
         }
 
         $output = trim($process->getOutput());
-        $users = json_decode($output, true);
 
-        if (!$users) {
-            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé']);
+        if (empty($output)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun utilisateur trouvé',
+                'users' => []
+            ]);
         }
 
-        return response()->json(['success' => true, 'users' => is_array($users) ? $users : [$users]]);
+        $adUsers = json_decode($output, true);
+
+        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
+            \Log::error('JSON decode error', [
+                'error' => json_last_error_msg(),
+                'output' => substr($output, 0, 500)
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de décodage JSON',
+                'users' => []
+            ]);
+        }
+
+        if (isset($adUsers['Name'])) {
+            $adUsers = [$adUsers];
+        }
+
+        $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
+
+        $users = collect($adUsers)->map(function ($user) use ($existingEmails) {
+            $email = strtolower($user['EmailAddress'] ?? '');
+            return [
+                'name' => $user['Name'] ?? '',
+                'sam' => $user['SamAccountName'] ?? '',
+                'email' => $email,
+                'enabled' => $user['Enabled'] ?? false,
+                'is_local' => in_array($email, $existingEmails),
+                'last_logon' => $user['LastLogonDate'] ?? null,
+            ];
+        })->filter(fn($user) => !empty($user['name']) && !empty($user['sam']))->values()->toArray();
+
+        return response()->json([
+            'success' => true,
+            'users' => $users,
+            'count' => count($users)
+        ]);
+
     } catch (\Throwable $e) {
-        \Log::error('findUser error: ' . $e->getMessage());
+        \Log::error('findUser error', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+
         return response()->json([
             'success' => false,
             'message' => 'Erreur serveur : ' . $e->getMessage(),
-        ]);
+            'users' => []
+        ], 500);
     }
 }
 public function managePassword()
