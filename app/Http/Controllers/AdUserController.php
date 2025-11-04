@@ -352,7 +352,7 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // 🔍 Filtre PowerShell intact
+    // 🔍 Construction du filtre PowerShell
     if (empty($search)) {
         $filter = 'Name -like "*"';
     } else {
@@ -366,7 +366,6 @@ public function findUser(Request $request)
                 "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
                 "ConvertTo-Json -Depth 3";
 
-    // EncodedCommand intact
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
 
@@ -381,9 +380,13 @@ public function findUser(Request $request)
         : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
     try {
+        $start = microtime(true);
+
         $process = new Process($command);
         $process->setTimeout(60);
         $process->run();
+
+        $afterSsh = microtime(true);
 
         if (!$process->isSuccessful()) {
             \Log::error('PowerShell SSH Error', [
@@ -397,6 +400,8 @@ public function findUser(Request $request)
 
         $output = trim($process->getOutput());
 
+        $afterOutput = microtime(true);
+
         if (empty($output)) {
             return response()->json([
                 'success' => false,
@@ -407,6 +412,8 @@ public function findUser(Request $request)
 
         $adUsers = json_decode($output, true);
 
+        $afterJson = microtime(true);
+
         if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
                 'success' => false,
@@ -415,45 +422,53 @@ public function findUser(Request $request)
             ]);
         }
 
-        // ✅ Si un seul objet, on le met dans un tableau
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
 
-        // 🔹 Cache pour comptes masqués et emails existants (plus rapide que pluck() à chaque recherche)
-        $hiddenSamAccounts = Cache::remember('hidden_sams', 300, fn() =>
-            AdHiddenAccount::pluck('samaccountname')->map(fn($sam) => strtolower($sam))->toArray()
-        );
+        $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')
+            ->map(fn($sam) => strtolower($sam))
+            ->toArray();
 
-        $existingEmails = Cache::remember('existing_emails', 300, fn() =>
-            User::pluck('email')->map(fn($email) => strtolower($email))->toArray()
-        );
+        $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
 
-        // 🔹 Traitement PHP rapide avec foreach au lieu de collect()->map()->filter()
-        $users = [];
-        foreach ($adUsers as $user) {
+        $afterCollectionStart = microtime(true);
+
+        $users = collect($adUsers)->map(function ($user) use ($existingEmails, $hiddenSamAccounts) {
             $email = strtolower($user['EmailAddress'] ?? '');
             $sam = strtolower($user['SamAccountName'] ?? '');
-
-            if (empty($user['Name']) || empty($sam) || in_array($sam, $hiddenSamAccounts)) {
-                continue;
-            }
+            $lastLogonRaw = $user['LastLogonDate'] ?? null;
 
             $lastLogon = null;
-            if (!empty($user['LastLogonDate']) && preg_match('/Date\((\d+)\)/', $user['LastLogonDate'], $matches)) {
-                $lastLogon = date('Y-m-d H:i:s', intval($matches[1])/1000);
+            if ($lastLogonRaw && preg_match('/Date\((\d+)\)/', $lastLogonRaw, $matches)) {
+                $timestamp = intval($matches[1]) / 1000;
+                $lastLogon = date('Y-m-d H:i:s', $timestamp);
             }
 
-            $users[] = [
-                'name' => $user['Name'],
-                'sam' => $sam,
+            return [
+                'name' => $user['Name'] ?? '',
+                'sam' => $user['SamAccountName'] ?? '',
                 'email' => $email,
                 'enabled' => (bool)($user['Enabled'] ?? false),
                 'is_local' => in_array($email, $existingEmails),
                 'last_logon' => $lastLogon,
                 'source' => 'active_directory'
             ];
-        }
+        })->filter(fn($user) =>
+            !empty($user['name']) &&
+            !empty($user['sam']) &&
+            !in_array(strtolower($user['sam']), $hiddenSamAccounts)
+        )->values()->toArray();
+
+        $afterCollectionEnd = microtime(true);
+
+        // 🔹 Log du temps pris à chaque étape
+        \Log::info('Timing findUser', [
+            'ssh' => $afterSsh - $start,
+            'output_trim' => $afterOutput - $afterSsh,
+            'json_decode' => $afterJson - $afterOutput,
+            'collection_processing' => $afterCollectionEnd - $afterCollectionStart,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -475,7 +490,6 @@ public function findUser(Request $request)
         ], 500);
     }
 }
-
 
 public function managePassword()
 {

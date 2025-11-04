@@ -14,66 +14,48 @@ export default function ResetUserPassword() {
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [resetDialog, setResetDialog] = useState({
     visible: false,
     sam: null,
     userName: null,
   });
 
-  // Formatage de la date AD (utile si besoin plus tard)
-  const formatAdDate = (value) => {
-    if (!value) return "—";
-    const match = /\/Date\((\d+)\)\//.exec(value);
-    if (match) {
-      const date = new Date(parseInt(match[1], 10));
-      return date.toLocaleString("fr-FR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-    return value;
-  };
- // 🔹 Recherche d’un utilisateur
-  const [loading, setLoading] = useState(false);
-
-const handleSearch = async () => {
+  // 🔹 Recherche d’un utilisateur
+  const handleSearch = async () => {
     if (!search.trim()) {
-        alert("Veuillez saisir un SamAccountName");
-        return;
+      alert("Veuillez saisir un SamAccountName");
+      return;
     }
 
-    setLoading(true); // 🔹 Activer le loader
+    setLoading(true);
     try {
-        const response = await axios.post("/ad/users/find", { search });
+      const response = await axios.post("/ad/users/find", { search });
 
-        if (response.data.success && Array.isArray(response.data.users)) {
-            const mappedUsers = response.data.users.map(user => ({
-                name: user.name,
-                sam: user.sam,
-                email: user.email,
-                enabled: user.enabled,
-                lastLogon: user.last_logon,
-            }));
-            setUsers(mappedUsers);
-            setError(null);
-        } else {
-            setUsers([]);
-            setError("Aucun utilisateur trouvé.");
-        }
-    } catch (error) {
-        console.error("Erreur lors de la recherche :", error);
-        setError("Erreur lors de la recherche de l'utilisateur.");
+      if (response.data.success && Array.isArray(response.data.users)) {
+        const mappedUsers = response.data.users.map(user => ({
+          name: user.name || user.sam, // fallback si name absent
+          sam: user.sam,
+          email: user.email,
+          enabled: user.enabled,
+          lastLogon: user.last_logon,
+        }));
+        setUsers(mappedUsers);
+        setError(null);
+      } else {
+        setUsers([]);
+        setError("Aucun utilisateur trouvé.");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la recherche :", err);
+      setError("Erreur lors de la recherche de l'utilisateur.");
+      setUsers([]);
     } finally {
-        setLoading(false); // 🔹 Désactiver le loader
+      setLoading(false);
     }
-};
+  };
 
-
-
-  // Ouvrir la popup pour saisir le nouveau mot de passe
+  // 🔹 Ouvrir popup réinitialisation
   const handleResetClick = (user) => {
     setResetDialog({
       visible: true,
@@ -83,7 +65,7 @@ const handleSearch = async () => {
     setNewPassword("");
   };
 
-  // Confirmer la réinitialisation
+  // 🔹 Confirmer la réinitialisation
   const confirmResetPassword = () => {
     if (!newPassword.trim()) {
       alert("Veuillez saisir un mot de passe.");
@@ -109,7 +91,7 @@ const handleSearch = async () => {
     );
   };
 
-  // Templates de colonnes
+  // 🔹 Templates pour la table
   const nameTemplate = (rowData) => {
     const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : "U";
     return (
@@ -150,7 +132,7 @@ const handleSearch = async () => {
     />
   );
 
-  // En-tête de la table
+  // 🔹 Header de la table
   const tableHeader = (
     <div className="flex flex-column gap-3">
       <div className="flex align-items-center justify-content-between flex-wrap gap-3">
@@ -184,15 +166,15 @@ const handleSearch = async () => {
           style={{ height: "48px" }}
         />
         <Button
-                   label={loading ? "Chargement..." : "Rechercher"}
-                   icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
-                   onClick={handleSearch}
-                   disabled={loading}
-                   style={{
-                       background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-                       border: "none",
-                   }}
-               />
+          label={loading ? "Chargement..." : "Rechercher"}
+          icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
+          onClick={handleSearch}
+          disabled={loading}
+          style={{
+            background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+            border: "none",
+          }}
+        />
       </div>
 
       {error && (
@@ -217,9 +199,7 @@ const handleSearch = async () => {
               emptyMessage={
                 <div className="text-center py-6">
                   <i className="pi pi-users text-400 mb-3" style={{ fontSize: "3rem" }}></i>
-                  <h3 className="text-900 text-xl font-medium mb-2">
-                    Aucun utilisateur affiché
-                  </h3>
+                  <h3 className="text-900 text-xl font-medium mb-2">Aucun utilisateur affiché</h3>
                   <p className="text-600">Recherchez un utilisateur Active Directory</p>
                 </div>
               }
@@ -232,7 +212,7 @@ const handleSearch = async () => {
         </div>
       </div>
 
-      {/* Popup moderne de saisie du nouveau mot de passe */}
+      {/* Popup réinitialisation */}
       <Dialog
         visible={resetDialog.visible}
         onHide={() => setResetDialog({ visible: false, sam: null, userName: null })}
@@ -252,9 +232,7 @@ const handleSearch = async () => {
         draggable={false}
       >
         <div className="py-3">
-          <p className="text-700 text-lg mb-3">
-            Entrez un nouveau mot de passe pour :
-          </p>
+          <p className="text-700 text-lg mb-3">Entrez un nouveau mot de passe pour :</p>
 
           <div className="p-3 bg-gray-50 border-round mb-4">
             <div className="flex align-items-center gap-2 mb-2">
@@ -282,19 +260,13 @@ const handleSearch = async () => {
             icon="pi pi-times"
             outlined
             onClick={() => setResetDialog({ visible: false, sam: null, userName: null })}
-            style={{
-              borderColor: "#6b7280",
-              color: "#374151",
-            }}
+            style={{ borderColor: "#6b7280", color: "#374151" }}
           />
           <Button
             label="Confirmer"
             icon="pi pi-check"
             onClick={confirmResetPassword}
-            style={{
-              background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-              border: "none",
-            }}
+            style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)", border: "none" }}
           />
         </div>
       </Dialog>
