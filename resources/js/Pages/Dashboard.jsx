@@ -188,14 +188,16 @@ export default function Dashboard({
             label: "Déconnexions", 
             value: safeStats.logout_count ?? 0, 
             icon: "pi pi-sign-out", 
-            color: "bg-amber-500",
+            color: "bg-yellow-500",
             percentage: safeStats.total_logs > 0 ? ((safeStats.logout_count / safeStats.total_logs) * 100).toFixed(1) : 0
         },
         { 
             label: "Créations", 
             value: safeStats.create_count ?? 0, 
             icon: "pi pi-user-plus", 
-            color: "bg-cyan-500"
+            color: "bg-cyan-500",
+         percentage: safeStats.total_logs > 0 ? ((safeStats.create_count / safeStats.total_logs) * 100).toFixed(1): 0
+            
         },
         
         { 
@@ -203,19 +205,22 @@ export default function Dashboard({
             value: safeStats.block_count ?? 0, 
             icon: "pi pi-lock", 
             color: "bg-red-500",
+            percentage: safeStats.total_logs > 0 ? ((safeStats.block_count / safeStats.total_logs) * 100).toFixed(1): 0,
             alert: safeStats.block_count > 10
         },
         { 
             label: "Déblocages", 
             value: safeStats.unblock_count ?? 0, 
             icon: "pi pi-unlock", 
-            color: "bg-teal-500"
+            color: "bg-teal-500",
+            percentage: safeStats.total_logs > 0 ? ((safeStats.unblock_count / safeStats.total_logs) * 100).toFixed(1): 0
         },
         { 
-            label: "Reset MDP", 
+            label: "Réinitialiser MDP", 
             value: safeStats.reset_password_count ?? 0, 
             icon: "pi pi-refresh", 
-            color: "bg-orange-500"
+            color: "bg-orange-500",
+            percentage: safeStats.total_logs > 0 ? ((safeStats.reset_password_count / safeStats.total_logs) * 100).toFixed(1): 0
         },
       
        
@@ -312,45 +317,44 @@ export default function Dashboard({
                         </div>
                     ))}
                 </div>
+<div className="flex flex-wrap justify-content-between gap-3 mb-3 md:mb-4">
+  {/* Graphique d'activité temporelle */}
+  <div className="flex-1 min-w-[60%]">
+    <Card title={`Évolution de l'activité (${period} jours)`} className="shadow-2 md:shadow-3 h-full">
+      <div style={{ height: '300px' }}>
+        {safeActivityData.length > 0 ? (
+          <Chart type="line" data={activityChartData} options={activityChartOptions} />
+        ) : (
+          <div className="flex align-items-center justify-content-center h-full">
+            <div className="text-center">
+              <i className="pi pi-chart-line text-5xl text-300 mb-3"></i>
+              <p className="text-600">Aucune donnée disponible</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  </div>
 
-                {/* Graphiques principaux - Responsive */}
-                <div className="grid mb-3 md:mb-4">
-                    {/* Graphique d'activité temporelle */}
-                    <div className="col-12 lg:col-8">
-                        <Card title={`Évolution de l'activité (${period} jours)`} className="shadow-2 md:shadow-3">
-                            <div style={{ height: '250px', minHeight: '250px' }} className="md:h-auto" >
-                                {safeActivityData.length > 0 ? (
-                                    <Chart type="line" data={activityChartData} options={activityChartOptions} />
-                                ) : (
-                                    <div className="flex align-items-center justify-content-center h-full">
-                                        <div className="text-center">
-                                            <i className="pi pi-chart-line text-5xl text-300 mb-3"></i>
-                                            <p className="text-600">Aucune donnée disponible</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </Card>
-                    </div>
+  {/* Répartition des actions */}
+  <div className="flex-1 min-w-[35%]">
+    <Card title="Répartition par type" className="shadow-2 md:shadow-3 h-full">
+      <div style={{ height: '300px' }}>
+        {safeActionBreakdown.length > 0 ? (
+          <Chart type="doughnut" data={actionChartData} options={pieChartOptions} />
+        ) : (
+          <div className="flex align-items-center justify-content-center h-full">
+            <div className="text-center">
+              <i className="pi pi-chart-pie text-5xl text-300 mb-3"></i>
+              <p className="text-600">Aucune donnée disponible</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  </div>
+</div>
 
-                    {/* Répartition des actions */}
-                    <div className="col-12 lg:col-4">
-                        <Card title="Répartition par type" className="shadow-2 md:shadow-3">
-                            <div style={{ height: '250px', minHeight: '250px' }} className="md:h-auto">
-                                {safeActionBreakdown.length > 0 ? (
-                                    <Chart type="doughnut" data={actionChartData} options={pieChartOptions} />
-                                ) : (
-                                    <div className="flex align-items-center justify-content-center h-full">
-                                        <div className="text-center">
-                                            <i className="pi pi-chart-pie text-5xl text-300 mb-3"></i>
-                                            <p className="text-600">Aucune donnée disponible</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </Card>
-                    </div>
-                </div>
 
                 {/* Section inférieure - Responsive */}
                 <div className="grid mb-3 md:mb-4">
