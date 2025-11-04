@@ -639,24 +639,62 @@ protected function sendAdUserCreationNotification($creator, $newUser)
         $lastName = $user->last_name ?? '';
         $lien = '#';
 
-        $email = (new Email())
+       $email = (new Email())
             ->from('TOSYS <contact@tosys.sarpi-dz.com>')
             ->to($user->email)
             ->subject("[TOSYSAPP] Nouvel utilisateur AD créé : {$newUser['sam']}")
             ->html("
                 <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
                     <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
-                    <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a créé un nouvel utilisateur AD :</p>
-                    <table style='border-collapse: collapse; margin: 15px 0;'>
-                        <tr><td style='padding: 5px 10px;'><strong>Nom :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['name']) . "</td></tr>
-                        <tr><td style='padding: 5px 10px;'><strong>SamAccountName :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['sam']) . "</td></tr>
-                        <tr><td style='padding: 5px 10px;'><strong>Email :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['email'] ?? '-') . "</td></tr>
-                        <tr><td style='padding: 5px 10px;'><strong>Direction :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['ouPath'] ?? '-') . "</td></tr>
-                        <tr><td style='padding: 5px 10px;'><strong>Type de compte :</strong></td><td style='padding: 5px 10px;'>" . htmlspecialchars($newUser['accountType'] ?? '-') . "</td></tr>
-                    </table>
                     
+                    <div style='background: linear-gradient(90deg, #4B6CB7, #182848); color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                        <p style='margin: 0; font-size: 16px;'>
+                            👤 <strong>Création d'un nouvel utilisateur Active Directory</strong>
+                        </p>
+                    </div>
+
+                    <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a créé un nouveau compte AD :</p>
+
+                    <table style='border-collapse: collapse; margin: 15px 0; width: 100%; max-width: 600px;'>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Nom :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($newUser['name'] ?? '-') . "</td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>SamAccountName :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($newUser['sam']) . "</td>
+                        </tr>
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Email :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($newUser['email'] ?? '-') . "</td>
+                        </tr>
+                        <tr>
+                        <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Direction :</strong></td>
+                         <td style='padding: 10px; border: 1px solid #dee2e6;'>
+                                   " . htmlspecialchars($this->extractOuName($newUser['ouPath'] ?? '-')) . "
+                            </td>
+                            </tr>
+
+                        <tr style='background-color: #f8f9fa;'>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Type de compte :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6; color: #4B6CB7; font-weight: bold;'>
+                                " . htmlspecialchars(strtoupper($newUser['accountType'] ?? '-')) . "
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>
+                        </tr>
+                    </table>
+
+                    <div style='background-color: #eaf1ff; border-left: 4px solid #4B6CB7; padding: 15px; margin: 20px 0;'>
+                        <p style='margin: 0; color: #182848;'>
+                            ✅ <strong>Information :</strong> Ce compte a été activé automatiquement après sa création.
+                        </p>
+                    </div>
+
                     <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
-                    <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système ADAPP.</p>
+                    <p style='font-size: 13px; color: #777;'>Ce message est généré automatiquement par le système <strong>TOSYSAPP</strong>.</p>
                 </div>
             ");
 
@@ -837,6 +875,14 @@ protected function sendPasswordResetNotification($creator, $userData)
             \Log::error("Erreur d'envoi de mail (notification reset password) à {$user->email} : " . $e->getMessage());
         }
     }
+}
+protected function extractOuName($ouPath)
+{
+    if (!$ouPath) return '-';
+    if (preg_match('/OU=([^,]+)/i', $ouPath, $matches)) {
+        return $matches[1];
+    }
+    return $ouPath;
 }
 
 }
