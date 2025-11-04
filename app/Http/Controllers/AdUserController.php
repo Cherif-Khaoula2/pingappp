@@ -330,7 +330,15 @@ class AdUserController extends Controller
 public function manageLock()
 {
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
-}public function findUser(Request $request)
+}
+
+
+
+
+
+
+
+public function findUser(Request $request)
 {
     $this->authorize('getaduser');
 
@@ -338,7 +346,7 @@ public function manageLock()
         'search' => 'nullable|string'
     ]);
 
-    $search = $request->input('search');
+    $search = trim($request->input('search', ''));
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
@@ -350,11 +358,11 @@ public function manageLock()
     }
 
     // 🔍 Construction du filtre PowerShell
+    $bt = chr(96); // backtick
     if (empty($search)) {
-        $filter = '*';
+        $filter = "Name -like {$bt}\"*{$bt}\"";
     } else {
-        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], trim($search));
-        $bt = chr(96); // backtick
+        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
         $filter = "Name -like {$bt}\"*{$escapedSearch}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedSearch}*{$bt}\"";
     }
 
@@ -378,19 +386,9 @@ public function manageLock()
         '-o', 'LogLevel=ERROR'
     ];
 
-    if ($keyPath && file_exists($keyPath)) {
-        $command = array_merge(
-            ['ssh', '-i', $keyPath],
-            $sshOptions,
-            ["{$user}@{$host}", $psCommand]
-        );
-    } else {
-        $command = array_merge(
-            ['sshpass', '-p', $password, 'ssh'],
-            $sshOptions,
-            ["{$user}@{$host}", $psCommand]
-        );
-    }
+    $command = $keyPath && file_exists($keyPath)
+        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
+        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
     try {
         $process = new Process($command);
@@ -410,6 +408,7 @@ public function manageLock()
         $output = trim($process->getOutput());
 
         if (empty($output)) {
+            \Log::info('AD search returned empty output', ['filter' => $filter]);
             return response()->json([
                 'success' => false,
                 'message' => 'Aucun utilisateur trouvé',
@@ -446,6 +445,7 @@ public function manageLock()
                 'enabled' => $user['Enabled'] ?? false,
                 'is_local' => in_array($email, $existingEmails),
                 'last_logon' => $user['LastLogonDate'] ?? null,
+                'source' => 'active_directory'
             ];
         })->filter(fn($user) => !empty($user['name']) && !empty($user['sam']))->values()->toArray();
 
@@ -469,6 +469,9 @@ public function manageLock()
         ], 500);
     }
 }
+
+
+
 public function managePassword()
 {
     return inertia('Ad/ManagePassword');
