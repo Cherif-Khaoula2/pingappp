@@ -130,10 +130,20 @@ public function showUserLogs($id)
 {
     $user = \App\Models\User::findOrFail($id);
 
-    // ✅ CORRECTION : utiliser 'performed_by_id' au lieu de 'performed_by'
-    $logs = \App\Models\AdActivityLog::where('performed_by_id', $id)
-        ->orderBy('created_at', 'desc')
-        ->get();
+    // ✅ Extraire toutes les variantes possibles de l'identifiant utilisateur
+    $email = $user->email;
+    $username = explode('@', $email)[0]; // partie avant @ (ex: khaoula.hamadouche)
+    
+    // ✅ Récupérer les logs avec recherche insensible à la casse
+    $logs = \App\Models\AdActivityLog::where(function($query) use ($email, $username) {
+        // Recherche par email complet (insensible à la casse)
+        $query->whereRaw('LOWER(target_user) = ?', [strtolower($email)])
+              // OU recherche par username uniquement (insensible à la casse)
+              ->orWhereRaw('LOWER(target_user) = ?', [strtolower($username)]);
+    })
+    ->with('performer')
+    ->orderBy('created_at', 'desc')
+    ->get();
 
     return Inertia::render('Ad/UserActivityHistory', [
         'user' => $user,
