@@ -122,24 +122,33 @@ class LdapAuthController extends Controller
         }
     }
 
-    public function destroy(Request $request)
-    {
-        $user = Auth::user();
-        
-        if ($user) {
-            // ✅ Log déconnexion
-            $this->logAdActivity(
-                action: 'logout',
-                targetUser: $user->email,
-                targetUserName: $user->name,
-                success: true
-            );
-        }
+ public function destroy(Request $request)
+{
+    $user = Auth::user();
 
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        
-        return redirect()->route('ldap.login');
+    if ($user) {
+        $loginName = strstr($user->email, '@', true); // juste "khaoula.hamadouche"
+
+        // ✅ Log de déconnexion
+        $this->logAdActivity(
+            action: 'logout',
+            targetUser: $loginName,
+            targetUserName: $user->name,
+            success: true,
+            additionalDetails: [
+                'logout_time' => now(),
+            ]
+        );
+
+        Log::info("Déconnexion réussie pour $loginName ({$user->name})");
     }
+
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('ldap.login')->with('success', 'Vous avez été déconnecté ✅');
+}
+
+
 }

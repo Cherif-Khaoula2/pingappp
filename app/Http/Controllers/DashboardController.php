@@ -17,9 +17,9 @@ class DashboardController extends Controller
             Log::info('=== DASHBOARD START ===');
             
             $tz = 'Africa/Algiers';
-            $period = 30;
+            $period = $request->input('period', 30);
 
-            // Statistiques
+            // ==================== STATISTIQUES GLOBALES ====================
             $stats = [
                 'total_logs' => AdActivityLog::count(),
                 'today_logs' => AdActivityLog::whereDate('created_at', today())->count(),
@@ -29,9 +29,7 @@ class DashboardController extends Controller
                 'failed' => AdActivityLog::where('status', 'failed')->count(),
             ];
 
-            Log::info('Stats:', $stats);
-
-            // Activité des derniers jours
+            // ==================== ACTIVITÉ TEMPORELLE ====================
             $activityData = AdActivityLog::select(
                     DB::raw('DATE(created_at) as date'),
                     DB::raw('COUNT(*) as total')
@@ -48,12 +46,99 @@ class DashboardController extends Controller
                 })
                 ->toArray();
 
-            Log::info('Activity Data:', ['count' => count($activityData), 'data' => $activityData]);
+            // ==================== RÉPARTITION DES ACTIONS ====================
+            $actionBreakdown = AdActivityLog::select(
+                    'action',
+                    DB::raw('COUNT(*) as count')
+                )
+                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->groupBy('action')
+                ->orderBy('count', 'desc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'action' => ucfirst(str_replace('_', ' ', $item->action)),
+                        'count' => (int) $item->count,
+                    ];
+                })
+                ->toArray();
 
-            // ✅ CORRECTION : Utiliser 'performer' comme dans AdActivityLogController
+            // ==================== RÉPARTITION DES STATUTS ====================
+            $statusBreakdown = AdActivityLog::select(
+                    'status',
+                    DB::raw('COUNT(*) as count')
+                )
+                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->groupBy('status')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'status' => $item->status ?? 'success',
+                        'count' => (int) $item->count,
+                    ];
+                })
+                ->toArray();
+
+            // ==================== TOP UTILISATEURS ACTIFS ====================
+            $topPerformers = AdActivityLog::select(
+                    'performed_by',
+                    DB::raw('COUNT(*) as count')
+                )
+                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->whereNotNull('performed_by')
+                ->groupBy('performed_by')
+                ->orderBy('count', 'desc')
+                ->limit(10)
+                ->with('performer:id,first_name,last_name,email')
+                ->get()
+                ->map(function ($item) {
+                    $name = 'Système';
+                    
+                    if ($item->performer) {
+                        $name = trim($item->performer->first_name . ' ' . $item->performer->last_name);
+                        if (empty($name)) {
+                            $name = $item->performer->email;
+                        }
+                    }
+                    
+                    return [
+                        'id' => $item->performed_by,
+                        'name' => $name,
+                        'count' => (int) $item->count,
+                    ];
+                })
+                ->toArray();
+
+            // ==================== ACTIVITÉ HORAIRE ====================
+            $hourlyActivity = AdActivityLog::select(
+                    DB::raw('HOUR(created_at) as hour'),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->groupBy('hour')
+                ->orderBy('hour', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'hour' => (int) $item->hour,
+                        'count' => (int) $item->count,
+                    ];
+                })
+                ->toArray();
+
+            // Remplir les heures manquantes avec 0
+            $hourlyMap = collect($hourlyActivity)->keyBy('hour');
+            $hourlyActivity = collect(range(0, 23))->map(function ($hour) use ($hourlyMap) {
+                return [
+                    'hour' => $hour,
+                    'count' => $hourlyMap->get($hour)['count'] ?? 0,
+                ];
+            })->toArray();
+
+            // ==================== LOGS RÉCENTS ====================
             $recentLogs = AdActivityLog::with('performer:id,first_name,last_name,email')
                 ->latest('created_at')
-                ->limit(10)
+                ->limit(50)
                 ->get()
                 ->map(function ($log) use ($tz) {
                     $performerName = 'Système';
@@ -68,8 +153,9 @@ class DashboardController extends Controller
                     return [
                         'id' => $log->id,
                         'action' => $log->action,
-                        'status' => $log->status ?? 'success',
+                        'status' => $log->status ?? 'succeeded',
                         'performer_name' => $performerName,
+                        'created_at' => $log->created_at,
                         'created_at_formatted' => Carbon::parse($log->created_at)
                             ->timezone($tz)
                             ->diffForHumans(),
@@ -77,16 +163,25 @@ class DashboardController extends Controller
                 })
                 ->toArray();
 
-            Log::info('Recent Logs:', ['count' => count($recentLogs), 'logs' => $recentLogs]);
-
+            // ==================== DONNÉES COMPLÈTES ====================
             $data = [
                 'stats' => $stats,
                 'activityData' => $activityData,
+                'actionBreakdown' => $actionBreakdown,
+                'statusBreakdown' => $statusBreakdown,
+                'topPerformers' => $topPerformers,
+                'hourlyActivity' => $hourlyActivity,
                 'recentLogs' => $recentLogs,
                 'period' => $period,
             ];
 
-            Log::info('=== DATA SENT TO INERTIA ===', $data);
+            Log::info('=== DATA SENT TO INERTIA ===', [
+                'stats_count' => count($stats),
+                'activity_count' => count($activityData),
+                'actions_count' => count($actionBreakdown),
+                'performers_count' => count($topPerformers),
+                'logs_count' => count($recentLogs)
+            ]);
 
             return Inertia::render('Dashboard', $data);
             
@@ -107,6 +202,10 @@ class DashboardController extends Controller
                     'failed' => 0,
                 ],
                 'activityData' => [],
+                'actionBreakdown' => [],
+                'statusBreakdown' => [],
+                'topPerformers' => [],
+                'hourlyActivity' => [],
                 'recentLogs' => [],
                 'period' => 30,
                 'error' => 'Erreur lors du chargement du dashboard: ' . $e->getMessage(),

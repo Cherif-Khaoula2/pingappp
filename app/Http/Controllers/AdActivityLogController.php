@@ -68,64 +68,6 @@ class AdActivityLogController extends Controller
         ]);
     }
 
-    // Export CSV
-    public function export(Request $request)
-    {
-        $query = AdActivityLog::query();
-
-        if ($request->filled('action')) {
-            $query->where('action', $request->action);
-        }
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('created_at', [$request->start_date, $request->end_date]);
-        }
-
-        $logs = $query->orderBy('created_at', 'desc')->get();
-
-        $filename = 'ad_activity_logs_' . now()->format('Y-m-d_His') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
-        ];
-
-        $callback = function() use ($logs) {
-            $file = fopen('php://output', 'w');
-            
-            // En-têtes CSV
-            fputcsv($file, [
-                'ID',
-                'Action',
-                'Utilisateur ciblé',
-                'Nom utilisateur',
-                'Effectué par',
-                'Statut',
-                'IP',
-                'Date',
-                'Erreur'
-            ]);
-
-            // Données
-            foreach ($logs as $log) {
-                fputcsv($file, [
-                    $log->id,
-                    $log->action,
-                    $log->target_user,
-                    $log->target_user_name,
-                    $log->performed_by_name,
-                    $log->status,
-                    $log->ip_address,
-                    $log->created_at->format('Y-m-d H:i:s'),
-                    $log->error_message,
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
 public function showUserLogs($id)
 {
     $user = \App\Models\User::findOrFail($id);
