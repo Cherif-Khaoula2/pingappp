@@ -330,7 +330,12 @@ class AdUserController extends Controller
 public function manageLock()
 {
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
-}public function findUser(Request $request)
+}
+
+
+
+
+public function findUser(Request $request)
 { 
     $this->authorize('getaduser'); 
     
@@ -358,31 +363,31 @@ public function manageLock()
         $words = array_filter(explode(' ', $searchTerm));
         
         if (count($words) > 1) {
-            // Recherche multi-mots : tous les mots doivent être présents
+            // Recherche multi-mots
             $filters = [];
             foreach ($words as $word) {
-                // Échapper pour PowerShell
-                $escapedWord = str_replace("'", "''", $word);
-                $filters[] = "(Name -like '*{$escapedWord}*' -or GivenName -like '*{$escapedWord}*' -or Surname -like '*{$escapedWord}*' -or SamAccountName -like '*{$escapedWord}*' -or EmailAddress -like '*{$escapedWord}*')";
+                // Échapper les caractères spéciaux pour PowerShell
+                $escapedWord = str_replace(['"', "'"], ['`"', "''"], $word);
+                $bt = chr(96); // backtick
+                $filters[] = "(Name -like {$bt}\"*{$escapedWord}*{$bt}\" -or GivenName -like {$bt}\"*{$escapedWord}*{$bt}\" -or Surname -like {$bt}\"*{$escapedWord}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedWord}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedWord}*{$bt}\")";
             }
             $filter = implode(' -and ', $filters);
         } else {
-            // Recherche simple
-            $escapedSearch = str_replace("'", "''", $searchTerm);
-            $filter = "Name -like '*{$escapedSearch}*' -or GivenName -like '*{$escapedSearch}*' -or Surname -like '*{$escapedSearch}*' -or SamAccountName -like '*{$escapedSearch}*' -or EmailAddress -like '*{$escapedSearch}*'";
+            // Recherche simple avec guillemets doubles et backticks
+            $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $searchTerm);
+            $bt = chr(96); // backtick
+            $filter = "Name -like {$bt}\"*{$escapedSearch}*{$bt}\" -or GivenName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or Surname -like {$bt}\"*{$escapedSearch}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedSearch}*{$bt}\"";
         }
     }
 
-    // ✅ Construction correcte de la commande PowerShell
-    // Utiliser {filter} directement dans la commande, pas entre guillemets
+    // ✅ Construction de la commande PowerShell avec scriptblock
     $psScript = "Import-Module ActiveDirectory; " .
-                "\$filter = '{$filter}'; " .
-                "Get-ADUser -Filter \$filter -ResultSetSize 50 " .
-                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
-                "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
-                "ConvertTo-Json";
+                "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
+                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl; " .
+                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
+                "ConvertTo-Json -Depth 3";
 
-    // Encoder en base64 pour éviter les problèmes d'échappement
+    // Encoder en base64 pour éviter les problèmes d'échappement SSH
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
@@ -392,7 +397,7 @@ public function manageLock()
         'filter' => $filter
     ]);
 
-    // Commande SSH avec UserKnownHostsFile=/dev/null pour éviter le problème de known_hosts
+    // Commande SSH
     $sshOptions = [
         '-o', 'StrictHostKeyChecking=no',
         '-o', 'UserKnownHostsFile=/dev/null',
@@ -443,7 +448,7 @@ public function manageLock()
         if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
             \Log::error('JSON decode error', [
                 'error' => json_last_error_msg(),
-                'output' => $output
+                'output' => substr($output, 0, 500)
             ]);
             return response()->json([
                 'success' => false, 
@@ -503,6 +508,10 @@ public function manageLock()
         ], 500);
     }
 }
+
+
+
+
 public function managePassword()
 {
     return inertia('Ad/ManagePassword');
