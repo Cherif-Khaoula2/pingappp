@@ -333,11 +333,6 @@ public function manageLock()
 }
 
 
-
-
-
-
-
 public function findUser(Request $request)
 {
     $this->authorize('getaduser');
@@ -358,14 +353,11 @@ public function findUser(Request $request)
     }
 
     // 🔍 Construction du filtre PowerShell
-    $bt = chr(96); // backtick
     if (empty($search)) {
-        $filter = "Name -like {$bt}\"*{$bt}\"";
+        $filter = 'Name -like "*"';
     } else {
-    
-
-$escapedSearch = str_replace(['"', "'"], ['`"', "''"], trim($search));
-$filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
+        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
+        $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
     }
 
     $psScript = "Import-Module ActiveDirectory; " .
@@ -408,9 +400,9 @@ $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escap
         }
 
         $output = trim($process->getOutput());
+        \Log::info('AD raw output', ['output' => substr($output, 0, 500)]);
 
         if (empty($output)) {
-            \Log::info('AD search returned empty output', ['filter' => $filter]);
             return response()->json([
                 'success' => false,
                 'message' => 'Aucun utilisateur trouvé',
@@ -419,12 +411,9 @@ $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escap
         }
 
         $adUsers = json_decode($output, true);
+        \Log::info('AD decoded', ['data' => $adUsers]);
 
         if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
-            \Log::error('JSON decode error', [
-                'error' => json_last_error_msg(),
-                'output' => substr($output, 0, 500)
-            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur de décodage JSON',
@@ -432,6 +421,7 @@ $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escap
             ]);
         }
 
+        // ✅ Si un seul objet, on le met dans un tableau
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
@@ -439,17 +429,16 @@ $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escap
         $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
 
         $users = collect($adUsers)->map(function ($user) use ($existingEmails) {
-            $email = strtolower($user['EmailAddress'] ?? '');
             return [
                 'name' => $user['Name'] ?? '',
                 'sam' => $user['SamAccountName'] ?? '',
-                'email' => $email,
+                'email' => strtolower($user['EmailAddress'] ?? ''),
                 'enabled' => $user['Enabled'] ?? false,
-                'is_local' => in_array($email, $existingEmails),
+                'is_local' => in_array(strtolower($user['EmailAddress'] ?? ''), $existingEmails),
                 'last_logon' => $user['LastLogonDate'] ?? null,
                 'source' => 'active_directory'
             ];
-        })->filter(fn($user) => !empty($user['name']) && !empty($user['sam']))->values()->toArray();
+        })->filter(fn($u) => !empty($u['name']) && !empty($u['sam']))->values()->toArray();
 
         return response()->json([
             'success' => true,
@@ -471,7 +460,6 @@ $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escap
         ], 500);
     }
 }
-
 
 
 public function managePassword()
