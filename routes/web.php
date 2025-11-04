@@ -263,5 +263,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword']);
     Route::get('/ad/computers/find', [AdComputerController::class, 'showFindPage'])->name('computers.find');
     Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword'])->name('computers.laps');
+    Route::get('/ad/computers/laps/all', [AdComputerController::class, 'getAllLapsComputers'])->name('computers.all');
 });
 

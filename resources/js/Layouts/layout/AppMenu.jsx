@@ -83,6 +83,12 @@ const AppMenu = () => {
                       icon: 'pi pi-fw pi-key',
                     to: safeRoute('computers.find'),
                 },
+                permissions.includes('getadpc') && {
+                    label: 'all Computer  ',
+                      icon: 'pi pi-fw pi-key',
+                    to: safeRoute('computers.all'),
+                },
+             
             ].filter(Boolean),
         },
     ];
