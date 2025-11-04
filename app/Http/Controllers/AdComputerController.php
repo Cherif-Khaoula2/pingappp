@@ -95,4 +95,8 @@ class AdComputerController extends Controller
             ], 500);
         }
     }
+    public function showFindPage()
+{
+    return inertia('Ad/FindComputerLaps');
+}
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import Layout from "@/Layouts/layout/layout.jsx";
+
 export default function FindComputerLaps() {
   const [computer, setComputer] = useState("");
   const [rows, setRows] = useState([]);
@@ -43,54 +44,65 @@ export default function FindComputerLaps() {
 
   return (
     <Layout>
-    <div style={{ maxWidth: 760, margin: "20px auto" }}>
-      <h2>Recherche Ordinateur (AD) — LAPS</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={computer}
-          onChange={e => setComputer(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Saisir SamAccountName ou nom de l'ordinateur..."
-          style={{ flex: 1, padding: 8, borderRadius: 6, border: "1px solid #d1d5db" }}
-        />
-        <button
-          onClick={handleSearch}
-          disabled={loading}
-          style={{ padding: 8, borderRadius: 6, border: "none", background: "#2563eb", color: "#fff" }}
-        >
-          {loading ? "Recherche..." : "Rechercher"}
-        </button>
-      </div>
+      <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+          🔍 Recherche Ordinateur (AD) — LAPS
+        </h2>
 
-      {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
+        <div className="flex gap-4 mb-4">
+          <input
+            ref={inputRef}
+            type="text"
+            value={computer}
+            onChange={e => setComputer(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Nom d'ordinateur ou SamAccountName..."
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={loading}
+            className={`px-5 py-3 rounded-lg font-medium text-white transition ${
+              loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {loading ? "Recherche..." : "Rechercher"}
+          </button>
+        </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
-        <thead>
-          <tr style={{ background: "#f8fafc" }}>
-            <th style={{ padding: 10, textAlign: "left" }}>Ordinateur</th>
-            <th style={{ padding: 10, textAlign: "left" }}>Mot de passe LAPS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={2} style={{ padding: 20, textAlign: "center", color: "#6b7280" }}>
-                Aucune donnée — saisissez un ordinateur et cliquez sur « Rechercher »
-              </td>
-            </tr>
-          ) : (
-            rows.map((r, idx) => (
-              <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#f9f9f9" }}>
-                <td style={{ padding: 10 }}>{r.sam}</td>
-                <td style={{ padding: 10, fontFamily: "monospace" }}>{r.laps_password}</td>
+        {error && (
+          <div className="text-red-600 mb-4 text-sm font-medium">
+            ⚠️ {error}
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+            <thead className="bg-gray-100 text-gray-700 uppercase text-sm tracking-wider">
+              <tr>
+                <th className="px-6 py-3 text-left">Ordinateur</th>
+                <th className="px-6 py-3 text-left">Mot de passe LAPS</th>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="px-6 py-4 text-center text-gray-500">
+                    Aucune donnée — saisissez un ordinateur et cliquez sur « Rechercher »
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="px-6 py-4 font-medium text-gray-800">{r.sam}</td>
+                    <td className="px-6 py-4 font-mono text-gray-900">{r.laps_password}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </Layout>
   );
 }

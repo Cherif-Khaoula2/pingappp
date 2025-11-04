@@ -261,4 +261,7 @@ Route::middleware(['auth'])->group(function () {
 
     // API POST pour récupérer les ordinateurs LAPS
     Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword']);
+    Route::get('/ad/computers/find', [AdComputerController::class, 'showFindPage'])->name('computers.find');
+    Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword'])->name('computers.laps');
 });
+

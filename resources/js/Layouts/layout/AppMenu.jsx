@@ -78,6 +78,11 @@ const AppMenu = () => {
                       icon: 'pi pi-fw pi-key',
                     to: safeRoute('ad.users.manage-password'),
                 },
+                 permissions.includes('getadpc') && {
+                    label: 'Mdp Admin Local ',
+                      icon: 'pi pi-fw pi-key',
+                    to: safeRoute('computers.find'),
+                },
             ].filter(Boolean),
         },
     ];
