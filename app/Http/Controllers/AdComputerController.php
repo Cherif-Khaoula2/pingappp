@@ -236,5 +236,11 @@ PS;
         ], 500);
     }
 }
+public function showAllComputersPage()
+{
+    // Ne pas retourner les 1000+ items ici — laisse le front les charger
+    return inertia('Ad/FindAllComputersLaps');
+}
+
 
 }

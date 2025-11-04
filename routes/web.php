@@ -264,5 +264,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ad/computers/find', [AdComputerController::class, 'showFindPage'])->name('computers.find');
     Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword'])->name('computers.laps');
     Route::get('/ad/computers/laps/all', [AdComputerController::class, 'getAllLapsComputers'])->name('computers.all');
+    Route::get('/ad/computers/laps', [AdComputerController::class, 'showAllComputersPage'])
+    ->name('ad.computers.laps');
+ 
+
+// API (retourne JSON) — mettre dans web.php mais preférez prefix 'api' si souhaité
+Route::get('/api/ad/computers/laps', [AdComputerController::class, 'getAllLapsComputers'])
+    ->name('api.ad.computers.laps');
+
 });
 

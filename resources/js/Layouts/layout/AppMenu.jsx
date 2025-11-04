@@ -86,7 +86,7 @@ const AppMenu = () => {
                 permissions.includes('getadpc') && {
                     label: 'all Computer  ',
                       icon: 'pi pi-fw pi-key',
-                    to: safeRoute('computers.all'),
+                    to: safeRoute('ad.computers.laps'),
                 },
              
             ].filter(Boolean),
