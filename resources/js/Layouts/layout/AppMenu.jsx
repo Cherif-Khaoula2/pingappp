@@ -70,7 +70,7 @@ const AppMenu = () => {
                 },
                 permissions.includes('blockaduser') && {
                     label: 'Bloquer/Debloquer utilisateur',
-                   icon: 'pi pi-fw pi-user-minus',
+                   icon: 'pi pi-ban',
                     to: safeRoute('ad.users.manage-lock'),
                 },
                 permissions.includes('resetpswaduser') && {
@@ -80,12 +80,22 @@ const AppMenu = () => {
                 },
                  permissions.includes('getadpc') && {
                     label: 'Mdp Admin Local ',
-                      icon: 'pi pi-fw pi-key',
+                      icon: 'pi pi-unlock',
                     to: safeRoute('computers.find'),
                 },
+             
+             
+            ].filter(Boolean),
+        },
+        {
+            label: 'Gestion des ordinateurs',
+            icon: 'pi pi-fw pi-user-edit',
+            items: [
+                
+                
                 permissions.includes('getadpc') && {
-                    label: 'all Computer  ',
-                      icon: 'pi pi-fw pi-key',
+                    label: 'Voir liste des ordinateurs',
+                      icon: 'pi pi-fw pi-desktop',
                     to: safeRoute('ad.computers.laps'),
                 },
              
