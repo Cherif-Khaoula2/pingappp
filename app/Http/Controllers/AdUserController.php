@@ -331,16 +331,10 @@ public function manageLock()
 {
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
 }
-
-
-
-
 public function findUser(Request $request)
-{ 
-    $this->authorize('getaduser'); 
-    
+{ $this->authorize('getaduser'); 
     $request->validate([
-        'search' => 'nullable|string'
+        'search' => 'required|string'
     ]);
 
     $search = $request->input('search');
@@ -354,69 +348,15 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // 🔍 Construction de la commande PowerShell avec échappement correct
-    if (empty($search)) {
-        // Récupérer les 50 premiers utilisateurs
-        $filter = '*';
-    } else {
-        $searchTerm = trim($search);
-        $words = array_filter(explode(' ', $searchTerm));
-        
-        if (count($words) > 1) {
-            // Recherche multi-mots
-            $filters = [];
-            foreach ($words as $word) {
-                // Échapper les caractères spéciaux pour PowerShell
-                $escapedWord = str_replace(['"', "'"], ['`"', "''"], $word);
-                $bt = chr(96); // backtick
-                $filters[] = "(Name -like {$bt}\"*{$escapedWord}*{$bt}\" -or GivenName -like {$bt}\"*{$escapedWord}*{$bt}\" -or Surname -like {$bt}\"*{$escapedWord}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedWord}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedWord}*{$bt}\")";
-            }
-            $filter = implode(' -and ', $filters);
-        } else {
-            // Recherche simple avec guillemets doubles et backticks
-            $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $searchTerm);
-            $bt = chr(96); // backtick
-            $filter = "Name -like {$bt}\"*{$escapedSearch}*{$bt}\" -or GivenName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or Surname -like {$bt}\"*{$escapedSearch}*{$bt}\" -or SamAccountName -like {$bt}\"*{$escapedSearch}*{$bt}\" -or EmailAddress -like {$bt}\"*{$escapedSearch}*{$bt}\"";
-        }
-    }
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \""
+        . "Import-Module ActiveDirectory; "
+        . "Get-ADUser -Identity '$search' " 
+        . "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | "
+        . "Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate | ConvertTo-Json\"";
 
-    // ✅ Construction de la commande PowerShell avec scriptblock
-    $psScript = "Import-Module ActiveDirectory; " .
-                "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
-                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl; " .
-                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
-                "ConvertTo-Json -Depth 3";
-
-    // Encoder en base64 pour éviter les problèmes d'échappement SSH
-    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
-    
-    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
-
-    \Log::info('PowerShell command prepared', [
-        'script' => $psScript,
-        'filter' => $filter
-    ]);
-
-    // Commande SSH
-    $sshOptions = [
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'UserKnownHostsFile=/dev/null',
-        '-o', 'LogLevel=ERROR'
-    ];
-
-    if ($keyPath && file_exists($keyPath)) {
-        $command = array_merge(
-            ['ssh', '-i', $keyPath],
-            $sshOptions,
-            ["{$user}@{$host}", $psCommand]
-        );
-    } else {
-        $command = array_merge(
-            ['sshpass', '-p', $password, 'ssh'],
-            $sshOptions,
-            ["{$user}@{$host}", $psCommand]
-        );
-    }
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
 
     try {
         $process = new Process($command);
@@ -424,94 +364,25 @@ public function findUser(Request $request)
         $process->run();
 
         if (!$process->isSuccessful()) {
-            \Log::error('PowerShell SSH Error', [
-                'exit_code' => $process->getExitCode(),
-                'error' => $process->getErrorOutput(),
-                'output' => $process->getOutput(),
-                'filter' => $filter
-            ]);
             throw new ProcessFailedException($process);
         }
 
         $output = trim($process->getOutput());
-        
-        if (empty($output)) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Aucun utilisateur trouvé',
-                'users' => []
-            ]);
+        $users = json_decode($output, true);
+
+        if (!$users) {
+            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé']);
         }
 
-        $adUsers = json_decode($output, true);
-
-        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
-            \Log::error('JSON decode error', [
-                'error' => json_last_error_msg(),
-                'output' => substr($output, 0, 500)
-            ]);
-            return response()->json([
-                'success' => false, 
-                'message' => 'Erreur de décodage JSON',
-                'users' => []
-            ]);
-        }
-
-        // Si un seul résultat, PowerShell retourne un objet au lieu d'un tableau
-        if (isset($adUsers['Name'])) {
-            $adUsers = [$adUsers];
-        }
-
-        // Récupérer les emails existants dans la base locale
-        $existingEmails = User::pluck('email')->map(function($email) {
-            return strtolower($email);
-        })->toArray();
-
-        // Mapper et enrichir les résultats
-        $users = collect($adUsers)->map(function ($user) use ($existingEmails) {
-            $email = strtolower($user['EmailAddress'] ?? '');
-            $name = $user['Name'] ?? '';
-            $sam = $user['SamAccountName'] ?? '';
-            $enabled = $user['Enabled'] ?? false;
-            $uac = $user['userAccountControl'] ?? 512;
-            $lastLogon = $user['LastLogonDate'] ?? null;
-
-            return [
-                'name' => $name,
-                'sam' => $sam,
-                'email' => $email,
-                'enabled' => $enabled,
-                'is_local' => in_array($email, $existingEmails),
-                'last_logon' => $lastLogon,
-            ];
-        })->filter(function ($user) {
-            return !empty($user['name']) && !empty($user['sam']);
-        })->values()->toArray();
-
-        return response()->json([
-            'success' => true, 
-            'users' => $users,
-            'count' => count($users)
-        ]);
-
+        return response()->json(['success' => true, 'users' => is_array($users) ? $users : [$users]]);
     } catch (\Throwable $e) {
-        \Log::error('findUser error', [
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ]);
-        
+        \Log::error('findUser error: ' . $e->getMessage());
         return response()->json([
             'success' => false,
             'message' => 'Erreur serveur : ' . $e->getMessage(),
-            'users' => []
-        ], 500);
+        ]);
     }
 }
-
-
-
-
 public function managePassword()
 {
     return inertia('Ad/ManagePassword');
