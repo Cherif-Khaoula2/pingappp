@@ -384,80 +384,29 @@ public function findUser(Request $request)
         ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
         : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
-    try {
+       try {
         $process = new Process($command);
         $process->setTimeout(60);
         $process->run();
 
         if (!$process->isSuccessful()) {
-            \Log::error('PowerShell SSH Error', [
-                'exit_code' => $process->getExitCode(),
-                'error' => $process->getErrorOutput(),
-                'output' => $process->getOutput(),
-                'filter' => $filter
-            ]);
             throw new ProcessFailedException($process);
         }
 
         $output = trim($process->getOutput());
-        \Log::info('AD raw output', ['output' => substr($output, 0, 500)]);
+        $users = json_decode($output, true);
 
-        if (empty($output)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Aucun utilisateur trouvé',
-                'users' => []
-            ]);
+        if (!$users) {
+            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé']);
         }
 
-        $adUsers = json_decode($output, true);
-        \Log::info('AD decoded', ['data' => $adUsers]);
-
-        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur de décodage JSON',
-                'users' => []
-            ]);
-        }
-
-        // ✅ Si un seul objet, on le met dans un tableau
-        if (isset($adUsers['Name'])) {
-            $adUsers = [$adUsers];
-        }
-
-        $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
-
-        $users = collect($adUsers)->map(function ($user) use ($existingEmails) {
-            return [
-                'name' => $user['Name'] ?? '',
-                'sam' => $user['SamAccountName'] ?? '',
-                'email' => strtolower($user['EmailAddress'] ?? ''),
-                'enabled' => $user['Enabled'] ?? false,
-                'is_local' => in_array(strtolower($user['EmailAddress'] ?? ''), $existingEmails),
-                'last_logon' => $user['LastLogonDate'] ?? null,
-                'source' => 'active_directory'
-            ];
-        })->filter(fn($u) => !empty($u['name']) && !empty($u['sam']))->values()->toArray();
-
-        return response()->json([
-            'success' => true,
-            'users' => $users,
-            'count' => count($users)
-        ]);
-
+        return response()->json(['success' => true, 'users' => is_array($users) ? $users : [$users]]);
     } catch (\Throwable $e) {
-        \Log::error('findUser error', [
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
-        ]);
-
+        \Log::error('findUser error: ' . $e->getMessage());
         return response()->json([
             'success' => false,
             'message' => 'Erreur serveur : ' . $e->getMessage(),
-            'users' => []
-        ], 500);
+        ]);
     }
 }
 
