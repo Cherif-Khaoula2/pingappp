@@ -358,7 +358,7 @@ public function findUser(Request $request)
         $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
     }
 
-    $psScript = "Import-Module ActiveDirectory; " .
+    $psScript = 
                 "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
                 "-Properties Name,SamAccountName,EmailAddress,Enabled; " .
                 "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled | " .
