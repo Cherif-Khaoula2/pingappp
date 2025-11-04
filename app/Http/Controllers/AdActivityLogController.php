@@ -68,70 +68,12 @@ class AdActivityLogController extends Controller
         ]);
     }
 
-    // Export CSV
-    public function export(Request $request)
-    {
-        $query = AdActivityLog::query();
-
-        if ($request->filled('action')) {
-            $query->where('action', $request->action);
-        }
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('created_at', [$request->start_date, $request->end_date]);
-        }
-
-        $logs = $query->orderBy('created_at', 'desc')->get();
-
-        $filename = 'ad_activity_logs_' . now()->format('Y-m-d_His') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
-        ];
-
-        $callback = function() use ($logs) {
-            $file = fopen('php://output', 'w');
-            
-            // En-têtes CSV
-            fputcsv($file, [
-                'ID',
-                'Action',
-                'Utilisateur ciblé',
-                'Nom utilisateur',
-                'Effectué par',
-                'Statut',
-                'IP',
-                'Date',
-                'Erreur'
-            ]);
-
-            // Données
-            foreach ($logs as $log) {
-                fputcsv($file, [
-                    $log->id,
-                    $log->action,
-                    $log->target_user,
-                    $log->target_user_name,
-                    $log->performed_by_name,
-                    $log->status,
-                    $log->ip_address,
-                    $log->created_at->format('Y-m-d H:i:s'),
-                    $log->error_message,
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
 public function showUserLogs($id)
 {
     $user = \App\Models\User::findOrFail($id);
 
-    // 👉 adapte ici le nom de la colonne correcte
-    $logs = \App\Models\AdActivityLog::where('performed_by', $id)
+    // ✅ CORRECTION : utiliser 'performed_by_id' au lieu de 'performed_by'
+    $logs = \App\Models\AdActivityLog::where('performed_by_id', $id)
         ->orderBy('created_at', 'desc')
         ->get();
 
@@ -141,42 +83,38 @@ public function showUserLogs($id)
     ]);
 }
 
-public function dashboard()
-{
-    // Logs récents
-    $recentLogs = AdActivityLog::with('performer')
-        ->latest()
-        ->take(5)
-        ->get();
-
-    // Stats globales
-    $total_logs = AdActivityLog::count();
-    $today_logs = AdActivityLog::whereDate('created_at', today())->count();
-    $login_count = AdActivityLog::where('action', 'login')->count();
-    $logout_count = AdActivityLog::where('action', 'logout')->count();
-    $block_count = AdActivityLog::where('action', 'block_user')->count();
-    $failed = AdActivityLog::where('status', 'failed')->count();
-
-    // Activité des derniers jours (7 derniers jours)
-    $activityData = AdActivityLog::selectRaw('DATE(created_at) as date, COUNT(*) as total')
-        ->where('created_at', '>=', now()->subDays(7))
-        ->groupBy('date')
-        ->orderBy('date')
-        ->get();
-
-    return Inertia::render('Dashboard', [
-        'stats' => [
-            'total_logs' => $total_logs,
-            'today_logs' => $today_logs,
-            'login_count' => $login_count,
-            'logout_count' => $logout_count,
-            'block_count' => $block_count,
-            'failed' => $failed,
-        ],
-        'activityData' => $activityData,
-        'recentLogs' => $recentLogs,
-    ]);
-}
-
+ public function performer()
+    {
+        return $this->belongsTo(User::class, 'performed_by_id');
+    }
+    
+    /**
+     * ✅ Alias pour compatibilité
+     * (peut être utilisée dans DashboardController)
+     */
+    public function performed_by()
+    {
+        return $this->belongsTo(User::class, 'performed_by_id');
+    }
+    
+    /**
+     * ✅ Alias supplémentaire
+     */
+    public function performedBy()
+    {
+        return $this->belongsTo(User::class, 'performed_by_id');
+    }
+    
+    /**
+     * ✅ Accesseur pour le nom de l'utilisateur qui a effectué l'action
+     */
+    public function getPerformedByNameAttribute()
+    {
+        if ($this->performer) {
+            return trim($this->performer->first_name . ' ' . $this->performer->last_name) 
+                   ?: $this->performer->email;
+        }
+        return 'Système';
+    }
 
 }
