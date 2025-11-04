@@ -29,7 +29,7 @@ export default function LdapLoginPage({ status }) {
         <GuestLayout>
             <Head title="Connexion LDAP" />
 
-            {/* Container plein écran */}
+            {/* Container plein écran comme ABEX */}
             <div className="fullscreen-container">
                 {/* Décorations de fond */}
                 <div className="background-decorations">
@@ -38,184 +38,145 @@ export default function LdapLoginPage({ status }) {
                     <div className="decoration-circle circle-3"></div>
                 </div>
 
-                {/* Conteneur principal du formulaire */}
-                <div className="form-container">
-                    <div className="surface-card p-6 shadow-2xl border-round-3xl w-full mx-auto relative z-10 login-card-wrapper">
-                        <div className="login-card">
-                            {/* Logo et titre */}
-                            <div className="login-header">
-                                <div className="logo-wrapper">
-                                    {/* Logo "To | sys" original */}
-                                    <div className="topbar-logo-split">
-                                        <span className="logo-part-blue">To</span>
-                                        <span className="logo-part-red">sys</span>
-                                    </div>
+                {/* Conteneur principal du formulaire - centré comme ABEX */}
+                <div className="form-wrapper">
+                    <div className="login-card">
+                        {/* Logo et titre */}
+                        <div className="login-header">
+                            <div className="logo-wrapper">
+                                {/* Logo "To | sys" original */}
+                                <div className="topbar-logo-split">
+                                    <span className="logo-part-blue">To</span>
+                                    <span className="logo-part-red">sys</span>
                                 </div>
-                                <h1 className="login-title">Connexion LDAP</h1>
-                                <p className="login-subtitle">
-                                    <i className="pi pi-building mr-2"></i>
-                                    Connectez-vous avec votre compte Active Directory
+                            </div>
+                            <h1 className="login-title">Connexion LDAP</h1>
+                            <p className="login-subtitle">
+                                <i className="pi pi-building mr-2"></i>
+                                Connectez-vous avec votre compte Active Directory
+                            </p>
+                        </div>
+
+                        {/* Message de statut (Succès) */}
+                        {status && (
+                            <div className="mb-4 status-message">
+                                <p className="status-text">
+                                    <i className="pi pi-check-circle mr-2"></i>{status}
                                 </p>
                             </div>
+                        )}
 
-                            {/* Message de statut (Succès) */}
-                            {status && (
-                                <div className="mb-4 p-3 border-round-lg bg-green-50 border-1 border-green-200">
-                                    <p className="text-green-700 text-sm m-0 flex align-items-center">
-                                        <i className="pi pi-check-circle mr-2"></i>{status}
-                                    </p>
+                        {/* Formulaire de connexion LDAP */}
+                        <form onSubmit={submit} className="login-form">
+                            <div className="form-field">
+                                <label htmlFor="username" className="field-label">
+                                    Nom d'utilisateur
+                                </label>
+                                <div className="input-wrapper">
+                                    <span className="input-icon">
+                                        <i className="pi pi-user"></i>
+                                    </span>
+                                    <InputText
+                                        id="username"
+                                        type="text"
+                                        className="custom-input"
+                                        value={data.username}
+                                        onChange={(e) => setData('username', e.target.value)}
+                                        autoComplete="username"
+                                        aria-invalid={!!errors.username}
+                                        aria-describedby="username-error"
+                                        placeholder="prenom.nom"
+                                    />
                                 </div>
-                            )}
-
-                            {/* Formulaire de connexion LDAP */}
-                            <form onSubmit={submit} className="p-fluid">
-                                <div className="mb-4">
-                                    <label htmlFor="username" className="block text-900 font-medium mb-2">
-                                        Nom d'utilisateur
-                                    </label>
-                                    <div className="p-inputgroup">
-                                        <span className="p-inputgroup-addon">
-                                            <i className="pi pi-user"></i>
-                                        </span>
-                                        <InputText
-                                            id="username"
-                                            type="text"
-                                            className="w-full p-3 text-lg custom-input"
-                                            value={data.username}
-                                            onChange={(e) => setData('username', e.target.value)}
-                                            autoComplete="username"
-                                            aria-invalid={!!errors.username}
-                                            aria-describedby="username-error"
-                                            placeholder="prenom.nom"
-                                        />
-                                    </div>
-                                    <InputError message={errors.username} className="mt-2" id="username-error" />
-                                </div>
-
-                                <div className="mb-6">
-                                    <label htmlFor="password" className="block text-900 font-medium mb-2">
-                                        Mot de passe
-                                    </label>
-                                    <div className="p-inputgroup">
-                                        <span className="p-inputgroup-addon">
-                                            <i className="pi pi-lock"></i>
-                                        </span>
-                                        <InputText
-                                            id="password"
-                                            type={showPassword ? "text" : "password"}
-                                            className="w-full p-3 text-lg custom-input"
-                                            value={data.password}
-                                            onChange={(e) => setData('password', e.target.value)}
-                                            autoComplete="current-password"
-                                            aria-invalid={!!errors.password}
-                                            aria-describedby="password-error"
-                                        />
-                                    </div>
-                                    <InputError message={errors.password} className="mt-2" id="password-error" />
-                                </div>
-
-                                {/* Bouton de connexion noir */}
-                                <PrimaryButton
-                                    className="w-full p-3 text-center justify-content-center text-lg black-login-button transition-all transition-duration-300"
-                                    disabled={processing}
-                                >
-                                    {processing ? (
-                                        <span className="flex align-items-center">
-                                            <i className="pi pi-spin pi-spinner mr-2 text-xl"></i>
-                                            Connexion en cours...
-                                        </span>
-                                    ) : (
-                                        <span className="flex align-items-center">
-                                            <i className="pi pi-sign-in mr-2 text-xl"></i>
-                                            Se connecter
-                                        </span>
-                                    )}
-                                </PrimaryButton>
-                            </form>
-
-                            {/* Message d'erreur général */}
-                            {errors.error && (
-                                <div className="mt-4 p-3 border-round-lg bg-red-50 border-1 border-red-200 animate-fadein">
-                                    <p className="text-red-700 text-sm m-0 flex align-items-center">
-                                        <i className="pi pi-times-circle mr-2"></i>
-                                        {errors.error}
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Message "Connexion sécurisée" */}
-                            <div className="mt-5 text-center text-green-600 flex align-items-center justify-content-center text-sm">
-                                <i className="pi pi-shield mr-2"></i>
-                                Connexion sécurisée
+                                <InputError message={errors.username} className="error-message" id="username-error" />
                             </div>
+
+                            <div className="form-field">
+                                <label htmlFor="password" className="field-label">
+                                    Mot de passe
+                                </label>
+                                <div className="input-wrapper">
+                                    <span className="input-icon">
+                                        <i className="pi pi-lock"></i>
+                                    </span>
+                                    <InputText
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        className="custom-input"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        autoComplete="current-password"
+                                        aria-invalid={!!errors.password}
+                                        aria-describedby="password-error"
+                                    />
+                                </div>
+                                <InputError message={errors.password} className="error-message" id="password-error" />
+                            </div>
+
+                            {/* Bouton de connexion noir */}
+                            <PrimaryButton
+                                className="submit-button"
+                                disabled={processing}
+                            >
+                                {processing ? (
+                                    <span className="button-content">
+                                        <i className="pi pi-spin pi-spinner mr-2"></i>
+                                        Connexion en cours...
+                                    </span>
+                                ) : (
+                                    <span className="button-content">
+                                        <i className="pi pi-sign-in mr-2"></i>
+                                        Se connecter
+                                    </span>
+                                )}
+                            </PrimaryButton>
+                        </form>
+
+                        {/* Message d'erreur général */}
+                        {errors.error && (
+                            <div className="error-banner">
+                                <p className="error-text">
+                                    <i className="pi pi-times-circle mr-2"></i>
+                                    {errors.error}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Message "Connexion sécurisée" */}
+                        <div className="secure-message">
+                            <i className="pi pi-shield mr-2"></i>
+                            Connexion sécurisée
                         </div>
                     </div>
                 </div>
             </div>
 
             <style jsx global>{`
-                /* Reset et styles de base */
+                /* Reset de base */
                 * {
                     box-sizing: border-box;
+                    margin: 0;
+                    padding: 0;
                 }
 
                 body, html {
-                    margin: 0;
-                    padding: 0;
                     width: 100%;
                     height: 100%;
                     overflow-x: hidden;
                 }
 
-                /* Container plein écran */
+                /* Container plein écran - style ABEX */
                 .fullscreen-container {
-                    position: relative;
-                    min-height: 100vh;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
                     width: 100%;
+                    height: 100vh;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    padding: 1rem;
-                    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-                }
-
-                /* Adaptation mobile - plein écran */
-                @media (max-width: 768px) {
-                    .fullscreen-container {
-                        padding: 0;
-                        min-height: 100vh;
-                        height: 100vh;
-                    }
-
-                    .form-container {
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 1rem;
-                    }
-
-                    .login-card-wrapper {
-                        max-width: 100% !important;
-                        width: 100% !important;
-                        margin: 0 !important;
-                        padding: 1.5rem !important;
-                        box-shadow: none !important;
-                    }
-                }
-
-                /* Adaptation PC/tablette */
-                @media (min-width: 769px) {
-                    .form-container {
-                        width: 100%;
-                        max-width: 500px;
-                    }
-
-                    .login-card-wrapper {
-                        max-width: 500px;
-                        padding: 2.5rem;
-                    }
+                    background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+                    overflow-y: auto;
                 }
 
                 /* --- Décorations de fond --- */
@@ -233,81 +194,89 @@ export default function LdapLoginPage({ status }) {
                 .decoration-circle {
                     position: absolute;
                     border-radius: 50%;
-                    opacity: 0.1;
-                    filter: blur(80px);
-                    background: linear-gradient(135deg, #a78bfa, #818cf8);
+                    opacity: 0.08;
+                    filter: blur(60px);
                 }
 
                 .circle-1 {
-                    width: 300px;
-                    height: 300px;
-                    top: -50px;
-                    left: -50px;
+                    width: 250px;
+                    height: 250px;
+                    top: -80px;
+                    left: -80px;
+                    background: linear-gradient(135deg, #a78bfa, #818cf8);
                 }
                 .circle-2 {
                     width: 200px;
                     height: 200px;
-                    bottom: -80px;
-                    right: -80px;
+                    bottom: -60px;
+                    right: -60px;
                     background: linear-gradient(135deg, #fb7185, #f472b6);
                 }
                 .circle-3 {
-                    width: 250px;
-                    height: 250px;
-                    top: 40%;
-                    left: 20%;
-                    opacity: 0.05;
+                    width: 180px;
+                    height: 180px;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    opacity: 0.04;
                     background: linear-gradient(135deg, #60a5fa, #3b82f6);
-                    transform: rotate(45deg);
                 }
 
+                /* Wrapper du formulaire - centré comme ABEX */
+                .form-wrapper {
+                    position: relative;
+                    z-index: 10;
+                    width: 100%;
+                    max-width: 420px;
+                    padding: 1rem;
+                }
+
+                /* Carte de connexion */
+                .login-card {
+                    background: #ffffff;
+                    border-radius: 20px;
+                    padding: 2.5rem 2rem;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+                }
+
+                /* Adaptation mobile */
                 @media (max-width: 768px) {
-                    .decoration-circle {
-                        filter: blur(50px);
+                    .form-wrapper {
+                        max-width: 90%;
+                        padding: 0.5rem;
                     }
-                    .circle-1 { width: 200px; height: 200px; top: -30px; left: -30px; }
-                    .circle-2 { width: 150px; height: 150px; bottom: -50px; right: -50px; }
-                    .circle-3 { width: 180px; height: 180px; }
+
+                    .login-card {
+                        padding: 2rem 1.5rem;
+                        border-radius: 16px;
+                    }
                 }
 
-                /* --- Login Card Styles --- */
+                /* En-tête du login */
                 .login-header {
                     text-align: center;
                     margin-bottom: 2rem;
                 }
 
-                @media (max-width: 768px) {
-                    .login-header {
-                        margin-bottom: 1.5rem;
-                    }
-                }
-
                 .logo-wrapper {
-                    margin-bottom: 1.5rem;
+                    margin-bottom: 1.2rem;
                 }
 
-                @media (max-width: 768px) {
-                    .logo-wrapper {
-                        margin-bottom: 1rem;
-                    }
-                }
-
-                /* Styles du logo original "To | sys" */
+                /* Logo "To | sys" */
                 .topbar-logo-split {
                     display: inline-flex;
                     align-items: center;
                     font-family: 'Poppins', 'Inter', sans-serif;
                     font-weight: 900;
-                    font-size: 2.5rem;
+                    font-size: 2.8rem;
                     letter-spacing: -0.04em;
                     user-select: none;
                     position: relative;
-                    transition: all 0.3s ease-in-out;
                 }
 
-                @media (min-width: 640px) {
+                @media (max-width: 768px) {
                     .topbar-logo-split {
-                        font-size: 3.5rem;
+                        font-size: 2.5rem;
                     }
                 }
 
@@ -339,127 +308,200 @@ export default function LdapLoginPage({ status }) {
                     padding-left: 3px;
                 }
 
-                .topbar-logo-split:hover .logo-part-blue {
-                    animation: slideLeft 0.3s ease;
-                }
-
-                .topbar-logo-split:hover .logo-part-red {
-                    animation: slideRight 0.3s ease;
-                }
-
-                @keyframes slideLeft {
-                    50% { transform: translateX(-4px); }
-                }
-
-                @keyframes slideRight {
-                    50% { transform: translateX(4px); }
-                }
-
                 /* Titre et sous-titre */
                 .login-title {
                     font-size: 1.75rem;
                     font-weight: 700;
                     color: #1f2937;
-                    margin: 0 0 0.5rem 0;
+                    margin-bottom: 0.5rem;
                 }
 
-                @media (min-width: 640px) {
+                @media (max-width: 768px) {
                     .login-title {
-                        font-size: 2rem;
+                        font-size: 1.5rem;
                     }
                 }
 
                 .login-subtitle {
-                    font-size: 0.875rem;
+                    font-size: 0.9rem;
                     color: #6b7280;
-                    margin: 0;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     gap: 0.5rem;
                 }
 
-                @media (min-width: 640px) {
-                    .login-subtitle {
-                        font-size: 0.95rem;
-                    }
+                /* Formulaire */
+                .login-form {
+                    width: 100%;
                 }
 
-                /* Styles pour les InputText et InputGroup */
-                .p-inputgroup-addon {
-                    background-color: #f3f4f6;
-                    border: 1px solid #d1d5db;
-                    border-right: none;
-                    border-radius: 6px 0 0 6px;
-                    padding: 0.75rem 1rem;
+                .form-field {
+                    margin-bottom: 1.25rem;
+                }
+
+                .field-label {
+                    display: block;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    color: #374151;
+                    margin-bottom: 0.5rem;
+                }
+
+                /* Input wrapper */
+                .input-wrapper {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    width: 100%;
+                }
+
+                .input-icon {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    bottom: 0;
+                    width: 45px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: #6b7280;
+                    color: #9ca3af;
                     font-size: 1.1rem;
+                    pointer-events: none;
+                    z-index: 1;
                 }
 
-                .p-inputtext.custom-input {
-                    border-radius: 0 6px 6px 0;
-                    border-left: none;
-                    padding-left: 0.75rem;
-                    transition: border-color 0.2s, box-shadow 0.2s;
-                    font-size: 1rem;
+                .custom-input {
+                    width: 100%;
+                    padding: 0.85rem 1rem 0.85rem 45px !important;
+                    font-size: 16px !important;
+                    border: 1px solid #d1d5db;
+                    border-radius: 10px;
+                    background-color: #f9fafb;
+                    transition: all 0.2s ease;
                 }
 
-                @media (max-width: 768px) {
-                    .p-inputtext.custom-input {
-                        font-size: 16px; /* Évite le zoom sur iOS */
-                    }
-                }
-
-                .p-inputtext.custom-input:focus {
-                    outline: 0 none;
-                    outline-offset: 0;
-                    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+                .custom-input:focus {
+                    outline: none;
                     border-color: #6366f1;
+                    background-color: #ffffff;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
                 }
 
-                /* Style pour le bouton de connexion noir */
-                .black-login-button {
+                .custom-input::placeholder {
+                    color: #9ca3af;
+                }
+
+                /* Message d'erreur */
+                .error-message {
+                    color: #dc2626;
+                    font-size: 0.85rem;
+                    margin-top: 0.4rem;
+                }
+
+                /* Bouton de connexion */
+                .submit-button {
+                    width: 100%;
+                    padding: 0.9rem 1.5rem;
+                    margin-top: 0.5rem;
                     background-color: #1a1a1a;
                     border: none;
+                    border-radius: 10px;
                     color: white;
+                    font-size: 1rem;
                     font-weight: 600;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-                    transition: all 0.3s ease-in-out;
                     cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
 
-                .black-login-button:hover:not(:disabled) {
+                .submit-button:hover:not(:disabled) {
                     background-color: #000000;
-                    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
                     transform: translateY(-2px);
                 }
 
-                .black-login-button:focus {
-                    outline: 0 none;
-                    box-shadow: 0 0 0 0.2rem rgba(26, 26, 26, 0.5);
-                }
-
-                .black-login-button:disabled {
+                .submit-button:disabled {
                     opacity: 0.6;
                     cursor: not-allowed;
+                    transform: none;
                 }
 
-                /* Ajustement des messages d'erreur et de statut */
-                .p-3 { padding: 1rem; }
-                .border-round-lg { border-radius: 0.5rem; }
-
-                /* Animation fade-in */
-                .animate-fadein {
-                    animation: fadein 0.3s ease-in;
+                .button-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
                 }
 
-                @keyframes fadein {
-                    from { opacity: 0; transform: translateY(-10px); }
-                    to { opacity: 1; transform: translateY(0); }
+                /* Messages de statut */
+                .status-message {
+                    padding: 0.85rem 1rem;
+                    background-color: #d1fae5;
+                    border: 1px solid #6ee7b7;
+                    border-radius: 10px;
+                    margin-bottom: 1rem;
+                }
+
+                .status-text {
+                    color: #047857;
+                    font-size: 0.9rem;
+                    display: flex;
+                    align-items: center;
+                    margin: 0;
+                }
+
+                /* Bannière d'erreur */
+                .error-banner {
+                    padding: 0.85rem 1rem;
+                    background-color: #fee2e2;
+                    border: 1px solid #fca5a5;
+                    border-radius: 10px;
+                    margin-top: 1rem;
+                    animation: fadeIn 0.3s ease;
+                }
+
+                .error-text {
+                    color: #dc2626;
+                    font-size: 0.9rem;
+                    display: flex;
+                    align-items: center;
+                    margin: 0;
+                }
+
+                /* Message sécurisé */
+                .secure-message {
+                    margin-top: 1.5rem;
+                    text-align: center;
+                    color: #059669;
+                    font-size: 0.85rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.4rem;
+                }
+
+                /* Animation */
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                /* Utilities */
+                .mr-2 {
+                    margin-right: 0.5rem;
+                }
+
+                .mb-4 {
+                    margin-bottom: 1rem;
                 }
             `}</style>
         </GuestLayout>
