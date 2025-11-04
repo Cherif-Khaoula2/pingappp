@@ -37,35 +37,40 @@ export default function ResetUserPassword() {
     return value;
   };
  // 🔹 Recherche d’un utilisateur
-  const handleSearch = async () => {
+  const [loading, setLoading] = useState(false);
+
+const handleSearch = async () => {
     if (!search.trim()) {
-      alert("Veuillez saisir un SamAccountName");
-      return;
+        alert("Veuillez saisir un SamAccountName");
+        return;
     }
 
+    setLoading(true); // 🔹 Activer le loader
     try {
-      const response = await axios.post("/ad/users/find", { search });
-     
-if (response.data.success && Array.isArray(response.data.users)) {
-  const mappedUsers = response.data.users.map(user => ({
-    name: user.name,
-    sam: user.sam,
-    email: user.email,
-    enabled: user.enabled,
-    lastLogon: user.last_logon, // déjà formaté par le backend
-  }));
-  setUsers(mappedUsers);
-  setError(null);
-} else {
-  setUsers([]);
-  setError("Aucun utilisateur trouvé.");
-}
-     
+        const response = await axios.post("/ad/users/find", { search });
+
+        if (response.data.success && Array.isArray(response.data.users)) {
+            const mappedUsers = response.data.users.map(user => ({
+                name: user.name,
+                sam: user.sam,
+                email: user.email,
+                enabled: user.enabled,
+                lastLogon: user.last_logon,
+            }));
+            setUsers(mappedUsers);
+            setError(null);
+        } else {
+            setUsers([]);
+            setError("Aucun utilisateur trouvé.");
+        }
     } catch (error) {
-      console.error("Erreur lors de la recherche :", error);
-      setError("Erreur lors de la recherche de l'utilisateur.");
+        console.error("Erreur lors de la recherche :", error);
+        setError("Erreur lors de la recherche de l'utilisateur.");
+    } finally {
+        setLoading(false); // 🔹 Désactiver le loader
     }
-  };
+};
+
 
 
   // Ouvrir la popup pour saisir le nouveau mot de passe
@@ -179,15 +184,15 @@ if (response.data.success && Array.isArray(response.data.users)) {
           style={{ height: "48px" }}
         />
         <Button
-          label="Rechercher"
-          icon="pi pi-search"
-          onClick={handleSearch}
-          style={{
-            background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-            border: "none",
-            minWidth: "140px",
-          }}
-        />
+                   label={loading ? "Chargement..." : "Rechercher"}
+                   icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
+                   onClick={handleSearch}
+                   disabled={loading}
+                   style={{
+                       background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+                       border: "none",
+                   }}
+               />
       </div>
 
       {error && (
