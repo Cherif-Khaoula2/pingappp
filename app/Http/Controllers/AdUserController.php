@@ -212,7 +212,7 @@ class AdUserController extends Controller
             $this->logAdActivity(
                 action: $action === 'block' ? 'block_user' : 'unblock_user',
                 targetUser: $sam,
-                targetUserName: $userName,
+                targetUserName: $name,
                 success: true,
                 additionalDetails: [
                     'method' => 'AD Command',
@@ -237,7 +237,7 @@ class AdUserController extends Controller
             $this->logAdActivity(
                 action: $action === 'block' ? 'block_user' : 'unblock_user',
                 targetUser: $sam,
-                targetUserName: $userName,
+                targetUserName: $name,
                 success: false,
                 errorMessage: $e->getMessage()
             );
@@ -294,7 +294,7 @@ class AdUserController extends Controller
             $this->logAdActivity(
                 action: 'reset_password',
                 targetUser: $sam,
-                targetUserName: $userName,
+                targetUserName: $name,
                 success: true,
                 additionalDetails: [
                     'unlocked' => true,
@@ -304,8 +304,11 @@ class AdUserController extends Controller
        
            // 📧 Envoyer la notification email
         $userData = [
+            'name' => $name,
             'sam' => $sam,
-            'name' => $userName ?? null,
+            'name' => $userName ?? $sam,
+            'email' => $userEmail ?? null,
+            'ouPath' => $ouPath ?? null,
         ];
         
         $this->sendPasswordResetNotification(auth()->user(), $userData);
@@ -316,7 +319,7 @@ class AdUserController extends Controller
             $this->logAdActivity(
                 action: 'reset_password',
                 targetUser: $sam,
-                targetUserName: $userName,
+                targetUserName: $name,
                 success: false,
                 errorMessage: $e->getMessage()
             );

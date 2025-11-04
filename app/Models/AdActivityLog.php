@@ -70,4 +70,18 @@ class AdActivityLog extends Model
     {
         return $query->whereBetween('created_at', [$startDate, $endDate]);
     }
+    public function targetUser()
+{
+    return $this->belongsTo(User::class, 'target_user', 'samaccountname');
+}
+
+// Accesseur pour le nom de l'utilisateur ciblé
+public function getTargetUserNameAttribute()
+{
+    if ($this->targetUser) {
+        return trim($this->targetUser->first_name . ' ' . $this->targetUser->last_name) 
+               ?: $this->targetUser->email;
+    }
+    return null;
+}
 }
