@@ -91,6 +91,7 @@ const handleSearch = async () => {
       {
         sam: confirmDialog.sam,
         action: confirmDialog.action,
+        user_name: resetDialog.userName
       },
       {
         onSuccess: () => {

@@ -77,6 +77,7 @@ export default function ResetUserPassword() {
       {
         sam: resetDialog.sam,
         new_password: newPassword,
+        user_name: resetDialog.userName
       },
       {
         onSuccess: () => {

@@ -301,7 +301,7 @@ class AdUserController extends Controller
                     'method' => 'PowerShell AD'
                 ]
             );
-
+          
            // 📧 Envoyer la notification email
         $userData = [
             'sam' => $sam,
