@@ -273,6 +273,7 @@ class AdUserController extends Controller
         $psCommand = "powershell -NoProfile -NonInteractive -Command \""
             . "Import-Module ActiveDirectory; "
             . "Set-ADAccountPassword -Identity '$sam' -Reset -NewPassword (ConvertTo-SecureString '$newPassword' -AsPlainText -Force); "
+            . "Enable-ADAccount -Identity '$sam'; "
             . "Unlock-ADAccount -Identity '$sam'; "
             . "Write-Output 'Password reset successfully'\"";
 
