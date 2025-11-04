@@ -333,6 +333,7 @@ public function manageLock()
 {
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
 }
+
 public function findUser(Request $request)
 {
     $this->authorize('getaduser');
@@ -353,18 +354,26 @@ public function findUser(Request $request)
     }
 
     // 🔍 Construction du filtre PowerShell
-    $filter = empty($search)
-        ? 'Name -like "*"'
-        : "Name -like \"*{$search}*\" -or SamAccountName -like \"*{$search}*\" -or EmailAddress -like \"*{$search}*\"";
+    if (empty($search)) {
+        $filter = 'Name -like "*"';
+    } else {
+        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
+        $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
+    }
 
-    $psScript = <<<POWERSHELL
-Import-Module ActiveDirectory
-\$users = Get-ADUser -Filter {{$filter}} -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl
-\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | ConvertTo-Json -Depth 1
-POWERSHELL;
+    $psScript = "Import-Module ActiveDirectory; " .
+                "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
+                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl; " .
+                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
+                "ConvertTo-Json -Depth 3";
 
-    // 🔹 Exécution directe sans EncodedCommand
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \"$psScript\"";
+    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+
+    \Log::info('PowerShell command prepared', [
+        'script' => $psScript,
+        'filter' => $filter
+    ]);
 
     $sshOptions = [
         '-o', 'StrictHostKeyChecking=no',
@@ -392,6 +401,7 @@ POWERSHELL;
         }
 
         $output = trim($process->getOutput());
+        \Log::info('AD raw output', ['output' => substr($output, 0, 500)]);
 
         if (empty($output)) {
             return response()->json([
@@ -402,6 +412,8 @@ POWERSHELL;
         }
 
         $adUsers = json_decode($output, true);
+        \Log::info('AD decoded', ['data' => $adUsers]);
+
         if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
                 'success' => false,
@@ -415,40 +427,39 @@ POWERSHELL;
             $adUsers = [$adUsers];
         }
 
-        // 🔹 Récupérer et mettre en cache les comptes masqués et emails existants
-        $hiddenSamAccounts = Cache::remember('hidden_sams', 300, fn() =>
-            AdHiddenAccount::pluck('samaccountname')->map(fn($sam) => strtolower($sam))->toArray()
-        );
+        // ✅ Récupérer tous les samaccountname masqués depuis la BDD
+        $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')
+            ->map(fn($sam) => strtolower($sam))
+            ->toArray();
 
-        $existingEmails = Cache::remember('existing_emails', 300, fn() =>
-            User::pluck('email')->map(fn($email) => strtolower($email))->toArray()
-        );
+        $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
 
-        // 🔹 Filtrage et transformation en PHP classique (plus rapide que collect->map->filter)
-        $users = [];
-        foreach ($adUsers as $user) {
+        $users = collect($adUsers)->map(function ($user) use ($existingEmails, $hiddenSamAccounts) {
             $email = strtolower($user['EmailAddress'] ?? '');
             $sam = strtolower($user['SamAccountName'] ?? '');
+            $lastLogonRaw = $user['LastLogonDate'] ?? null;
 
-            if (empty($user['Name']) || empty($sam) || in_array($sam, $hiddenSamAccounts)) {
-                continue;
-            }
-
+            // Conversion du format /Date(1761666126376)/ en date lisible
             $lastLogon = null;
-            if (!empty($user['LastLogonDate']) && preg_match('/Date\((\d+)\)/', $user['LastLogonDate'], $matches)) {
-                $lastLogon = date('Y-m-d H:i:s', intval($matches[1])/1000);
+            if ($lastLogonRaw && preg_match('/Date\((\d+)\)/', $lastLogonRaw, $matches)) {
+                $timestamp = intval($matches[1]) / 1000;
+                $lastLogon = date('Y-m-d H:i:s', $timestamp);
             }
 
-            $users[] = [
-                'name' => $user['Name'],
-                'sam' => $sam,
+            return [
+                'name' => $user['Name'] ?? '',
+                'sam' => $user['SamAccountName'] ?? '',
                 'email' => $email,
                 'enabled' => (bool)($user['Enabled'] ?? false),
                 'is_local' => in_array($email, $existingEmails),
                 'last_logon' => $lastLogon,
                 'source' => 'active_directory'
             ];
-        }
+        })->filter(fn($user) =>
+            !empty($user['name']) &&
+            !empty($user['sam']) &&
+            !in_array(strtolower($user['sam']), $hiddenSamAccounts)
+        )->values()->toArray();
 
         return response()->json([
             'success' => true,
