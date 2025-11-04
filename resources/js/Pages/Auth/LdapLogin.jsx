@@ -37,9 +37,10 @@ export default function LdapLoginPage({ status }) {
             </div>
 
             {/* Conteneur principal du formulaire */}
+            {/* J'ai déplacé les styles de largeur dans le CSS global pour utiliser la media query */}
             <div
-                className="surface-card p-6 shadow-2xl border-round-3xl w-full mx-auto relative z-10"
-                style={{ maxWidth: '420px', padding: '2.5rem', marginTop: '1rem', marginBottom: '1rem' }}
+                className="login-card-responsive surface-card p-6 shadow-2xl border-round-3xl w-full mx-auto relative z-10"
+                style={{ padding: '2.5rem', marginTop: '1rem', marginBottom: '1rem' }}
             >
                 <div className="login-card">
                     {/* Logo et titre */}
@@ -109,17 +110,8 @@ export default function LdapLoginPage({ status }) {
                                     autoComplete="current-password"
                                     aria-invalid={!!errors.password}
                                     aria-describedby="password-error"
-                                    placeholder="************"
                                 />
-                                <Button
-                                    type="button"
-                                    icon={showPassword ? "pi pi-eye-slash" : "pi pi-eye"}
-                                    className="p-button-text p-button-lg password-toggle-button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    tooltip={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                                    tooltipOptions={{ position: 'top' }}
-                                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                                />
+                               
                             </div>
                             <InputError message={errors.password} className="mt-2" id="password-error" />
                         </div>
@@ -162,24 +154,67 @@ export default function LdapLoginPage({ status }) {
             </div>
 
             <style jsx global>{`
-                /* Réinitialisation de base pour s'assurer que les marges et paddings sont cohérents */
+                /* --- Styles généraux et PC (Desktop) --- */
                 html, body {
                     margin: 0;
                     padding: 0;
                     height: 100%;
                     width: 100%;
-                    background-color: #f7f9fc; /* Fond global très léger pour correspondre à l'image */
+                    background-color: #f7f9fc; /* Fond global très léger */
                 }
 
-                .guest-layout-wrapper { /* Assurez-vous que votre GuestLayout permet le plein écran */
+                .guest-layout-wrapper {
                     display: flex;
                     justify-content: center;
                     align-items: center;
                     min-height: 100vh;
                     width: 100%;
+                    padding: 20px; /* S'assurer que le formulaire ne colle pas aux bords sur les très grands écrans */
+                }
+                
+                /* Style PC par défaut pour le formulaire */
+                .login-card-responsive {
+                    max-width: 420px; /* Largeur fixe pour PC */
+                    border-radius: 2rem; /* Coins très arrondis pour PC */
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+                    /* Assure la couleur de fond du cadre */
+                    background-color: white; 
                 }
 
-                /* --- Décorations de fond --- */
+                /* --- Styles Mobile (Appliqués lorsque la largeur est <= 640px) --- */
+                @media (max-width: 640px) {
+                    .guest-layout-wrapper {
+                        /* Le formulaire doit prendre tout l'écran verticalement et horizontalement */
+                        align-items: flex-start; /* Aligner en haut pour le mobile, si nécessaire */
+                        padding: 0; /* Supprimer le padding global sur mobile */
+                    }
+                    
+                    .login-card-responsive {
+                        max-width: 100%; /* Prend toute la largeur */
+                        width: 100%;
+                        min-height: 100vh; /* Prend toute la hauteur de l'écran du téléphone */
+                        margin: 0; /* Supprimer les marges */
+                        padding: 2rem 1.5rem; /* Ajuster le padding intérieur */
+                        border-radius: 0; /* Supprimer les coins arrondis pour remplir le cadre */
+                        box-shadow: none; /* Supprimer l'ombre portée pour un effet plein écran */
+                        /* Nous pouvons recentrer le contenu interne si la hauteur est suffisante */
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                    }
+                    
+                    /* Si vous utilisez un fond coloré, l'arrière-plan du corps doit aussi être blanc sur mobile */
+                    html, body {
+                        background-color: white !important;
+                    }
+                    
+                    /* Cacher les décorations de fond sur mobile si elles gênent */
+                    .background-decorations {
+                        display: none;
+                    }
+                }
+                
+                /* --- Décorations de fond (visibles uniquement sur PC) --- */
                 .background-decorations {
                     position: fixed;
                     top: 0;
@@ -194,202 +229,81 @@ export default function LdapLoginPage({ status }) {
                 .decoration-circle {
                     position: absolute;
                     border-radius: 50%;
-                    opacity: 0.1; /* Plus subtil */
-                    filter: blur(80px); /* Effet doux */
-                    background: linear-gradient(135deg, #a78bfa, #818cf8); /* Dégradé violet-bleu doux */
+                    opacity: 0.1;
+                    filter: blur(80px);
+                    background: linear-gradient(135deg, #a78bfa, #818cf8);
                 }
 
-                .circle-1 {
-                    width: 300px;
-                    height: 300px;
-                    top: -50px;
-                    left: -50px;
-                }
-                .circle-2 {
-                    width: 200px;
-                    height: 200px;
-                    bottom: -80px;
-                    right: -80px;
-                    background: linear-gradient(135deg, #fb7185, #f472b6); /* Dégradé rose */
-                }
-                .circle-3 {
-                    width: 250px;
-                    height: 250px;
-                    top: 40%;
-                    left: 20%;
-                    opacity: 0.05; /* Encore plus subtil */
-                    background: linear-gradient(135deg, #60a5fa, #3b82f6); /* Dégradé bleu */
-                    transform: rotate(45deg);
-                }
+                .circle-1 { width: 300px; height: 300px; top: -50px; left: -50px; }
+                .circle-2 { width: 200px; height: 200px; bottom: -80px; right: -80px; background: linear-gradient(135deg, #fb7185, #f472b6); }
+                .circle-3 { width: 250px; height: 250px; top: 40%; left: 20%; opacity: 0.05; background: linear-gradient(135deg, #60a5fa, #3b82f6); transform: rotate(45deg); }
 
-                @media (max-width: 768px) {
-                    .decoration-circle {
-                        filter: blur(50px);
-                    }
-                    .circle-1 { width: 200px; height: 200px; top: -30px; left: -30px; }
-                    .circle-2 { width: 150px; height: 150px; bottom: -50px; right: -50px; }
-                    .circle-3 { display: none; } /* On peut cacher certaines décorations sur mobile */
-                }
-
-                /* --- Login Card Styles --- */
-                .login-header {
-                    text-align: center;
-                    margin-bottom: 2.5rem;
-                }
-
-                .logo-wrapper {
-                    margin-bottom: 1.5rem;
-                }
-
+                /* --- Les styles du logo et du bouton sont conservés ci-dessous --- */
+                
+                .login-header { text-align: center; margin-bottom: 2.5rem; }
+                .logo-wrapper { margin-bottom: 1.5rem; }
+                
                 /* Styles du logo original "To | sys" */
                 .topbar-logo-split {
-                    display: inline-flex;
-                    align-items: center;
-                    font-family: 'Poppins', 'Inter', sans-serif;
-                    font-weight: 900;
-                    font-size: 3rem; /* Défaut pour mobile */
-                    letter-spacing: -0.04em;
-                    user-select: none;
-                    position: relative;
-                    transition: all 0.3s ease-in-out;
+                    display: inline-flex; align-items: center; font-family: 'Poppins', 'Inter', sans-serif;
+                    font-weight: 900; font-size: 3rem; letter-spacing: -0.04em; user-select: none;
+                    position: relative; transition: all 0.3s ease-in-out;
                 }
 
-                @media (min-width: 640px) { /* sm */
-                    .topbar-logo-split {
-                        font-size: 3.5rem;
-                    }
-                }
+                @media (min-width: 640px) { .topbar-logo-split { font-size: 3.5rem; } }
 
                 .logo-part-blue {
                     background: linear-gradient(135deg, #1e3a8a, #2563eb);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                    position: relative;
-                    padding-right: 3px;
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+                    position: relative; padding-right: 3px;
                 }
 
                 .logo-part-blue::after {
-                    content: '';
-                    position: absolute;
-                    right: 0;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    width: 3px;
-                    height: 70%;
-                    background: linear-gradient(180deg, #ff7215, #f59352); /* Séparateur orange */
+                    content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+                    width: 3px; height: 70%; background: linear-gradient(180deg, #ff7215, #f59352);
                 }
 
                 .logo-part-red {
                     background: linear-gradient(135deg, #f59352, #dc2626);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
                     padding-left: 3px;
                 }
 
-                .topbar-logo-split:hover .logo-part-blue {
-                    animation: slideLeft 0.3s ease;
-                }
-
-                .topbar-logo-split:hover .logo-part-red {
-                    animation: slideRight 0.3s ease;
-                }
-
-                @keyframes slideLeft {
-                    50% { transform: translateX(-4px); }
-                }
-
-                @keyframes slideRight {
-                    50% { transform: translateX(4px); }
-                }
-
                 /* Titre et sous-titre */
-                .login-title {
-                    font-size: 2rem;
-                    font-weight: 700;
-                    color: #1f2937;
-                    margin: 0 0 0.5rem 0;
-                }
-
-                .login-subtitle {
-                    font-size: 0.95rem;
-                    color: #6b7280;
-                    margin: 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 0.5rem;
-                }
+                .login-title { font-size: 2rem; font-weight: 700; color: #1f2937; margin: 0 0 0.5rem 0; }
+                .login-subtitle { font-size: 0.95rem; color: #6b7280; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 
                 /* Styles pour les InputText et InputGroup (inchangés) */
                 .p-inputgroup-addon {
-                    background-color: #f3f4f6; /* Fond légèrement gris pour l'icône */
-                    border: 1px solid #d1d5db;
-                    border-right: none;
-                    border-radius: 6px 0 0 6px;
-                    padding: 0.75rem 1rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #6b7280;
-                    font-size: 1.1rem;
+                    background-color: #f3f4f6; border: 1px solid #d1d5db; border-right: none;
+                    border-radius: 6px 0 0 6px; padding: 0.75rem 1rem; display: flex; align-items: center;
+                    justify-content: center; color: #6b7280; font-size: 1.1rem;
                 }
 
-                .p-inputtext.custom-input {
-                    border-radius: 0 6px 6px 0; /* Coins arrondis seulement à droite */
-                    border-left: none; /* Pas de bordure entre l'addon et l'input */
-                    padding-left: 0.75rem; /* Ajuste le padding si l'addon est large */
-                    transition: border-color 0.2s, box-shadow 0.2s;
-                }
-
-                .p-inputtext.custom-input:focus {
-                    outline: 0 none;
-                    outline-offset: 0;
-                    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25); /* Ombre focus violette */
-                    border-color: #6366f1; /* Bordure focus violette */
-                }
+                .p-inputtext.custom-input { border-radius: 0 6px 6px 0; border-left: none; padding-left: 0.75rem; transition: border-color 0.2s, box-shadow 0.2s; }
+                .p-inputtext.custom-input:focus { outline: 0 none; outline-offset: 0; box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25); border-color: #6366f1; }
 
                 .p-inputgroup .password-toggle-button {
-                    background-color: transparent;
-                    color: #6b7280;
-                    border: 1px solid #d1d5db;
-                    border-left: none;
-                    border-radius: 0 6px 66px 0;
-                    padding: 0.75rem 1rem;
-                    transition: background-color 0.2s;
+                    background-color: transparent; color: #6b7280; border: 1px solid #d1d5db;
+                    border-left: none; border-radius: 0 6px 66px 0; padding: 0.75rem 1rem; transition: background-color 0.2s;
                 }
 
-                .p-inputgroup .password-toggle-button:hover {
-                    background-color: #e5e7eb;
-                    color: #4b5563;
-                }
+                .p-inputgroup .password-toggle-button:hover { background-color: #e5e7eb; color: #4b5563; }
 
-                /* Nouveau style pour le bouton de connexion noir */
+                /* Style pour le bouton de connexion noir (conservé) */
                 .black-login-button {
-                    background-color: #1a1a1a; /* Noir très foncé */
-                    border: none;
-                    color: white;
-                    font-weight: 600;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Ombre douce et sombre */
-                    transition: all 0.3s ease-in-out;
+                    background-color: #1a1a1a; border: none; color: white; font-weight: 600;
+                    border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); transition: all 0.3s ease-in-out;
                 }
 
                 .black-login-button:hover {
-                    background-color: #000000; /* Noir pur au survol */
-                    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+                    background-color: #000000; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
                     transform: translateY(-2px);
                 }
 
                 .black-login-button:focus {
-                    outline: 0 none;
-                    box-shadow: 0 0 0 0.2rem rgba(26, 26, 26, 0.5); /* Ombre focus noire */
+                    outline: 0 none; box-shadow: 0 0 0 0.2rem rgba(26, 26, 26, 0.5);
                 }
-
-                /* Ajustement des messages d'erreur et de statut */
-                .p-3 { padding: 1rem; }
-                .border-round-lg { border-radius: 0.5rem; }
             `}</style>
         </GuestLayout>
     );
