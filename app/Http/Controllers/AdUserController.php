@@ -646,12 +646,12 @@ protected function sendAdUserCreationNotification($creator, $newUser)
             ->html("
                 <div style='font-family: Arial, sans-serif; font-size: 15px; color: #333;'>
                     <p>Bonjour <strong>" . htmlspecialchars($firstName) . " " . htmlspecialchars($lastName) . "</strong>,</p>
-                    
-                    <div style='background: linear-gradient(90deg, #4B6CB7, #182848); color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                     <div style='background-color: #182848; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
                         <p style='margin: 0; font-size: 16px;'>
                             👤 <strong>Création d'un nouvel utilisateur Active Directory</strong>
                         </p>
                     </div>
+                   
 
                     <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a créé un nouveau compte AD :</p>
 
