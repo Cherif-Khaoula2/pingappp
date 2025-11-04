@@ -251,3 +251,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/hidden/list', [AdHiddenAccountController::class, 'showHiddenList'])
     ->name('hidden.list');
 });
+use App\Http\Controllers\AdComputerController;
+
+Route::middleware(['auth'])->group(function () {
+    // Affichage de la page de recherche
+  Route::middleware(['auth'])->get('/ad/computers/find', function () {
+    return inertia('Ad/FindComputerLaps'); // on utilise Inertia pour JSX/React
+});
+
+    // API POST pour récupérer les ordinateurs LAPS
+    Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword']);
+});
