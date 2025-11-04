@@ -128,23 +128,23 @@ class AdActivityLogController extends Controller
     }
 public function showUserLogs($id)
 {
-    $user = \App\Models\User::findOrFail($id);
+    $user = User::findOrFail($id);
 
-    // ✅ Extraire toutes les variantes possibles de l'identifiant utilisateur
     $email = $user->email;
-    $username = explode('@', $email)[0]; // partie avant @ (ex: khaoula.hamadouche)
-    
-    // ✅ Récupérer TOUS les logs (connexion, déconnexion, etc.)
-    // On recherche dans target_user ET performed_by_id pour capturer toutes les actions
-    $logs = \App\Models\AdActivityLog::where(function($query) use ($email, $username, $id) {
-        // Recherche par target_user (actions effectuées SUR cet utilisateur)
-        $query->where(function($q) use ($email, $username) {
-            $q->whereRaw('LOWER(target_user) = ?', [strtolower($email)])
-              ->orWhereRaw('LOWER(target_user) = ?', [strtolower($username)]);
-        })
-        // OU recherche par performed_by_id (actions effectuées PAR cet utilisateur)
-        // Cela inclut les connexions/déconnexions
-        ->orWhere('performed_by_id', $id);
+    $username = explode('@', $email)[0];
+    $fullName = trim(strtolower($user->first_name . ' ' . $user->last_name));
+
+    $logs = AdActivityLog::where(function($query) use ($email, $username, $fullName, $id) {
+        $query
+            // ✅ Logs effectués PAR l'utilisateur (connexion, déconnexion, etc.)
+            ->where('performed_by_id', $id)
+            
+            // ✅ OU logs sur cet utilisateur (bloqué, débloqué, créé, reset, etc.)
+            ->orWhere(function($q) use ($email, $username, $fullName) {
+                $q->whereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($email) . '%'])
+                  ->orWhereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($username) . '%'])
+                  ->orWhereRaw('LOWER(target_user_name) LIKE ?', ['%' . $fullName . '%']);
+            });
     })
     ->with('performer')
     ->orderBy('created_at', 'desc')
@@ -155,6 +155,7 @@ public function showUserLogs($id)
         'logs' => $logs
     ]);
 }
+
  public function performer()
     {
         return $this->belongsTo(User::class, 'performed_by_id');
