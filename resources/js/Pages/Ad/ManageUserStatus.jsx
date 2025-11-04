@@ -12,8 +12,9 @@ import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function ManageUserStatus() {
   const [search, setSearch] = useState("");
-  const [users, setUsers] = useState([]); // Tableau pour la DataTable
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     visible: false,
     sam: null,
@@ -21,60 +22,39 @@ export default function ManageUserStatus() {
     userName: null,
   });
 
-  // 🔹 Formatage de la date AD
-  const formatAdDate = (value) => {
-    if (!value) return "—";
-    const match = /\/Date\((\d+)\)\//.exec(value);
-    if (match) {
-      const date = new Date(parseInt(match[1], 10));
-      return date.toLocaleString("fr-FR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  // 🔹 Recherche d’un utilisateur
+  const handleSearch = async () => {
+    if (!search.trim()) {
+      alert("Veuillez saisir un SamAccountName");
+      return;
     }
-    return value;
+    setLoading(true);
+    try {
+      const response = await axios.post("/ad/users/find", { search });
+      if (response.data.success && Array.isArray(response.data.users)) {
+        const mappedUsers = response.data.users.map((user) => ({
+          name: user.name,
+          sam: user.sam,
+          email: user.email,
+          enabled: user.enabled,
+          lastLogon: user.last_logon,
+        }));
+        setUsers(mappedUsers);
+        setError(null);
+      } else {
+        setUsers([]);
+        setError("Aucun utilisateur trouvé.");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la recherche :", err);
+      setError("Erreur lors de la recherche de l'utilisateur.");
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 🔹 Recherche d’un utilisateur
-  const [loading, setLoading] = useState(false);
-
-const handleSearch = async () => {
-    if (!search.trim()) {
-        alert("Veuillez saisir un SamAccountName");
-        return;
-    }
-
-    setLoading(true); // 🔹 Activer le loader
-    try {
-        const response = await axios.post("/ad/users/find", { search });
-
-        if (response.data.success && Array.isArray(response.data.users)) {
-            const mappedUsers = response.data.users.map(user => ({
-                name: user.name,
-                sam: user.sam,
-                email: user.email,
-                enabled: user.enabled,
-                lastLogon: user.last_logon,
-            }));
-            setUsers(mappedUsers);
-            setError(null);
-        } else {
-            setUsers([]);
-            setError("Aucun utilisateur trouvé.");
-        }
-    } catch (error) {
-        console.error("Erreur lors de la recherche :", error);
-        setError("Erreur lors de la recherche de l'utilisateur.");
-    } finally {
-        setLoading(false); // 🔹 Désactiver le loader
-    }
-};
-
-
-  // 🔹 Ouverture du popup de confirmation
+  // 🔹 Ouverture du dialog de confirmation
   const handleToggleClick = (user, action) => {
     setConfirmDialog({
       visible: true,
@@ -84,55 +64,40 @@ const handleSearch = async () => {
     });
   };
 
-  // 🔹 Confirmation du blocage/déblocage
+  // 🔹 Confirmer blocage/déblocage
   const confirmToggle = () => {
     router.post(
       "/ad/users/toggle",
-      {
-        sam: confirmDialog.sam,
-        action: confirmDialog.action,
-        user_name: resetDialog.userName
-      },
+      { sam: confirmDialog.sam, action: confirmDialog.action, user_name: confirmDialog.userName },
       {
         onSuccess: () => {
-          setConfirmDialog({
-            visible: false,
-            sam: null,
-            action: null,
-            userName: null,
-          });
-          handleSearch(); // rafraîchir les données
+          setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+          handleSearch(); // rafraîchir la table
         },
-        onError: () => {
-          alert("Erreur lors du changement de statut");
-        },
+        onError: () => alert("Erreur lors du changement de statut"),
       }
     );
   };
 
-  // 🔹 Templates pour le tableau
-  const nameTemplate = (rowData) => (
+  // 🔹 Templates
+  const nameTemplate = (row) => (
     <div className="flex align-items-center gap-3">
       <div
         className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-        style={{
-          width: "40px",
-          height: "40px",
-          background: "linear-gradient(135deg, #6366f1, #a855f7)",
-        }}
+        style={{ width: "40px", height: "40px", background: "linear-gradient(135deg, #6366f1, #a855f7)" }}
       >
-        {rowData.name?.charAt(0).toUpperCase() || "U"}
+        {row.name?.charAt(0).toUpperCase() || "U"}
       </div>
       <div>
-        <div className="font-medium text-900">{rowData.name}</div>
-        <div className="text-sm text-600">{rowData.sam}</div>
+        <div className="font-medium text-900">{row.name}</div>
+        <div className="text-sm text-600">{row.sam}</div>
       </div>
     </div>
   );
 
-  const statusTemplate = (rowData) => (
+  const statusTemplate = (row) => (
     <div className="flex align-items-center gap-3">
-      {rowData.enabled ? (
+      {row.enabled ? (
         <>
           <Tag severity="success" value="Actif" icon="pi pi-check-circle" />
           <Button
@@ -141,7 +106,7 @@ const handleSearch = async () => {
             severity="danger"
             text
             size="small"
-            onClick={() => handleToggleClick(rowData, "block")}
+            onClick={() => handleToggleClick(row, "block")}
           />
         </>
       ) : (
@@ -153,7 +118,7 @@ const handleSearch = async () => {
             severity="success"
             text
             size="small"
-            onClick={() => handleToggleClick(rowData, "unblock")}
+            onClick={() => handleToggleClick(row, "unblock")}
           />
         </>
       )}
@@ -169,37 +134,29 @@ const handleSearch = async () => {
               <div className="flex align-items-center gap-3 mb-2">
                 <i className="pi pi-lock text-3xl text-indigo-600"></i>
                 <div>
-                  <h1 className="text-900 text-2xl font-bold m-0">
-                    Blocage / Déblocage AD
-                  </h1>
-                  <p className="text-600 m-0">
-                    Rechercher un utilisateur par son SAMAccountName
-                  </p>
+                  <h1 className="text-900 text-2xl font-bold m-0">Blocage / Déblocage AD</h1>
+                  <p className="text-600 m-0">Rechercher un utilisateur par son SAMAccountName</p>
                 </div>
               </div>
 
-              {/* Champ de recherche */}
+              {/* Champ recherche */}
               <div className="p-inputgroup">
                 <span className="p-inputgroup-addon">
                   <i className="pi pi-search"></i>
                 </span>
                 <InputText
-                  placeholder="Rechercher un utilisateur dans LDAP (nom, samaccountname, email)..."
+                  placeholder="Rechercher un utilisateur dans LDAP..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                 />
-               
-                   <Button
-            label={loading ? "Chargement..." : "Rechercher"}
-            icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
-            onClick={handleSearch}
-            disabled={loading}
-            style={{
-                background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-                border: "none",
-            }}
-        />
+                <Button
+                  label={loading ? "Chargement..." : "Rechercher"}
+                  icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
+                  onClick={handleSearch}
+                  disabled={loading}
+                  style={{ background: "linear-gradient(135deg, #6366f1, #4f46e5)", border: "none" }}
+                />
               </div>
 
               {error && (
@@ -209,47 +166,21 @@ const handleSearch = async () => {
                 </div>
               )}
 
-              {/* Tableau utilisateur */}
-              <DataTable
-                value={users}
-                emptyMessage="Aucun utilisateur affiché."
-                stripedRows
-                responsiveLayout="scroll"
-              >
-                <Column
-                  field="name"
-                  header="Utilisateur"
-                  body={nameTemplate}
-                  style={{ minWidth: "250px" }}
-                />
-                <Column
-                  field="email"
-                  header="Email"
-                  style={{ minWidth: "200px" }}
-                />
-                <Column
-                  field="enabled"
-                  header="Statut"
-                  body={statusTemplate}
-                  style={{ minWidth: "180px" }}
-                />
+              {/* Table */}
+              <DataTable value={users} emptyMessage="Aucun utilisateur affiché." stripedRows responsiveLayout="scroll">
+                <Column field="name" header="Utilisateur" body={nameTemplate} style={{ minWidth: "250px" }} />
+                <Column field="email" header="Email" style={{ minWidth: "200px" }} />
+                <Column field="enabled" header="Statut" body={statusTemplate} style={{ minWidth: "180px" }} />
               </DataTable>
             </div>
           </Card>
         </div>
       </div>
 
-      {/* Pop-up de confirmation */}
+      {/* Dialog confirmation */}
       <Dialog
         visible={confirmDialog.visible}
-        onHide={() =>
-          setConfirmDialog({
-            visible: false,
-            sam: null,
-            action: null,
-            userName: null,
-          })
-        }
+        onHide={() => setConfirmDialog({ visible: false, sam: null, action: null, userName: null })}
         header={
           <div className="flex align-items-center gap-3">
             <div
@@ -257,25 +188,16 @@ const handleSearch = async () => {
               style={{
                 width: "48px",
                 height: "48px",
-                background:
-                  confirmDialog.action === "block" ? "#fef2f2" : "#f0fdf4",
+                background: confirmDialog.action === "block" ? "#fef2f2" : "#f0fdf4",
               }}
             >
               <i
-                className={`pi ${
-                  confirmDialog.action === "block" ? "pi-lock" : "pi-unlock"
-                } text-2xl`}
-                style={{
-                  color:
-                    confirmDialog.action === "block" ? "#dc2626" : "#16a34a",
-                }}
-              ></i>
+                className={`pi ${confirmDialog.action === "block" ? "pi-lock" : "pi-unlock"} text-2xl`}
+                style={{ color: confirmDialog.action === "block" ? "#dc2626" : "#16a34a" }}
+              />
             </div>
             <span className="text-xl font-bold">
-              {confirmDialog.action === "block"
-                ? "Bloquer"
-                : "Débloquer"}{" "}
-              l'utilisateur
+              {confirmDialog.action === "block" ? "Bloquer" : "Débloquer"} l'utilisateur
             </span>
           </div>
         }
@@ -285,13 +207,7 @@ const handleSearch = async () => {
         <div className="py-3">
           <p className="text-700 text-lg mb-3">
             Êtes-vous sûr de vouloir{" "}
-            <strong
-              className={
-                confirmDialog.action === "block"
-                  ? "text-red-600"
-                  : "text-green-600"
-              }
-            >
+            <strong className={confirmDialog.action === "block" ? "text-red-600" : "text-green-600"}>
               {confirmDialog.action === "block" ? "bloquer" : "débloquer"}
             </strong>{" "}
             cet utilisateur ?
@@ -300,9 +216,7 @@ const handleSearch = async () => {
           <div className="p-3 bg-gray-50 border-round">
             <div className="flex align-items-center gap-2 mb-2">
               <i className="pi pi-user text-600"></i>
-              <span className="font-semibold text-900">
-                {confirmDialog.userName}
-              </span>
+              <span className="font-semibold text-900">{confirmDialog.userName}</span>
             </div>
             <div className="flex align-items-center gap-2">
               <i className="pi pi-id-card text-600"></i>
@@ -316,22 +230,13 @@ const handleSearch = async () => {
             label="Annuler"
             icon="pi pi-times"
             outlined
-            onClick={() =>
-              setConfirmDialog({
-                visible: false,
-                sam: null,
-                action: null,
-                userName: null,
-              })
-            }
+            onClick={() => setConfirmDialog({ visible: false, sam: null, action: null, userName: null })}
           />
           <Button
             label="Confirmer"
             icon="pi pi-check"
             onClick={confirmToggle}
-            severity={
-              confirmDialog.action === "block" ? "danger" : "success"
-            }
+            severity={confirmDialog.action === "block" ? "danger" : "success"}
           />
         </div>
       </Dialog>
