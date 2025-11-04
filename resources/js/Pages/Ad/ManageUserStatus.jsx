@@ -48,21 +48,21 @@ export default function ManageUserStatus() {
     try {
       const response = await axios.post("/ad/users/find", { search });
      
-
-      if (response.data.success && response.data.users) {
-        // ✅ Transformer la réponse unique en tableau pour le DataTable
-        setUsers([{
-          name: response.data.users.Name,
-          sam: response.data.users.SamAccountName,
-          email: response.data.users.EmailAddress,
-          enabled: response.data.users.Enabled,
-          lastLogon: formatAdDate(response.data.users.LastLogonDate),
-        }]);
-        setError(null);
-      } else {
-        setUsers([]);
-        setError("Aucun utilisateur trouvé.");
-      }
+if (response.data.success && Array.isArray(response.data.users)) {
+  const mappedUsers = response.data.users.map(user => ({
+    name: user.name,
+    sam: user.sam,
+    email: user.email,
+    enabled: user.enabled,
+    lastLogon: user.last_logon, // déjà formaté par le backend
+  }));
+  setUsers(mappedUsers);
+  setError(null);
+} else {
+  setUsers([]);
+  setError("Aucun utilisateur trouvé.");
+}
+     
     } catch (error) {
       console.error("Erreur lors de la recherche :", error);
       setError("Erreur lors de la recherche de l'utilisateur.");
