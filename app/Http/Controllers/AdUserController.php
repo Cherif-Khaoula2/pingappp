@@ -305,9 +305,7 @@ class AdUserController extends Controller
            // 📧 Envoyer la notification email
         $userData = [
             'sam' => $sam,
-            'name' => $userName ?? $sam,
-            'email' => $userEmail ?? null,
-            'ouPath' => $ouPath ?? null,
+            'name' => $userName ?? null,
         ];
         
         $this->sendPasswordResetNotification(auth()->user(), $userData);
@@ -362,8 +360,8 @@ public function findUser(Request $request)
 
     $psScript = "Import-Module ActiveDirectory; " .
                 "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
-                "-Properties Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl; " .
-                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,LastLogonDate,userAccountControl | " .
+                "-Properties Name,SamAccountName,EmailAddress,Enabled; " .
+                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled | " .
                 "ConvertTo-Json -Depth 3";
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
