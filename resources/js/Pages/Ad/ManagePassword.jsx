@@ -248,14 +248,12 @@ export default function ResetUserPassword() {
           <div className="mb-4">
             <label className="block text-900 font-medium mb-2">Mode de mot de passe</label>
             <div className="flex gap-3">
-             <div
-  onClick={() => handlePasswordModeChange("auto")}
-  className={`p-3 border-2 border-round cursor-pointer flex-1 ${
-    passwordMode === "auto"
-      ? "border-green-500 bg-green-50 shadow-3"
-      : "border-300 hover:border-400 hover:bg-gray-50"
-  }`}
->
+              <div
+                onClick={() => handlePasswordModeChange("auto")}
+                className={`p-3 border-2 border-round cursor-pointer flex-1 ${
+                  passwordMode === "auto" ? "border-green-500 bg-green-50 shadow-3" : "border-300 hover:border-400 hover:bg-gray-50"
+                }`}
+              >
                 Génération automatique
               </div>
               <div
@@ -268,6 +266,20 @@ export default function ResetUserPassword() {
               </div>
             </div>
           </div>
+{passwordMode === "auto" && newPassword && (
+  <div className="p-3 my-3 border-round bg-green-50 border-1 border-green-200 flex justify-content-between align-items-center">
+    <div>
+      <div className="text-green-700 font-medium mb-1">Mot de passe généré :</div>
+      <div className="text-green-900 text-lg font-bold">{newPassword}</div>
+    </div>
+    <Button
+      icon="pi pi-copy"
+      label="Copier"
+      className="p-button-sm p-button-success"
+      onClick={() => navigator.clipboard.writeText(newPassword)}
+    />
+  </div>
+)}
 
           <InputText
             type="password"
@@ -275,6 +287,7 @@ export default function ResetUserPassword() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             style={{ width: "100%", height: "45px" }}
+            toggleMask
           />
         </div>
 
