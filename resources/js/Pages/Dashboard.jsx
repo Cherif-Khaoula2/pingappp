@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router,usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Chart } from 'primereact/chart';
 import { Tag } from 'primereact/tag';
@@ -13,6 +13,7 @@ import { InputText } from 'primereact/inputtext';
 import { Message } from 'primereact/message';
 import { ProgressBar } from 'primereact/progressbar';
 import Layout from '@/Layouts/layout/layout.jsx';
+
 export default function Dashboard({ 
     stats = {}, 
     activityData = [], 
@@ -28,16 +29,20 @@ export default function Dashboard({
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredLogs, setFilteredLogs] = useState(recentLogs);
     const [periodFilter, setPeriodFilter] = useState(period);
-
+    
+    // ✅ CORRECTION: Déplacement de usePage() avant son utilisation
+    const pageProps = usePage().props;
+    const { permissions = [] } = pageProps;
+    
+    // ✅ Vérification de la permission pour voir les logs
+    const canViewLogs = permissions.includes("getlog");
+    
     const safeStats = stats || {};
     const safeActivityData = Array.isArray(activityData) ? activityData : [];
     const safeRecentLogs = Array.isArray(recentLogs) ? recentLogs : [];
     const safeActionBreakdown = Array.isArray(actionBreakdown) ? actionBreakdown : [];
     const safeTopPerformers = Array.isArray(topPerformers) ? topPerformers : [];
- const pageProps = usePage().props;
-  const { permissions = [] } = pageProps;
- 
-  const canview = permissions.includes("getlog");
+
     // Options pour les filtres - Actions complètes
     const actionOptions = [
         { label: 'Connexion', value: 'login' },
@@ -49,7 +54,7 @@ export default function Dashboard({
         { label: 'Changement MDP', value: 'change_password' }
     ];
 
-   const periodOptions = [
+    const periodOptions = [
         { label: '1 jour', value: 1 },
         { label: '7 jours', value: 7 },
         { label: '30 jours', value: 30 },
@@ -140,15 +145,8 @@ export default function Dashboard({
         datasets: [{
             data: safeActionBreakdown.map(a => a.count),
             backgroundColor: [
-                '#10b981', // Vert - Connexion
-                '#f59e0b', // Orange - Déconnexion
-                '#ef4444', // Rouge - Blocage
-                '#3b82f6', // Bleu - Déblocage
-                '#8b5cf6', // Violet - Création
-                '#ec4899', // Rose - Modification
-                '#06b6d4', // Cyan - Suppression
-                '#f97316', // Orange foncé - Reset MDP
-                '#14b8a6'  // Teal - Change MDP
+                '#10b981', '#f59e0b', '#ef4444', '#3b82f6', 
+                '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6'
             ],
             borderWidth: 2,
             borderColor: '#fff'
@@ -176,9 +174,8 @@ export default function Dashboard({
         }
     };
 
-    // Cartes statistiques améliorées avec toutes les actions
+    // Cartes statistiques
     const statCards = [
-        
         { 
             label: "Connexions", 
             value: safeStats.login_count ?? 0, 
@@ -198,10 +195,8 @@ export default function Dashboard({
             value: safeStats.create_count ?? 0, 
             icon: "pi pi-user-plus", 
             color: "bg-cyan-500",
-         percentage: safeStats.total_logs > 0 ? ((safeStats.create_count / safeStats.total_logs) * 100).toFixed(1): 0
-            
+            percentage: safeStats.total_logs > 0 ? ((safeStats.create_count / safeStats.total_logs) * 100).toFixed(1): 0
         },
-        
         { 
             label: "Blocages", 
             value: safeStats.block_count ?? 0, 
@@ -224,8 +219,6 @@ export default function Dashboard({
             color: "bg-orange-500",
             percentage: safeStats.total_logs > 0 ? ((safeStats.reset_password_count / safeStats.total_logs) * 100).toFixed(1): 0
         },
-      
-       
     ];
 
     // Templates pour DataTable
@@ -253,7 +246,6 @@ export default function Dashboard({
         return <Tag value={labelMap[row.action] || row.action} severity={severityMap[row.action] || 'secondary'} />;
     };
 
-   
     const handlePeriodChange = (e) => {
         setPeriodFilter(e.value);
         router.get('/dashboard', { period: e.value }, { preserveState: true });
@@ -319,58 +311,56 @@ export default function Dashboard({
                         </div>
                     ))}
                 </div>
-<div className="flex flex-wrap justify-content-between gap-3 mb-3 md:mb-4">
-  {/* Graphique d'activité temporelle */}
-  <div className="flex-1 min-w-[60%]">
-    <Card title={`Évolution de l'activité (${period} jours)`} className="shadow-2 md:shadow-3 h-full">
-      <div style={{ height: '300px' }}>
-        {safeActivityData.length > 0 ? (
-          <Chart type="line" data={activityChartData} options={activityChartOptions} />
-        ) : (
-          <div className="flex align-items-center justify-content-center h-full">
-            <div className="text-center">
-              <i className="pi pi-chart-line text-5xl text-300 mb-3"></i>
-              <p className="text-600">Aucune donnée disponible</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
-  </div>
 
-  {/* Répartition des actions */}
-  <div className="flex-1 min-w-[35%]">
-    <Card title="Répartition par type" className="shadow-2 md:shadow-3 h-full">
-      <div style={{ height: '300px' }}>
-        {safeActionBreakdown.length > 0 ? (
-          <Chart type="doughnut" data={actionChartData} options={pieChartOptions} />
-        ) : (
-          <div className="flex align-items-center justify-content-center h-full">
-            <div className="text-center">
-              <i className="pi pi-chart-pie text-5xl text-300 mb-3"></i>
-              <p className="text-600">Aucune donnée disponible</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
-  </div>
-</div>
+                <div className="flex flex-wrap justify-content-between gap-3 mb-3 md:mb-4">
+                    {/* Graphique d'activité temporelle */}
+                    <div className="flex-1 min-w-[60%]">
+                        <Card title={`Évolution de l'activité (${period} jours)`} className="shadow-2 md:shadow-3 h-full">
+                            <div style={{ height: '300px' }}>
+                                {safeActivityData.length > 0 ? (
+                                    <Chart type="line" data={activityChartData} options={activityChartOptions} />
+                                ) : (
+                                    <div className="flex align-items-center justify-content-center h-full">
+                                        <div className="text-center">
+                                            <i className="pi pi-chart-line text-5xl text-300 mb-3"></i>
+                                            <p className="text-600">Aucune donnée disponible</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
 
+                    {/* Répartition des actions */}
+                    <div className="flex-1 min-w-[35%]">
+                        <Card title="Répartition par type" className="shadow-2 md:shadow-3 h-full">
+                            <div style={{ height: '300px' }}>
+                                {safeActionBreakdown.length > 0 ? (
+                                    <Chart type="doughnut" data={actionChartData} options={pieChartOptions} />
+                                ) : (
+                                    <div className="flex align-items-center justify-content-center h-full">
+                                        <div className="text-center">
+                                            <i className="pi pi-chart-pie text-5xl text-300 mb-3"></i>
+                                            <p className="text-600">Aucune donnée disponible</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
 
                 {/* Section inférieure - Responsive */}
                 <div className="grid mb-3 md:mb-4">
                     {/* Journal d'activité détaillé */}
-                    {canview && (
+                     {canViewLogs && (
                     <div className="col-12 lg:col-8">
                         <Card title="Journal d'activité détaillé" className="shadow-2 md:shadow-3">
-                        
-                            {/* Résultats du filtrage */}
                             <div className="mb-3 flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center gap-2">
-                               <span className="text-sm md:text-base text-600">
-                          <i className="pi pi-info-circle mr-2"></i>
-                           Affichage des dix dernières actions 
-                                  </span>
+                                <span className="text-sm md:text-base text-600">
+                                    <i className="pi pi-info-circle mr-2"></i>
+                                    Affichage des dix dernières actions 
+                                </span>
 
                                 <Link href="/ad/activity-logs">
                                     <Button 
@@ -381,7 +371,6 @@ export default function Dashboard({
                                 </Link>
                             </div>
 
-                            {/* DataTable - Responsive */}
                             {filteredLogs.length > 0 ? (
                                 <DataTable 
                                     value={filteredLogs} 
@@ -394,16 +383,16 @@ export default function Dashboard({
                                     scrollable
                                     scrollHeight="400px"
                                 >
-                                   <Column
-                                         field="performer_name"
-                                         header="Utilisateur"
-                                         sortable
-                                         style={{ minWidth: '150px' }}
-                                         headerStyle={{ fontSize: '0.875rem' }}
-                                         body={(rowData) => (
-                                        <span>{rowData.performer_name? rowData.performer_name.replace(/\./g, ' '): 'Système'}</span>)}
+                                    <Column
+                                        field="performer_name"
+                                        header="Utilisateur"
+                                        sortable
+                                        style={{ minWidth: '150px' }}
+                                        headerStyle={{ fontSize: '0.875rem' }}
+                                        body={(rowData) => (
+                                            <span>{rowData.performer_name ? rowData.performer_name.replace(/\./g, ' ') : 'Système'}</span>
+                                        )}
                                     />
-
                                     <Column 
                                         field="action" 
                                         header="Action" 
@@ -412,7 +401,6 @@ export default function Dashboard({
                                         style={{ minWidth: '120px' }}
                                         headerStyle={{ fontSize: '0.875rem' }}
                                     />
-                                  
                                     <Column 
                                         field="created_at_formatted" 
                                         header="Date" 
@@ -430,90 +418,64 @@ export default function Dashboard({
                             )}
                         </Card>
                     </div>
- )}
-<div className="col-12 lg:col-4">
-    <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
-        <div className="flex flex-column gap-2 md:gap-3">
-            {safeTopPerformers.length > 0 ? (
-                safeTopPerformers
-                    .filter(user => user.name && user.name.trim().toLowerCase() !== "système") // 🔹 exclure "Système"
-                    .slice(0, 5)
-                    .map((user, idx) => {
-                        // 🔹 Nettoyage du nom (supprime le point à la fin)
-                        const cleanName = user.name?.trim().replace(/\.$/, "") || "";
+)}
+                    {/* Top utilisateurs avec permissions - ✅ CORRECTION */}
+                    <div className="col-12 lg:col-4">
+                        <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
+                            <div className="flex flex-column gap-2 md:gap-3">
+                                {safeTopPerformers.length > 0 ? (
+                                    safeTopPerformers.slice(0, 5).map((user, idx) => {
+                                        const content = (
+                                            <div className={`flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 transition-colors transition-duration-200 ${
+                                                canViewLogs ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'
+                                            }`}>
+                                                <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
+                                                    <div className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
+                                                        idx === 0 ? 'bg-yellow-500' :
+                                                        idx === 1 ? 'bg-gray-400' :
+                                                        idx === 2 ? 'bg-orange-600' : 'bg-indigo-500'
+                                                    }`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="flex-1 overflow-hidden">
+                                                        <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
+                                                            {user.name}
+                                                        </p>
+                                                        <p className="text-xs md:text-sm text-600 m-0">
+                                                            {user.count} activités
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {canViewLogs && (
+                                                    <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
+                                                )}
+                                            </div>
+                                        );
 
-                        return (
-                           
-                        <div className="col-12 lg:col-4">
-  <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
-    <div className="flex flex-column gap-2 md:gap-3">
-      {safeTopPerformers.length > 0 ? (
-        safeTopPerformers
-          .filter(user => user.name && user.name.trim().toLowerCase() !== "système")
-          .slice(0, 5)
-          .map((user, idx) => {
-            const cleanName = user.name?.trim().replace(/\.$/, "") || "";
-            const blockContent = (
-              <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 hover:bg-gray-100 transition-colors transition-duration-200 cursor-pointer">
-                <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
-                  <div
-                    className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
-                      idx === 0
-                        ? "bg-yellow-500"
-                        : idx === 1
-                        ? "bg-gray-400"
-                        : idx === 2
-                        ? "bg-orange-600"
-                        : "bg-indigo-500"
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
-                      {cleanName}
-                    </p>
-                    <p className="text-xs md:text-sm text-600 m-0">
-                      {user.count} activités
-                    </p>
-                  </div>
+                                        return canViewLogs ? (
+                                            <Link 
+                                                key={user.id} 
+                                                href={`/ad/activity-logs/user/${user.id}`} 
+                                                className="no-underline text-inherit"
+                                            >
+                                                {content}
+                                            </Link>
+                                        ) : (
+                                            <div key={user.id}>
+                                                {content}
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center p-4">
+                                        <i className="pi pi-users text-4xl text-300 mb-2"></i>
+                                        <p className="text-600 text-sm">Aucun utilisateur actif</p>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
                 </div>
-                {canview && <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>}
-              </div>
-            );
-
-            return canview ? (
-              <Link key={user.id} href={`/ad/activity-logs/user/${user.id}`} className="no-underline text-inherit">
-                {blockContent}
-              </Link>
-            ) : (
-              <div key={user.id}>{blockContent}</div>
-            );
-          })
-      ) : (
-        <div className="text-center p-4">
-          <i className="pi pi-users text-4xl text-300 mb-2"></i>
-          <p className="text-600 text-sm">Aucun utilisateur actif</p>
-        </div>
-      )}
-    </div>
-  </Card>
-</div>
-          
-                            
-                        );
-                    })
-            ) : (
-                <div className="text-center p-4">
-                    <i className="pi pi-users text-4xl text-300 mb-2"></i>
-                    <p className="text-600 text-sm">Aucun utilisateur actif</p>
-                </div>
-            )}
-        </div>
-    </Card>
-</div>
-
-       </div>
             </div>
 
             <style jsx>{`
@@ -525,7 +487,6 @@ export default function Dashboard({
                     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                 }
                 
-                /* Amélioration responsive */
                 @media (max-width: 768px) {
                     .p-datatable .p-datatable-tbody > tr > td {
                         padding: 0.5rem !important;
