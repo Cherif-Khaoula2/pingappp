@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { router } from "@inertiajs/react";
+import { router,Head } from "@inertiajs/react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Card } from "primereact/card";
@@ -185,6 +185,7 @@ export default function ManageUserStatus() {
 
   return (
     <Layout>
+      <Head title="Bloquer/Débloquer un utilisateur AD" />
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-3 border-round-xl">

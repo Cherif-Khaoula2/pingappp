@@ -6,7 +6,7 @@ import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { InputText } from "primereact/inputtext";
 import { Chip } from "primereact/chip";
-import { router } from "@inertiajs/react";
+import { router ,Head} from "@inertiajs/react";
 import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function Hidden({ hiddenAccounts }) {
@@ -123,6 +123,7 @@ export default function Hidden({ hiddenAccounts }) {
 
     return (
         <Layout>
+            <Head title="Masquer utilisateur" />
             <Toast ref={toast} />
             
             <div className="card shadow-3">

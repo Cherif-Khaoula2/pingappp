@@ -9,7 +9,7 @@ import { Divider } from "primereact/divider";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import {Head} from '@inertiajs/react';
 const ManageAddUser = () => {
   const toast = React.useRef(null);
   
@@ -321,6 +321,7 @@ const showBackendError = (message) => {
 
   return (
     <Layout>
+      <Head title="Créer un utilisateur AD" />
       <Toast ref={toast} position="top-center" />
       
       <div className="grid">

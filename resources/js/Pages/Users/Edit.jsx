@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, router, usePage } from '@inertiajs/react';
+import { useForm, router, usePage,Head } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Password } from 'primereact/password';
@@ -143,6 +143,7 @@ const UsersEdit = () => {
 
   return (
     <Layout>
+      <Head title="Modifier utilisateur" />
       <div className="grid">
         <div className="col-12">
           {pageHeader}

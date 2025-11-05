@@ -9,6 +9,7 @@ import { Button } from "primereact/button";
 import { ProgressBar } from "primereact/progressbar";
 import { Message } from "primereact/message";
 import Layout from "@/Layouts/layout/layout.jsx";
+import {Head} from '@inertiajs/react';
 
 export default function FindAllComputersLaps() {
   const [computers, setComputers] = useState([]);
@@ -128,7 +129,7 @@ export default function FindAllComputersLaps() {
       <div>
         <h2 className="text-900 text-2xl font-bold m-0 mb-1">
           <i className="pi pi-shield text-primary mr-2"></i>
-          Ordinateurs LAPS
+          Liste des ordinateurs AD
         </h2>
         <p className="text-600 text-sm m-0">
           {loading 
@@ -162,6 +163,7 @@ export default function FindAllComputersLaps() {
 
   return (
     <Layout>
+          <Head title="Liste des ordinateurs AD" />
       {/* Barre de progression fine en haut */}
       {loadingProgress > 0 && (
         <div className="top-progress-bar">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage ,Head} from '@inertiajs/react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
@@ -223,6 +223,7 @@ const RolesIndex = () => {
 
   return (
     <Layout>
+      <Head title="Gestion des roles" />
       <div className="grid">
         <div className="col-12">
           {/* Header de la page */}

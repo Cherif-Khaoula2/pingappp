@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { router } from '@inertiajs/react';
+import { router ,Head} from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -59,6 +59,7 @@ export default function DnIndex({ dns, users }) {
 
     return (
         <Layout>
+            <Head title="Périmètre Administrateur" />
             <Toast ref={toast} />
             <div className="p-6 space-y-6">
                 <h1 className="text-3xl font-semibold text-blue-700 mb-2">Gestion des DNs</h1>

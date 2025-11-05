@@ -8,7 +8,7 @@ import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import { Message } from "primereact/message";
 import Layout from "@/Layouts/layout/layout.jsx";
-import { router } from "@inertiajs/react";
+import { router ,Head} from "@inertiajs/react";
 
 // Fonction pour générer un mot de passe automatique
 const generatePassword = () => {
@@ -182,6 +182,7 @@ export default function ResetUserPassword() {
 
   return (
     <Layout>
+       <Head title="Réinitialiser Mdp utilisateur" />
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-3 border-round-xl">

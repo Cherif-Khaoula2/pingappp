@@ -58,7 +58,7 @@ const AppMenu = () => {
                     to: safeRoute('ad.logs.index'),
                 },
                permissions.includes('managedn') && {
-                   label: 'Périmètre utilisateur',
+                   label: 'Périmètre Administrateur',
                    icon: 'pi pi-link',
                    to: safeRoute('dns.index'),
                },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm, usePage, Link, useForm as useInertiaForm } from '@inertiajs/react';
+import { useForm, usePage, Link, useForm as useInertiaForm ,Head} from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -132,7 +132,8 @@ const Edit = () => {
   );
 
   return (
-    <Layout title="Edit Role">
+    <Layout>
+      <Head title="Modifier un role" />
       <div className="grid">
         <div className="col-12">
           {pageHeader}
