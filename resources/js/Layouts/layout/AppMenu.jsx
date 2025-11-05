@@ -7,7 +7,8 @@ import { usePage } from '@inertiajs/react';
 const AppMenu = () => {
     const { layoutConfig } = useContext(LayoutContext);
     const { props } = usePage();
-    const permissions = props.permissions || [];
+    const permissions = props.userspermissions || props.permissions || [];
+
 
     const hasPermission = (perm) => permissions.includes(perm);
 
