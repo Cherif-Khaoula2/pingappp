@@ -11,22 +11,23 @@ use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
+    /**
+     * 📊 Tableau de bord principal
+     */
     public function index(Request $request)
     {
         try {
-            Log::info('=== DASHBOARD START ===');
-            
-            $tz = 'Africa/Algiers';
-            $period = $request->input('period', 30);
+            Log::info('=== [DASHBOARD] Début du chargement ===');
 
-            // ==================== STATISTIQUES COMPLÈTES ====================
+            $tz = 'Africa/Algiers';
+            $period = (int) $request->input('period', 30);
+
+            // ==================== 1️⃣ STATISTIQUES GLOBALES ====================
             $stats = [
-                // Statistiques globales
                 'total_logs' => AdActivityLog::count(),
                 'today_logs' => AdActivityLog::whereDate('created_at', today())->count(),
                 'failed' => AdActivityLog::where('status', 'failed')->count(),
-                
-                // Statistiques par type d'action
+
                 'login_count' => AdActivityLog::where('action', 'login')->count(),
                 'logout_count' => AdActivityLog::where('action', 'logout')->count(),
                 'block_count' => AdActivityLog::where('action', 'block_user')->count(),
@@ -38,117 +39,92 @@ class DashboardController extends Controller
                 'change_password_count' => AdActivityLog::where('action', 'change_password')->count(),
             ];
 
-            Log::info('Stats complètes:', $stats);
-
-            // ==================== ACTIVITÉ TEMPORELLE ====================
-            $activityData = AdActivityLog::select(
+            // ==================== 2️⃣ ACTIVITÉ JOURNALIÈRE ====================
+            $rawActivity = AdActivityLog::select(
                     DB::raw('DATE(created_at) as date'),
                     DB::raw('COUNT(*) as total')
                 )
                 ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
                 ->groupBy('date')
                 ->orderBy('date', 'asc')
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'date' => Carbon::parse($item->date)->format('d/m'),
-                        'total' => (int) $item->total,
-                    ];
-                })
-                ->toArray();
+                ->get();
+
+            // Convertir en tableau associatif par date
+            $activityByDate = $rawActivity->keyBy('date');
 
             // Remplir les jours manquants avec 0
-            $dateRange = collect();
-            for ($i = $period - 1; $i >= 0; $i--) {
-                $dateRange->push(Carbon::now($tz)->subDays($i)->format('Y-m-d'));
-            }
+            $activityData = collect(range($period - 1, 0))
+                ->map(function ($i) use ($activityByDate, $tz) {
+                    $date = Carbon::now($tz)->subDays($i)->format('Y-m-d');
+                    return [
+                        'date' => Carbon::parse($date)->format('d/m'),
+                        'total' => (int) ($activityByDate[$date]->total ?? 0),
+                    ];
+                })
+                ->values()
+                ->toArray();
 
-            $activityMap = collect($activityData)->keyBy(function ($item) {
-                return Carbon::createFromFormat('d/m', $item['date'])->format('Y-m-d');
-            });
+            // ==================== 3️⃣ RÉPARTITION DES ACTIONS ====================
+            $actionLabels = [
+                'login' => 'Connexion',
+                'logout' => 'Déconnexion',
+                'block_user' => 'Blocage',
+                'unblock_user' => 'Déblocage',
+                'create_user' => 'Création',
+                'update_user' => 'Modification',
+                'delete_user' => 'Suppression',
+                'reset_password' => 'Reset MDP',
+                'change_password' => 'Change MDP',
+            ];
 
-            $activityData = $dateRange->map(function ($date) use ($activityMap) {
-                return [
-                    'date' => Carbon::parse($date)->format('d/m'),
-                    'total' => $activityMap->get($date)['total'] ?? 0,
-                ];
-            })->toArray();
-
-            // ==================== RÉPARTITION DES ACTIONS ====================
-            $actionBreakdown = AdActivityLog::select(
-                    'action',
-                    DB::raw('COUNT(*) as count')
-                )
+            $actionBreakdown = AdActivityLog::select('action', DB::raw('COUNT(*) as count'))
                 ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
                 ->groupBy('action')
-                ->orderBy('count', 'desc')
+                ->orderByDesc('count')
                 ->get()
-                ->map(function ($item) {
-                    // Traduction des actions en français
-                    $actionLabels = [
-                        'login' => 'Connexion',
-                        'logout' => 'Déconnexion',
-                        'block_user' => 'Blocage',
-                        'unblock_user' => 'Déblocage',
-                        'create_user' => 'Création',
-                        'update_user' => 'Modification',
-                        'delete_user' => 'Suppression',
-                        'reset_password' => 'Reset MDP',
-                        'change_password' => 'Change MDP',
-                    ];
+                ->map(fn($item) => [
+                    'action' => $actionLabels[$item->action] ?? ucfirst(str_replace('_', ' ', $item->action)),
+                    'count' => (int) $item->count,
+                ])
+                ->toArray();
+
+            // ==================== 4️⃣ TOP UTILISATEURS ACTIFS ====================
+            $topPerformers = AdActivityLog::with('performer:id,first_name,last_name,email')
+                ->select('performed_by_id', DB::raw('COUNT(*) as count'))
+                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->whereNotNull('performed_by_id')
+                ->groupBy('performed_by_id')
+                ->orderByDesc('count')
+                ->limit(10)
+                ->get()
+                ->map(function ($log) {
+                    $name = 'Système';
+                    if ($log->performer) {
+                        $name = trim($log->performer->first_name . ' ' . $log->performer->last_name)
+                            ?: $log->performer->email;
+                    }
 
                     return [
-                        'action' => $actionLabels[$item->action] ?? ucfirst(str_replace('_', ' ', $item->action)),
-                        'count' => (int) $item->count,
+                        'id' => $log->performed_by_id,
+                        'name' => $name,
+                        'count' => (int) $log->count,
                     ];
                 })
                 ->toArray();
 
-          // ==================== TOP UTILISATEURS ACTIFS ====================
-$topPerformers = AdActivityLog::select(
-        'performed_by_id',
-        DB::raw('COUNT(*) as count')
-    )
-    ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
-    ->whereNotNull('performed_by_id')
-    ->groupBy('performed_by_id')
-    ->orderBy('count', 'desc')
-    ->limit(10)
-    ->with('performer:id,first_name,last_name,email')
-    ->get()
-    ->map(function ($item) {
-        $name = 'Système';
-
-        if ($item->performer) {
-            $name = trim($item->performer->first_name . ' ' . $item->performer->last_name);
-            if (empty($name)) {
-                $name = $item->performer->email;
-            }
-        }
-
-        return [
-            'id' => $item->performed_by_id,
-            'name' => $name,
-            'count' => (int) $item->count,
-        ];
-    })
-    ->toArray();
-
-            // ==================== LOGS RÉCENTS (100 pour permettre un bon filtrage) ====================
+            // ==================== 5️⃣ DERNIERS LOGS ====================
             $recentLogs = AdActivityLog::with('performer:id,first_name,last_name,email')
-                ->latest('created_at')
+                ->latest()
                 ->limit(100)
                 ->get()
                 ->map(function ($log) use ($tz) {
                     $performerName = 'Système';
-                    
+
                     if ($log->performer) {
-                        $performerName = trim($log->performer->first_name . ' ' . $log->performer->last_name);
-                        if (empty($performerName)) {
-                            $performerName = $log->performer->email;
-                        }
+                        $performerName = trim($log->performer->first_name . ' ' . $log->performer->last_name)
+                            ?: $log->performer->email;
                     }
-                    
+
                     return [
                         'id' => $log->id,
                         'action' => $log->action,
@@ -163,7 +139,7 @@ $topPerformers = AdActivityLog::select(
                 })
                 ->toArray();
 
-            // ==================== DONNÉES COMPLÈTES ====================
+            // ==================== ✅ DONNÉES FINALES ====================
             $data = [
                 'stats' => $stats,
                 'activityData' => $activityData,
@@ -173,44 +149,34 @@ $topPerformers = AdActivityLog::select(
                 'period' => $period,
             ];
 
-            Log::info('=== DATA SENT TO INERTIA ===', [
-                'stats_count' => count($stats),
-                'activity_count' => count($activityData),
-                'actions_count' => count($actionBreakdown),
-                'performers_count' => count($topPerformers),
-                'logs_count' => count($recentLogs)
+            Log::info('=== [DASHBOARD] Données envoyées à Inertia ===', [
+                'stats' => count($stats),
+                'activity' => count($activityData),
+                'actions' => count($actionBreakdown),
+                'performers' => count($topPerformers),
+                'logs' => count($recentLogs),
             ]);
 
             return Inertia::render('Dashboard', $data);
-            
-        } catch (\Exception $e) {
-            Log::error('Dashboard Error:', [
+
+        } catch (\Throwable $e) {
+            Log::error('[DASHBOARD ERROR]', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
-            // Retourner des valeurs par défaut en cas d'erreur
+
             return Inertia::render('Dashboard', [
-                'stats' => [
-                    'total_logs' => 0,
-                    'today_logs' => 0,
-                    'failed' => 0,
-                    'login_count' => 0,
-                    'logout_count' => 0,
-                    'block_count' => 0,
-                    'unblock_count' => 0,
-                    'create_count' => 0,
-                    'update_count' => 0,
-                    'delete_count' => 0,
-                    'reset_password_count' => 0,
-                    'change_password_count' => 0,
-                ],
+                'stats' => array_fill_keys([
+                    'total_logs', 'today_logs', 'failed', 'login_count', 'logout_count',
+                    'block_count', 'unblock_count', 'create_count', 'update_count',
+                    'delete_count', 'reset_password_count', 'change_password_count',
+                ], 0),
                 'activityData' => [],
                 'actionBreakdown' => [],
                 'topPerformers' => [],
                 'recentLogs' => [],
-                'period' => 30,
-                'error' => 'Erreur lors du chargement du dashboard: ' . $e->getMessage(),
+                'period' => $request->input('period', 30),
+                'error' => 'Erreur lors du chargement du tableau de bord : ' . $e->getMessage(),
             ]);
         }
     }

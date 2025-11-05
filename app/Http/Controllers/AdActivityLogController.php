@@ -3,15 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdActivityLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\User;
+
 class AdActivityLogController extends Controller
 {
+    /**
+     * 🧭 Affiche la liste des logs avec filtres et statistiques
+     */
     public function index(Request $request)
     {
-        $query = AdActivityLog::with('performer')
-            ->latest();
+        $query = AdActivityLog::with('performer')->latest();
 
         // 🔍 Filtres
         if ($request->filled('action')) {
@@ -34,10 +37,10 @@ class AdActivityLogController extends Controller
             $query->whereDate('created_at', '<=', $request->end_date);
         }
 
-        // Pagination
+        // 📊 Résultats paginés
         $logs = $query->paginate(50)->withQueryString();
 
-        // Statistiques rapides
+        // 📈 Statistiques rapides
         $stats = [
             'total_today' => AdActivityLog::whereDate('created_at', today())->count(),
             'logins_today' => AdActivityLog::whereDate('created_at', today())
@@ -59,6 +62,9 @@ class AdActivityLogController extends Controller
         ]);
     }
 
+    /**
+     * 👁️ Détail d’un log précis
+     */
     public function show($id)
     {
         $log = AdActivityLog::with('performer')->findOrFail($id);
@@ -68,126 +74,35 @@ class AdActivityLogController extends Controller
         ]);
     }
 
-    // Export CSV
-    public function export(Request $request)
-    {
-        $query = AdActivityLog::query();
-
-        if ($request->filled('action')) {
-            $query->where('action', $request->action);
-        }
-
-        if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->whereBetween('created_at', [$request->start_date, $request->end_date]);
-        }
-
-        $logs = $query->orderBy('created_at', 'desc')->get();
-
-        $filename = 'ad_activity_logs_' . now()->format('Y-m-d_His') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
-        ];
-
-        $callback = function() use ($logs) {
-            $file = fopen('php://output', 'w');
-            
-            // En-têtes CSV
-            fputcsv($file, [
-                'ID',
-                'Action',
-                'Utilisateur ciblé',
-                'Nom utilisateur',
-                'Effectué par',
-                'Statut',
-                'IP',
-                'Date',
-                'Erreur'
-            ]);
-
-            // Données
-            foreach ($logs as $log) {
-                fputcsv($file, [
-                    $log->id,
-                    $log->action,
-                    $log->target_user,
-                    $log->target_user_name,
-                    $log->performed_by_name,
-                    $log->status,
-                    $log->ip_address,
-                    $log->created_at->format('Y-m-d H:i:s'),
-                    $log->error_message,
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-public function showUserLogs($id)
-{
-    $user = User::findOrFail($id);
-
-    $email = $user->email;
-    $username = explode('@', $email)[0];
-    $fullName = trim(strtolower($user->first_name . ' ' . $user->last_name));
-
-    $logs = AdActivityLog::where(function($query) use ($email, $username, $fullName, $id) {
-        $query
-            // ✅ Logs effectués PAR l'utilisateur (connexion, déconnexion, etc.)
-            ->where('performed_by_id', $id)
-            
-            // ✅ OU logs sur cet utilisateur (bloqué, débloqué, créé, reset, etc.)
-            ->orWhere(function($q) use ($email, $username, $fullName) {
-                $q->whereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($email) . '%'])
-                  ->orWhereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($username) . '%'])
-                  ->orWhereRaw('LOWER(target_user_name) LIKE ?', ['%' . $fullName . '%']);
-            });
-    })
-    ->with('performer')
-    ->orderBy('created_at', 'desc')
-    ->get();
-
-    return Inertia::render('Ad/UserActivityHistory', [
-        'user' => $user,
-        'logs' => $logs
-    ]);
-}
-
- public function performer()
-    {
-        return $this->belongsTo(User::class, 'performed_by_id');
-    }
-    
     /**
-     * ✅ Alias pour compatibilité
-     * (peut être utilisée dans DashboardController)
+     * 🧍‍♂️ Historique d’un utilisateur spécifique
      */
-    public function performed_by()
+    public function showUserLogs($id)
     {
-        return $this->belongsTo(User::class, 'performed_by_id');
-    }
-    
-    /**
-     * ✅ Alias supplémentaire
-     */
-    public function performedBy()
-    {
-        return $this->belongsTo(User::class, 'performed_by_id');
-    }
-    
-    /**
-     * ✅ Accesseur pour le nom de l'utilisateur qui a effectué l'action
-     */
-    public function getPerformedByNameAttribute()
-    {
-        if ($this->performer) {
-            return trim($this->performer->first_name . ' ' . $this->performer->last_name) 
-                   ?: $this->performer->email;
-        }
-        return 'Système';
-    }
+        $user = User::findOrFail($id);
 
+        $email = $user->email;
+        $username = explode('@', $email)[0];
+        $fullName = trim(strtolower($user->first_name . ' ' . $user->last_name));
+
+        $logs = AdActivityLog::where(function ($query) use ($email, $username, $fullName, $id) {
+            $query
+                // ✅ Logs effectués PAR cet utilisateur
+                ->where('performed_by_id', $id)
+                // ✅ OU logs qui LE concernent
+                ->orWhere(function ($q) use ($email, $username, $fullName) {
+                    $q->whereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($email) . '%'])
+                        ->orWhereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($username) . '%'])
+                        ->orWhereRaw('LOWER(target_user_name) LIKE ?', ['%' . $fullName . '%']);
+                });
+        })
+            ->with('performer')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('Ad/UserActivityHistory', [
+            'user' => $user,
+            'logs' => $logs,
+        ]);
+    }
 }
