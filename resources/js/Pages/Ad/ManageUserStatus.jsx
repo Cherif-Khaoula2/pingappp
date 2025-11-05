@@ -21,55 +21,38 @@ export default function ManageUserStatus() {
     action: null,
     userName: null,
   });
-// 🔹 Recherche d’un utilisateur
-const handleSearch = async () => {
-  if (!search.trim()) {
-    alert("Veuillez saisir un SamAccountName");
-    return;
-  }
 
-  setLoading(true);
-  try {
-    const response = await axios.post("/ad/users/find", { search });
-    const data = response.data;
-
-    if (data.success) {
-      // --- Cas 1 : Aucun utilisateur autorisé ---
-      if (!data.users || data.users.length === 0) {
-        setUsers([]);
-        setError("Aucun utilisateur affiché. Vous n’êtes pas autorisé à accéder à ce DN.");
-
-        // 🔹 Optionnel : afficher les utilisateurs non autorisés (juste pour info)
-        if (data.unauthorized && data.unauthorized.length > 0) {
-          console.warn("Utilisateurs non autorisés :", data.unauthorized);
-        }
-      }
-      // --- Cas 2 : Utilisateurs autorisés trouvés ---
-      else {
-        const mappedUsers = data.users.map((user) => ({
+  // 🔹 Recherche d’un utilisateur
+  const handleSearch = async () => {
+    if (!search.trim()) {
+      alert("Veuillez saisir un Nom.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.post("/ad/users/find", { search });
+      if (response.data.success && Array.isArray(response.data.users)) {
+        const mappedUsers = response.data.users.map((user) => ({
           name: user.name,
           sam: user.sam,
           email: user.email,
           enabled: user.enabled,
           lastLogon: user.last_logon,
-          dn: user.dn,
         }));
-
         setUsers(mappedUsers);
         setError(null);
+      } else {
+        setUsers([]);
+        setError("Aucun utilisateur trouvé.");
       }
-    } else {
+    } catch (err) {
+      console.error("Erreur lors de la recherche :", err);
+      setError("Erreur lors de la recherche de l'utilisateur.");
       setUsers([]);
-      setError(data.message || "Aucun utilisateur trouvé.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Erreur lors de la recherche :", err);
-    setError("Erreur lors de la recherche de l'utilisateur.");
-    setUsers([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // 🔹 Ouverture du dialog de confirmation
   const handleToggleClick = (user, action) => {
@@ -152,7 +135,7 @@ const handleSearch = async () => {
                 <i className="pi pi-lock text-3xl text-indigo-600"></i>
                 <div>
                   <h1 className="text-900 text-2xl font-bold m-0">Blocage / Déblocage AD</h1>
-                  <p className="text-600 m-0">Rechercher un utilisateur par son SAMAccountName</p>
+                  <p className="text-600 m-0">Recherchez un utilisateur</p>
                 </div>
               </div>
 
@@ -162,7 +145,7 @@ const handleSearch = async () => {
                   <i className="pi pi-search"></i>
                 </span>
                 <InputText
-                  placeholder="Rechercher un utilisateur dans LDAP..."
+                  placeholder="Rechercher un utilisateur dans AD..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleSearch()}

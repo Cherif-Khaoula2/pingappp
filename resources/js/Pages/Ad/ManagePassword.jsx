@@ -183,7 +183,7 @@ export default function ResetUserPassword() {
                       <i className="pi pi-search"></i>
                     </span>
                     <InputText
-                      placeholder="Rechercher un utilisateur dans LDAP..."
+                      placeholder="Rechercher un utilisateur dans AD..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSearch()}
