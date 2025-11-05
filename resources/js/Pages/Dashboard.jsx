@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router,usePage } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Chart } from 'primereact/chart';
 import { Tag } from 'primereact/tag';
@@ -34,7 +34,10 @@ export default function Dashboard({
     const safeRecentLogs = Array.isArray(recentLogs) ? recentLogs : [];
     const safeActionBreakdown = Array.isArray(actionBreakdown) ? actionBreakdown : [];
     const safeTopPerformers = Array.isArray(topPerformers) ? topPerformers : [];
-
+ const pageProps = usePage().props;
+  const { permissions = [] } = pageProps;
+ 
+  const canview = permissions.includes("getlog");
     // Options pour les filtres - Actions complètes
     const actionOptions = [
         { label: 'Connexion', value: 'login' },
@@ -358,6 +361,7 @@ export default function Dashboard({
                 {/* Section inférieure - Responsive */}
                 <div className="grid mb-3 md:mb-4">
                     {/* Journal d'activité détaillé */}
+                    {canview && (
                     <div className="col-12 lg:col-8">
                         <Card title="Journal d'activité détaillé" className="shadow-2 md:shadow-3">
                         
@@ -426,7 +430,7 @@ export default function Dashboard({
                             )}
                         </Card>
                     </div>
-
+ )}
 <div className="col-12 lg:col-4">
     <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
         <div className="flex flex-column gap-2 md:gap-3">
@@ -439,38 +443,64 @@ export default function Dashboard({
                         const cleanName = user.name?.trim().replace(/\.$/, "") || "";
 
                         return (
-                            <Link
-                                key={user.id}
-                                href={`/ad/activity-logs/user/${user.id}`}
-                                className="no-underline text-inherit"
-                            >
-                                <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 hover:bg-gray-100 transition-colors transition-duration-200 cursor-pointer">
-                                    <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
-                                        <div
-                                            className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
-                                                idx === 0
-                                                    ? 'bg-yellow-500'
-                                                    : idx === 1
-                                                    ? 'bg-gray-400'
-                                                    : idx === 2
-                                                    ? 'bg-orange-600'
-                                                    : 'bg-indigo-500'
-                                            }`}
-                                        >
-                                            {idx + 1}
-                                        </div>
-                                        <div className="flex-1 overflow-hidden">
-                                            <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
-                                                {cleanName}
-                                            </p>
-                                            <p className="text-xs md:text-sm text-600 m-0">
-                                                {user.count} activités
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
-                                </div>
-                            </Link>
+                           
+                        <div className="col-12 lg:col-4">
+  <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
+    <div className="flex flex-column gap-2 md:gap-3">
+      {safeTopPerformers.length > 0 ? (
+        safeTopPerformers
+          .filter(user => user.name && user.name.trim().toLowerCase() !== "système")
+          .slice(0, 5)
+          .map((user, idx) => {
+            const cleanName = user.name?.trim().replace(/\.$/, "") || "";
+            const blockContent = (
+              <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 hover:bg-gray-100 transition-colors transition-duration-200 cursor-pointer">
+                <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
+                  <div
+                    className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
+                      idx === 0
+                        ? "bg-yellow-500"
+                        : idx === 1
+                        ? "bg-gray-400"
+                        : idx === 2
+                        ? "bg-orange-600"
+                        : "bg-indigo-500"
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
+                      {cleanName}
+                    </p>
+                    <p className="text-xs md:text-sm text-600 m-0">
+                      {user.count} activités
+                    </p>
+                  </div>
+                </div>
+                {canview && <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>}
+              </div>
+            );
+
+            return canview ? (
+              <Link key={user.id} href={`/ad/activity-logs/user/${user.id}`} className="no-underline text-inherit">
+                {blockContent}
+              </Link>
+            ) : (
+              <div key={user.id}>{blockContent}</div>
+            );
+          })
+      ) : (
+        <div className="text-center p-4">
+          <i className="pi pi-users text-4xl text-300 mb-2"></i>
+          <p className="text-600 text-sm">Aucun utilisateur actif</p>
+        </div>
+      )}
+    </div>
+  </Card>
+</div>
+          
+                            
                         );
                     })
             ) : (

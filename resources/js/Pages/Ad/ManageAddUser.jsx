@@ -731,7 +731,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
             )}
             <div className="flex align-items-center gap-2 mb-2">
               <i className="pi pi-sitemap text-600"></i>
-              <span className="text-700">{selectedDirection?.name}</span>
+              <span className="text-700">{selectedDirection?.nom}</span>
             </div>
             <div className="flex align-items-center gap-2">
               <i className="pi pi-lock text-600"></i>
