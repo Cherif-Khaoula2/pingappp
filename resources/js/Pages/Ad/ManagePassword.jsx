@@ -6,6 +6,7 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
+import { Message } from "primereact/message";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { router } from "@inertiajs/react";
 
@@ -25,32 +26,33 @@ export default function ResetUserPassword() {
   const [resetDialog, setResetDialog] = useState({ visible: false, sam: null, userName: null });
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [resetSuccessDetails, setResetSuccessDetails] = useState(null);
-
-  // Contrôle d'affichage du mot de passe (uniquement pour le mode manuel)
   const [showManualPassword, setShowManualPassword] = useState(false);
-const [resetError, setResetError] = useState(null);
+  const [resetError, setResetError] = useState(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   // 🔹 Changement du mode de mot de passe
   const handlePasswordModeChange = (mode) => {
     setPasswordMode(mode);
+    setResetError(null); // Réinitialiser l'erreur
     if (mode === "auto") {
       const pwd = generatePassword();
       setNewPassword(pwd);
-      // En mode auto, pas besoin du toggle manuel
     } else {
       setNewPassword("");
-      setShowManualPassword(false); // Reset le toggle pour le mode manuel
+      setShowManualPassword(false);
     }
   };
 
   // 🔹 Recherche d'un utilisateur
   const handleSearch = async () => {
     if (!search.trim()) {
-      alert("Veuillez saisir un SamAccountName");
+      setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
       return;
     }
 
     setLoading(true);
+    setError(null);
+    
     try {
       const response = await axios.post("/ad/users/find", { search });
       if (response.data.success && Array.isArray(response.data.users)) {
@@ -65,11 +67,11 @@ const [resetError, setResetError] = useState(null);
         setError(null);
       } else {
         setUsers([]);
-        setError("Aucun utilisateur trouvé.");
+        setError("Aucun utilisateur trouvé pour cette recherche.");
       }
     } catch (err) {
       console.error("Erreur lors de la recherche :", err);
-      setError("Erreur lors de la recherche de l'utilisateur.");
+      setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
       setUsers([]);
     } finally {
       setLoading(false);
@@ -79,7 +81,7 @@ const [resetError, setResetError] = useState(null);
   // 🔹 Ouvrir le dialog de réinitialisation
   const handleResetClick = (user) => {
     setResetDialog({ visible: true, sam: user.sam, userName: user.name });
-    // Préparer mot de passe si mode auto
+    setResetError(null);
     if (passwordMode === "auto") {
       setNewPassword(generatePassword());
     } else {
@@ -88,19 +90,21 @@ const [resetError, setResetError] = useState(null);
     }
   };
 
- // 🔹 Confirmer la réinitialisation
+  // 🔹 Confirmer la réinitialisation
   const confirmResetPassword = () => {
     if (!newPassword.trim()) {
-      alert("Veuillez saisir un mot de passe.");
+      setResetError("Veuillez saisir un mot de passe.");
       return;
     }
+
+    setIsResetting(true);
+    setResetError(null);
 
     router.post(
       "/ad/users/reset-password",
       { sam: resetDialog.sam, new_password: newPassword, user_name: resetDialog.userName },
       {
         onSuccess: () => {
-          // Préparer détails du dialog de succès
           setResetSuccessDetails({
             name: resetDialog.userName,
             sam: resetDialog.sam,
@@ -109,16 +113,25 @@ const [resetError, setResetError] = useState(null);
           setShowSuccessDialog(true);
           setResetDialog({ visible: false, sam: null, userName: null });
           setNewPassword("");
+          setIsResetting(false);
         },
         onError: (errors) => {
-  const errorMsg =
-    errors?.message ||
-    "Erreur lors de la réinitialisation du mot de passe. Vérifiez le mot de passe et réessayez.Le mot de passe doit contenir au moins 8 caractères  avec une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)";
-  setResetError(errorMsg);
-},
-
+          const errorMsg =
+            errors?.message ||
+            "Erreur lors de la réinitialisation du mot de passe. Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).";
+          setResetError(errorMsg);
+          setIsResetting(false);
+        },
       }
     );
+  };
+
+  // 🔹 Copier le mot de passe dans le presse-papiers
+  const copyPasswordToClipboard = () => {
+    if (resetSuccessDetails?.password) {
+      navigator.clipboard.writeText(resetSuccessDetails.password);
+      // Optionnel: ajouter un toast de confirmation
+    }
   };
 
   // 🔹 Templates pour la table
@@ -129,16 +142,20 @@ const [resetError, setResetError] = useState(null);
         <div
           className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
           style={{
-            width: "40px",
-            height: "40px",
+            width: "45px",
+            height: "45px",
             background: "linear-gradient(135deg, #6366f1, #a855f7)",
+            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
           }}
         >
           {initial}
         </div>
         <div>
-          <div className="font-medium text-900">{rowData.name}</div>
-          <div className="text-sm text-600">{rowData.sam}</div>
+          <div className="font-semibold text-900 text-lg">{rowData.name}</div>
+          <div className="text-sm text-600 flex align-items-center gap-1">
+            <i className="pi pi-id-card" style={{ fontSize: "0.8rem" }}></i>
+            {rowData.sam}
+          </div>
         </div>
       </div>
     );
@@ -146,7 +163,7 @@ const [resetError, setResetError] = useState(null);
 
   const emailTemplate = (rowData) => (
     <div className="flex align-items-center gap-2">
-      <i className="pi pi-envelope text-600"></i>
+      <i className="pi pi-envelope text-primary"></i>
       <span className="text-900">{rowData.email || "—"}</span>
     </div>
   );
@@ -155,10 +172,11 @@ const [resetError, setResetError] = useState(null);
     <Button
       icon="pi pi-refresh"
       label="Réinitialiser"
-      text
+      severity="warning"
       size="small"
-      severity="info"
+      outlined
       onClick={() => handleResetClick(rowData)}
+      className="custom-reset-btn"
     />
   );
 
@@ -166,187 +184,257 @@ const [resetError, setResetError] = useState(null);
     <Layout>
       <div className="grid">
         <div className="col-12">
-          <Card className="shadow-2">
+          <Card className="shadow-3 border-round-xl">
             <DataTable
               value={users}
               stripedRows
               responsiveLayout="scroll"
+              className="custom-datatable"
               header={
-                <div className="flex flex-column gap-3">
+                <div className="flex flex-column gap-4">
                   <div className="flex align-items-center gap-3">
                     <div
-                      className="inline-flex align-items-center justify-content-center bg-blue-100 border-circle"
-                      style={{ width: "48px", height: "48px" }}
+                      className="inline-flex align-items-center justify-content-center border-circle"
+                      style={{ 
+                        width: "60px", 
+                        height: "60px",
+                        background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                        boxShadow: "0 8px 20px rgba(99, 102, 241, 0.4)"
+                      }}
                     >
-                      <i className="pi pi-key text-3xl text-blue-600"></i>
+                      <i className="pi pi-key text-white" style={{ fontSize: "1.8rem" }}></i>
                     </div>
                     <div>
-                      <h1 className="text-900 text-3xl font-bold m-0">
+                      <h1 className="text-900 text-3xl font-bold m-0 mb-1">
                         Réinitialisation des mots de passe
                       </h1>
-                      <p className="text-600 mt-1 m-0">
-                        Recherchez un utilisateur et réinitialisez son mot de passe
+                      <p className="text-600 m-0 text-lg">
+                        Recherchez un utilisateur Active Directory et réinitialisez son mot de passe
                       </p>
                     </div>
                   </div>
 
-                  <div className="p-inputgroup">
-                    <span className="p-inputgroup-addon">
-                      <i className="pi pi-search"></i>
+                  <div className="p-inputgroup" style={{ height: "52px" }}>
+                    <span className="p-inputgroup-addon bg-primary">
+                      <i className="pi pi-search text-white"></i>
                     </span>
                     <InputText
-                      placeholder="Rechercher un utilisateur dans AD..."
+                      placeholder="Nom d'utilisateur ou SamAccountName..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                      style={{ height: "48px" }}
+                      style={{ height: "52px", fontSize: "1.05rem" }}
                     />
                     <Button
-                      label={loading ? "Chargement..." : "Rechercher"}
+                      label={loading ? "Recherche..." : "Rechercher"}
                       icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
                       onClick={handleSearch}
                       disabled={loading}
-                      style={{ background: "linear-gradient(135deg, #6366f1, #4f46e5)", border: "none" }}
+                      style={{ 
+                        background: "linear-gradient(135deg, #6366f1, #4f46e5)", 
+                        border: "none",
+                        height: "52px",
+                        minWidth: "150px",
+                        fontWeight: "600"
+                      }}
                     />
                   </div>
 
                   {error && (
-                    <div className="p-3 bg-red-50 border-round flex align-items-center gap-2">
-                      <i className="pi pi-exclamation-triangle text-red-600"></i>
-                      <span className="text-red-700">{error}</span>
-                    </div>
+                    <Message 
+                      severity="error" 
+                      text={error}
+                      style={{ width: "100%" }}
+                      className="custom-error-message"
+                    />
                   )}
                 </div>
               }
               emptyMessage={
-                <div className="text-center py-6">
-                  <i className="pi pi-users text-400 mb-3" style={{ fontSize: "3rem" }}></i>
-                  <h3 className="text-900 text-xl font-medium mb-2">Aucun utilisateur affiché</h3>
-                  <p className="text-600">Recherchez un utilisateur Active Directory</p>
+                <div className="text-center py-8">
+                  <div className="mb-4">
+                    <i className="pi pi-users text-400" style={{ fontSize: "4rem" }}></i>
+                  </div>
+                  <h3 className="text-900 text-2xl font-semibold mb-2">Aucun utilisateur affiché</h3>
+                  <p className="text-600 text-lg">Utilisez la barre de recherche pour trouver un utilisateur</p>
                 </div>
               }
             >
-              <Column field="name" header="Utilisateur" body={nameTemplate} style={{ minWidth: "250px" }} />
-              <Column field="email" header="Email" body={emailTemplate} style={{ minWidth: "220px" }} />
-              <Column header="Action" body={actionTemplate} style={{ minWidth: "180px" }} />
+              <Column field="name" header="Utilisateur" body={nameTemplate} style={{ minWidth: "280px" }} />
+              <Column field="email" header="Email" body={emailTemplate} style={{ minWidth: "250px" }} />
+              <Column header="Action" body={actionTemplate} style={{ minWidth: "200px" }} />
             </DataTable>
           </Card>
         </div>
       </div>
 
-      {/* Popup réinitialisation */}
+      {/* Dialog de réinitialisation */}
       <Dialog
         visible={resetDialog.visible}
-        onHide={() => setResetDialog({ visible: false, sam: null, userName: null })}
-        header={<span className="text-xl font-bold">Réinitialiser le mot de passe</span>}
-        style={{ width: "450px" }}
+        onHide={() => {
+          setResetDialog({ visible: false, sam: null, userName: null });
+          setResetError(null);
+        }}
         modal
-        draggable={false}
+        dismissableMask
+        style={{ width: "500px" }}
+        className="custom-dialog"
       >
-        <div className="py-3">
-          <p className="text-700 text-lg mb-3">Entrez un nouveau mot de passe pour :</p>
-          <div className="p-3 bg-gray-50 border-round mb-4">
+        <div className="p-4">
+          {/* Header personnalisé */}
+          <div className="text-center mb-4">
+            <div
+              className="inline-flex align-items-center justify-content-center border-circle mb-3"
+              style={{
+                width: "70px",
+                height: "70px",
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                boxShadow: "0 8px 20px rgba(245, 158, 11, 0.3)",
+              }}
+            >
+              <i className="pi pi-key text-white" style={{ fontSize: "2rem" }}></i>
+            </div>
+            <h2 className="text-900 font-bold text-2xl mb-2">Réinitialiser le mot de passe</h2>
+            <p className="text-600 text-lg">Définissez un nouveau mot de passe pour cet utilisateur</p>
+          </div>
+
+          {/* Infos utilisateur */}
+          <div className="p-3 bg-blue-50 border-round-lg mb-4 border-1 border-blue-200">
             <div className="flex align-items-center gap-2 mb-2">
-              <i className="pi pi-user text-600"></i>
-              <span className="font-semibold text-900">{resetDialog.userName}</span>
+              <i className="pi pi-user text-blue-600"></i>
+              <span className="font-semibold text-900 text-lg">{resetDialog.userName}</span>
             </div>
             <div className="flex align-items-center gap-2">
-              <i className="pi pi-id-card text-600"></i>
-              <span className="text-600 text-sm">{resetDialog.sam}</span>
+              <i className="pi pi-id-card text-blue-600"></i>
+              <span className="text-600">{resetDialog.sam}</span>
             </div>
           </div>
 
-          {/* Choix du mode de mot de passe */}
+          {/* Choix du mode */}
           <div className="mb-4">
-            <label className="block text-900 font-medium mb-2">Mode de mot de passe</label>
-            <div className="flex gap-3">
-              <div
-                onClick={() => handlePasswordModeChange("auto")}
-                className={`p-3 border-2 border-round cursor-pointer flex-1 text-center ${
-                  passwordMode === "auto" ? "border-green-500 bg-green-50 shadow-3" : "border-300 hover:border-400 hover:bg-gray-50"
-                }`}
-              >
-                <i className="pi pi-sparkles text-green-600 mr-2"></i>
-                <span className="font-semibold">Automatique</span>
+            <label className="block text-900 font-semibold mb-3 text-lg">Mode de génération</label>
+            <div className="grid">
+              <div className="col-6">
+                <div
+                  onClick={() => handlePasswordModeChange("auto")}
+                  className={`p-3 border-2 border-round-lg cursor-pointer text-center transition-all ${
+                    passwordMode === "auto"
+                      ? "border-green-500 bg-green-50 shadow-4"
+                      : "border-300 hover:border-400 hover:bg-gray-50 hover:shadow-2"
+                  }`}
+                  style={{ height: "100%" }}
+                >
+                  <i className="pi pi-sparkles text-green-600 text-2xl mb-2"></i>
+                  <div className="font-semibold text-900">Automatique</div>
+                  <small className="text-600">Généré par le système</small>
+                </div>
               </div>
-              <div
-                onClick={() => handlePasswordModeChange("manual")}
-                className={`p-3 border-2 border-round cursor-pointer flex-1 text-center ${
-                  passwordMode === "manual" ? "border-orange-500 bg-orange-50 shadow-3" : "border-300 hover:border-400 hover:bg-gray-50"
-                }`}
-              >
-                <i className="pi pi-pencil text-orange-600 mr-2"></i>
-                <span className="font-semibold">Manuel</span>
+              <div className="col-6">
+                <div
+                  onClick={() => handlePasswordModeChange("manual")}
+                  className={`p-3 border-2 border-round-lg cursor-pointer text-center transition-all ${
+                    passwordMode === "manual"
+                      ? "border-orange-500 bg-orange-50 shadow-4"
+                      : "border-300 hover:border-400 hover:bg-gray-50 hover:shadow-2"
+                  }`}
+                  style={{ height: "100%" }}
+                >
+                  <i className="pi pi-pencil text-orange-600 text-2xl mb-2"></i>
+                  <div className="font-semibold text-900">Manuel</div>
+                  <small className="text-600">Saisi manuellement</small>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Input mot de passe avec logique conditionnelle */}
-          <div className="mb-3">
-            <label className="block text-900 font-medium mb-2">
+          {/* Input mot de passe */}
+          <div className="mb-4">
+            <label className="block text-900 font-semibold mb-2 text-lg">
               {passwordMode === "auto" ? "Mot de passe généré" : "Nouveau mot de passe"}
             </label>
-            
+
             {passwordMode === "auto" ? (
-              // Mode automatique : champ en lecture seule avec bouton régénérer
               <div className="p-inputgroup">
                 <InputText
                   type="text"
-                  placeholder="Généré automatiquement"
                   value={newPassword}
                   disabled
-                  style={{ 
-                    height: "45px",
-                    backgroundColor: "#f8f9fa"
+                  style={{
+                    height: "50px",
+                    backgroundColor: "#f0fdf4",
+                    fontSize: "1.1rem",
                   }}
                   className="font-bold text-green-700"
                 />
                 <Button
                   icon="pi pi-refresh"
-                  className="p-button-outlined p-button-success"
+                  className="p-button-success"
                   onClick={() => setNewPassword(generatePassword())}
-                  tooltip="Régénérer le mot de passe"
+                  tooltip="Régénérer"
+                  style={{ height: "50px" }}
                 />
               </div>
             ) : (
-              // Mode manuel : champ modifiable avec bouton afficher/masquer
               <div className="p-inputgroup">
                 <InputText
                   type={showManualPassword ? "text" : "password"}
                   placeholder="Saisissez le mot de passe..."
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ height: "45px" }}
+                  style={{ height: "50px", fontSize: "1.05rem" }}
                 />
                 <Button
                   icon={showManualPassword ? "pi pi-eye-slash" : "pi pi-eye"}
-                  className="p-button-outlined"
+                  className="p-button-secondary"
                   onClick={() => setShowManualPassword((s) => !s)}
-                  tooltip={showManualPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  tooltip={showManualPassword ? "Masquer" : "Afficher"}
+                  style={{ height: "50px" }}
                 />
               </div>
             )}
-            
-          
-          </div>
-        </div>
-{resetError && (
-  <div className="p-3 bg-red-50 border-round flex align-items-center gap-2 mb-3">
-    <i className="pi pi-exclamation-triangle text-red-600"></i>
-    <span className="text-red-700 font-medium">{resetError}</span>
-  </div>
-)}
 
-        <div className="flex justify-content-end gap-2 mt-4">
-          
-          <Button
-            label="Annuler"
-            icon="pi pi-times"
-            outlined
-            onClick={() => setResetDialog({ visible: false, sam: null, userName: null })}
-          />
-          
-           <Button label="Confirmer" icon="pi pi-check" onClick={confirmResetPassword} />
+            <small className="text-600 block mt-2">
+              <i className="pi pi-info-circle mr-1"></i>
+              Minimum 8 caractères avec majuscule, minuscule, chiffre et caractère spécial
+            </small>
+          </div>
+
+          {resetError && (
+            <Message
+              severity="error"
+              text={resetError}
+              style={{ width: "100%" }}
+              className="mb-3"
+            />
+          )}
+
+          {/* Boutons d'action */}
+          <div className="flex gap-3 mt-4">
+            <Button
+              label="Annuler"
+              icon="pi pi-times"
+              outlined
+              severity="secondary"
+              onClick={() => {
+                setResetDialog({ visible: false, sam: null, userName: null });
+                setResetError(null);
+              }}
+              className="flex-1"
+              style={{ height: "50px" }}
+            />
+            <Button
+              label={isResetting ? "Réinitialisation..." : "Confirmer"}
+              icon={isResetting ? "pi pi-spin pi-spinner" : "pi pi-check"}
+              onClick={confirmResetPassword}
+              disabled={isResetting}
+              className="flex-1"
+              style={{ 
+                height: "50px",
+                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                border: "none"
+              }}
+            />
+          </div>
         </div>
       </Dialog>
 
@@ -354,64 +442,150 @@ const [resetError, setResetError] = useState(null);
       <Dialog
         visible={showSuccessDialog}
         onHide={() => setShowSuccessDialog(false)}
-        header={
-          <div className="flex align-items-center gap-2">
-            <i className="pi pi-check-circle text-green-600 text-2xl"></i>
-            <span>Mot de passe réinitialisé avec succès !</span>
-          </div>
-        }
-        style={{ width: "500px" }}
         modal
+        dismissableMask
+        style={{ width: "550px" }}
+        className="custom-dialog"
       >
         {resetSuccessDetails && (
-          <div className="py-3">
+          <div className="p-5">
+            {/* Icône de succès */}
             <div className="text-center mb-4">
               <div
-                className="inline-flex align-items-center justify-content-center bg-green-100 border-circle mb-3"
-                style={{ width: "80px", height: "80px" }}
+                className="inline-flex align-items-center justify-content-center border-circle mb-3"
+                style={{
+                  width: "90px",
+                  height: "90px",
+                  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                  boxShadow: "0 8px 25px rgba(16, 185, 129, 0.35)",
+                }}
               >
-                <i className="pi pi-check text-4xl text-green-600"></i>
+                <i className="pi pi-check text-white" style={{ fontSize: "3rem" }}></i>
               </div>
-              <h3 className="text-900 text-xl font-bold mb-2">Réinitialisation réussie !</h3>
-              <p className="text-600">Le mot de passe a été mis à jour dans Active Directory.</p>
+              <h2 className="text-900 font-bold text-2xl mb-2">Réinitialisation réussie !</h2>
+              <p className="text-600 text-lg">Le mot de passe a été mis à jour dans Active Directory</p>
             </div>
 
             <Divider />
 
-            <div className="surface-50 border-round p-4">
-              <div className="flex align-items-start gap-3 mb-3">
+            {/* Détails */}
+            <div className="surface-100 border-round-lg p-4 mb-4">
+              <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
                 <i className="pi pi-user text-primary text-xl mt-1"></i>
-                <div>
-                  <div className="text-500 text-sm mb-1">Nom complet</div>
-                  <div className="text-900 font-semibold">{resetSuccessDetails.name}</div>
+                <div className="flex-1">
+                  <div className="text-500 text-sm mb-1 font-medium">Nom complet</div>
+                  <div className="text-900 font-semibold text-lg">{resetSuccessDetails.name}</div>
                 </div>
               </div>
 
               <div className="flex align-items-start gap-3 mb-3">
                 <i className="pi pi-id-card text-primary text-xl mt-1"></i>
-                <div>
-                  <div className="text-500 text-sm mb-1">Nom d'utilisateur</div>
-                  <div className="text-900 font-semibold">{resetSuccessDetails.sam}</div>
+                <div className="flex-1">
+                  <div className="text-500 text-sm mb-1 font-medium">Nom d'utilisateur</div>
+                  <div className="text-900 font-semibold text-lg">{resetSuccessDetails.sam}</div>
                 </div>
               </div>
 
               {resetSuccessDetails.password && (
-                <div className="flex align-items-start gap-3 p-3 bg-yellow-50 border-round border-1 border-yellow-200">
-                  <i className="pi pi-lock text-yellow-700 text-xl mt-1"></i>
-                  <div className="flex-1">
-                    <div className="text-yellow-700 text-sm font-semibold mb-1">Mot de passe temporaire</div>
-                    <div className="text-900 font-bold text-lg mb-2">{resetSuccessDetails.password}</div>
-                    <small className="text-yellow-700 block">
-                      <i className="pi pi-exclamation-triangle mr-1"></i>
-                      Veuillez noter ce mot de passe et le communiquer à l'utilisateur
-                    </small>
+                <div className="p-3 bg-yellow-50 border-round-lg border-2 border-yellow-300">
+                  <div className="flex align-items-start gap-3">
+                    <i className="pi pi-lock text-yellow-700 text-xl mt-1"></i>
+                    <div className="flex-1">
+                      <div className="text-yellow-700 text-sm font-semibold mb-2">Mot de passe temporaire</div>
+                      <div className="flex align-items-center gap-2 mb-3">
+                        <div className="text-900 font-bold text-xl bg-white px-3 py-2 border-round flex-1">
+                          {resetSuccessDetails.password}
+                        </div>
+                        <Button
+                          icon="pi pi-copy"
+                          outlined
+                          severity="warning"
+                          onClick={copyPasswordToClipboard}
+                          tooltip="Copier"
+                          style={{ height: "45px" }}
+                        />
+                      </div>
+                      <div className="flex align-items-start gap-2 text-yellow-700">
+                        <i className="pi pi-exclamation-triangle mt-1"></i>
+                        <small className="font-medium">
+                          Veuillez noter ce mot de passe et le communiquer à l'utilisateur de manière sécurisée
+                        </small>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Bouton OK */}
+            <Button
+              label="OK, j'ai compris"
+              icon="pi pi-check"
+              onClick={() => setShowSuccessDialog(false)}
+              severity="success"
+              className="w-full"
+              style={{ 
+                height: "55px", 
+                fontSize: "1.1rem",
+                fontWeight: "600"
+              }}
+            />
           </div>
         )}
       </Dialog>
+
+      <style jsx>{`
+        .custom-datatable :global(.p-datatable-header) {
+          background: var(--surface-50);
+          border-radius: 12px 12px 0 0;
+          padding: 1.5rem;
+        }
+
+        .custom-datatable :global(.p-datatable-thead > tr > th) {
+          background: var(--primary-50);
+          color: var(--primary-700);
+          font-weight: 600;
+          font-size: 1rem;
+        }
+
+        .custom-datatable :global(.p-datatable-tbody > tr) {
+          transition: all 0.2s ease;
+        }
+
+        .custom-datatable :global(.p-datatable-tbody > tr:hover) {
+          background: var(--surface-100);
+          transform: scale(1.01);
+        }
+
+        :global(.custom-dialog .p-dialog-content) {
+          padding: 0 !important;
+          border-radius: 12px;
+        }
+
+        :global(.custom-dialog .p-dialog-header) {
+          display: none;
+        }
+
+        :global(.custom-reset-btn:hover) {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+        }
+
+        :global(.custom-error-message) {
+          animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
