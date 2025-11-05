@@ -13,6 +13,8 @@ use Symfony\Component\Mime\Email;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\AdHiddenAccount;
+use App\Models\Dn;
+
 class AdUserController extends Controller
 {
     use LogsAdActivity;
@@ -492,36 +494,45 @@ public function managePassword()
 {
     return inertia('Ad/ManagePassword');
 }
+
 public function manageAddUser()
 {
-    // Page React pour ajouter un utilisateur AD
-    return inertia('Ad/ManageAddUser');
+    $directions = Dn::select('id', 'nom', 'path')
+        ->orderBy('nom', 'asc')
+        ->get();
+    
+    return inertia('Ad/ManageAddUser', [
+        'directions' => $directions
+    ]);
 }
-
 public function createAdUser(Request $request)
-{ $this->authorize('addaduser'); 
+{ 
+    $this->authorize('addaduser'); 
+    
     $request->validate([
         'name' => 'required|string',
         'sam' => [
-    'required',
-    'max:25',
-    'regex:/^[A-Za-z\.]+$/',
-],
-
+            'required',
+            'max:25',
+            'regex:/^[A-Za-z\.]+$/',
+        ],
         'email' => 'nullable|email',
         'logmail' => 'required|string',
-        'password'   => [
-        'required',
-        'string',
-        'min:8',
-        'max:128',
-       'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
-    ],
+        'password' => [
+            'required',
+            'string',
+            'min:8',
+            'max:128',
+            'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
+        ],
+        'direction_id' => 'required|exists:directions,id', // ✅ Validation de la direction
     ], [
-    'password.required' => 'Le mot de passe est obligatoire',
-    'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
-    'password.regex' => 'Le mot de passe doit contenir au moins : une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)',
-]);
+        'password.required' => 'Le mot de passe est obligatoire',
+        'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
+        'password.regex' => 'Le mot de passe doit contenir au moins : une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)',
+        'direction_id.required' => 'La direction est obligatoire',
+        'direction_id.exists' => 'La direction sélectionnée n\'existe pas',
+    ]);
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
@@ -540,12 +551,17 @@ public function createAdUser(Request $request)
     $email = $request->input('email');
     $logmail = $request->input('logmail');
     $userPassword = $request->input('password');
-    $ouPath = $request->input('ou_path');
-    $accountType = $request->input('accountType'); 
-$userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
-$emailAddress = $accountType === "AD+Exchange" ? $email : null;
+    $directionId = $request->input('direction_id');
+    $accountType = $request->input('accountType');
+    
+    // ✅ Récupérer le path depuis la base de données
+    $direction = Direction::findOrFail($directionId);
+    $ouPath = $direction->path;
+    
+    $userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
+    $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
-// ✅ Vérification si SamAccountName existe déjà
+    // ✅ Vérification si SamAccountName existe déjà
     $checkCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; Get-ADUser -Filter {SamAccountName -eq '$sam'} | Select-Object SamAccountName\"";
 
     $sshOptions = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'LogLevel=ERROR'];
@@ -565,19 +581,18 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
         ], 409);
     }
 
-    // ✅ Commande AD exécutée directement (sans préfixe powershell/import)
-   $adCommand = "
-    New-ADUser -Name '$name' `
-        -SamAccountName '$sam' `
-        -UserPrincipalName '$userPrincipalName' `
-        -EmailAddress '$emailAddress' `
-        -Path '$ouPath' `
-        -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
-        -Enabled \$true;
-    Write-Output 'User created successfully';
-";
+    // ✅ Commande AD exécutée directement
+    $adCommand = "
+        New-ADUser -Name '$name' `
+            -SamAccountName '$sam' `
+            -UserPrincipalName '$userPrincipalName' `
+            -EmailAddress '$emailAddress' `
+            -Path '$ouPath' `
+            -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
+            -Enabled \$true;
+        Write-Output 'User created successfully';
+    ";
 
-    // ✅ Préparation de la commande SSH
     $command = $keyPath && file_exists($keyPath)
         ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
         : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
@@ -593,7 +608,7 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
         $output = trim($process->getOutput());
 
-        // ✅ Log de succès
+        // ✅ Log de succès avec le nom de la direction
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -601,10 +616,12 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
             success: true,
             additionalDetails: [
                 'email' => $email,
+                'direction' => $direction->name,
                 'method' => 'Direct AD over SSH'
             ]
         );
- // ✉️ Envoi de notification avant le return
+        
+        // ✉️ Envoi de notification
         $this->sendAdUserCreationNotification(
             $request->user(),
             [
@@ -612,9 +629,11 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
                 'sam' => $sam,
                 'email' => $email,
                 'ouPath' => $ouPath,
+                'directionName' => $direction->name, // ✅ Passer le nom
                 'accountType' => $accountType
             ]
         );
+        
         return response()->json([
             'success' => true,
             'message' => 'Utilisateur créé avec succès.',
@@ -624,7 +643,6 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
     } catch (\Throwable $e) {
         \Log::error('createUserAd error: ' . $e->getMessage());
 
-        // ❌ Log de l’échec
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -635,21 +653,39 @@ $emailAddress = $accountType === "AD+Exchange" ? $email : null;
 
         return response()->json([
             'success' => false,
-            'message' => 'Erreur lors de la création de l’utilisateur : ' . $e->getMessage(),
+            'message' => 'Erreur lors de la création de l\'utilisateur : ' . $e->getMessage(),
         ], 500);
     }
 }
+public function getDirections()
+{
+    try {
+        $directions = Dn::select('id', 'nom', 'path')
+            ->orderBy('nom', 'asc')
+            ->get();
 
+        return response()->json([
+            'success' => true,
+            'directions' => $directions
+        ]);
+    } catch (\Throwable $e) {
+        \Log::error('Erreur lors de la récupération des directions: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors du chargement des directions',
+            'directions' => []
+        ], 500);
+    }
+}
 protected function sendAdUserCreationNotification($creator, $newUser)
 {
     $usersToNotify = User::permission('superviserusers')->get();
 
-    // ✅ Ajouter le créateur seulement s'il n'est pas déjà dans la liste
     if (!$usersToNotify->contains('id', $creator->id)) {
         $usersToNotify->push($creator);
     }
 
-    // 🔍 Filtrer les utilisateurs sans email
     $usersToNotify = $usersToNotify->filter(function($user) {
         if (!$user->email) {
             \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé.");
@@ -658,14 +694,12 @@ protected function sendAdUserCreationNotification($creator, $newUser)
         return true;
     });
 
-    // ⚙️ Configurer le transport SMTP
     $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&verify_peer=false');
     $mailer = new SymfonyMailer($transport);
 
     foreach ($usersToNotify as $user) {
         $firstName = $user->first_name ?? '';
         $lastName = $user->last_name ?? '';
-        $lien = '#';
 
        $email = (new Email())
             ->from('TOSYS <contact@tosys.sarpi-dz.com>')
@@ -679,7 +713,6 @@ protected function sendAdUserCreationNotification($creator, $newUser)
                             👤 <strong>Création d'un nouvel utilisateur Active Directory</strong>
                         </p>
                     </div>
-                   
 
                     <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a créé un nouveau compte AD :</p>
 
@@ -697,12 +730,9 @@ protected function sendAdUserCreationNotification($creator, $newUser)
                             <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($newUser['email'] ?? '-') . "</td>
                         </tr>
                         <tr>
-                        <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Direction :</strong></td>
-                         <td style='padding: 10px; border: 1px solid #dee2e6;'>
-                                   " . htmlspecialchars($this->extractOuName($newUser['ouPath'] ?? '-')) . "
-                            </td>
-                            </tr>
-
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Direction :</strong></td>
+                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . htmlspecialchars($newUser['directionName'] ?? '-') . "</td>
+                        </tr>
                         <tr style='background-color: #f8f9fa;'>
                             <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Type de compte :</strong></td>
                             <td style='padding: 10px; border: 1px solid #dee2e6; color: #4B6CB7; font-weight: bold;'>
