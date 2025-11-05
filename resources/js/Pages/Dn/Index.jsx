@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { router ,Head} from '@inertiajs/react';
+import { router, Head } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -9,26 +9,23 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
-import { Message } from 'primereact/message';
 import { Divider } from 'primereact/divider';
 import { Tag } from 'primereact/tag';
+import { Chip } from 'primereact/chip';
 import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function DnIndex({ dns, users }) {
     const [nom, setNom] = useState('');
     const [path, setPath] = useState('');
     const [visible, setVisible] = useState(false);
-    const [editVisible, setEditVisible] = useState(false);
-    const [selectedDn, setSelectedDn] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedDns, setSelectedDns] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const toast = useRef(null);
 
-    // États pour les dialogs de confirmation
     const [confirmDialog, setConfirmDialog] = useState({
         visible: false,
-        type: null, // 'edit', 'delete', 'assign'
+        type: null,
         data: null,
     });
 
@@ -38,11 +35,16 @@ export default function DnIndex({ dns, users }) {
         data: null,
     });
 
-    // ✅ Notifications
+    // États pour le dialog d'édition avancée
+    const [editDialog, setEditDialog] = useState({
+        visible: false,
+        dn: null,
+        selectedUsers: [],
+    });
+
     const showSuccess = (msg) => toast.current.show({ severity: 'success', summary: 'Succès', detail: msg, life: 3000 });
     const showError = (msg) => toast.current.show({ severity: 'error', summary: 'Erreur', detail: msg, life: 3000 });
 
-    // ✅ Création
     const createDn = () => {
         if (!nom || !path) return showError('Veuillez remplir tous les champs.');
         setIsSubmitting(true);
@@ -62,31 +64,36 @@ export default function DnIndex({ dns, users }) {
         });
     };
 
-    // ✅ Ouvrir dialog de confirmation pour modification
+    // ✅ Ouvrir le dialog d'édition avancée
     const handleEditClick = (dn) => {
-        setConfirmDialog({
+        const currentUserIds = dn.users ? dn.users.map(u => u.id) : [];
+        setEditDialog({
             visible: true,
-            type: 'edit',
-            data: { ...dn }
+            dn: { ...dn },
+            selectedUsers: currentUserIds,
         });
     };
 
-    // ✅ Confirmer la mise à jour
+    // ✅ Confirmer la mise à jour avec affectations
     const confirmUpdate = () => {
-        if (!confirmDialog.data) return;
+        if (!editDialog.dn) return;
         setIsSubmitting(true);
 
-        router.put(`/dns/${confirmDialog.data.id}`, { 
-            nom: confirmDialog.data.nom, 
-            path: confirmDialog.data.path 
+        router.put(`/dns/${editDialog.dn.id}`, { 
+            nom: editDialog.dn.nom, 
+            path: editDialog.dn.path,
+            user_ids: editDialog.selectedUsers
         }, {
             onSuccess: () => {
                 setSuccessDialog({
                     visible: true,
                     type: 'edit',
-                    data: confirmDialog.data
+                    data: {
+                        ...editDialog.dn,
+                        users: users.filter(u => editDialog.selectedUsers.includes(u.id))
+                    }
                 });
-                setConfirmDialog({ visible: false, type: null, data: null });
+                setEditDialog({ visible: false, dn: null, selectedUsers: [] });
                 setIsSubmitting(false);
             },
             onError: () => {
@@ -96,7 +103,6 @@ export default function DnIndex({ dns, users }) {
         });
     };
 
-    // ✅ Ouvrir dialog de confirmation pour suppression
     const handleDeleteClick = (dn) => {
         setConfirmDialog({
             visible: true,
@@ -105,7 +111,6 @@ export default function DnIndex({ dns, users }) {
         });
     };
 
-    // ✅ Confirmer la suppression
     const confirmDelete = () => {
         if (!confirmDialog.data) return;
         setIsSubmitting(true);
@@ -127,7 +132,6 @@ export default function DnIndex({ dns, users }) {
         });
     };
 
-    // ✅ Ouvrir dialog de confirmation pour affectation
     const handleAssignClick = () => {
         if (!selectedUser || selectedDns.length === 0) {
             return showError('Veuillez sélectionner un utilisateur et au moins un DN.');
@@ -143,7 +147,6 @@ export default function DnIndex({ dns, users }) {
         });
     };
 
-    // ✅ Confirmer l'affectation
     const confirmAssign = () => {
         setIsSubmitting(true);
 
@@ -166,51 +169,58 @@ export default function DnIndex({ dns, users }) {
         });
     };
 
-    // ✅ Templates pour la table
-    const idTemplate = (rowData) => (
-        <div className="flex align-items-center gap-2">
-            <div
-                className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-                style={{
-                    width: "35px",
+
+    const nomTemplate = (rowData) => (
+        <div className="flex align-items-center gap-3">
+            <div 
+                className="inline-flex align-items-center justify-content-center border-circle"
+               style={{
+                     width: "35px",
                     height: "35px",
-                    background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                    fontSize: "0.9rem"
+                    background: "linear-gradient(135deg, #e0f2fe, #bfdbfe)",
                 }}
             >
-                {rowData.id}
+                <i className="pi pi-folder text-primary text-xl"></i>
+            </div>
+            <div>
+                <span className="font-bold text-900 text-lg block mb-1">{rowData.nom}</span>
             </div>
         </div>
     );
 
-    const nomTemplate = (rowData) => (
-        <div className="flex align-items-center gap-2">
-            <i className="pi pi-folder text-primary text-xl"></i>
-            <span className="font-semibold text-900 text-lg">{rowData.nom}</span>
-        </div>
-    );
-
     const pathTemplate = (rowData) => (
-        <div className="flex align-items-center gap-2">
-            <i className="pi pi-map-marker text-600"></i>
-            <span className="text-600 font-mono text-sm">{rowData.path}</span>
+        <div className="">
+<code className="text-600 text-base font-bold">{rowData.path}</code>
         </div>
     );
 
     const usersTemplate = (rowData) => (
         <div className="flex flex-wrap gap-2">
             {rowData.users && rowData.users.length > 0 ? (
-                rowData.users.map((user, idx) => (
-                    <Tag 
-                        key={idx} 
-                        value={user.name} 
-                        severity="info"
-                        icon="pi pi-user"
-                        style={{ fontSize: "0.85rem" }}
-                    />
-                ))
+                <>
+                   
+                    {rowData.users.slice(0, 2).map((user, idx) => (
+                        <Tag 
+                            key={idx} 
+                            value={user.name} 
+                            severity="info"
+                            icon="pi pi-user"
+                            className="shadow-1"
+                        />
+                    ))}
+                    {rowData.users.length > 2 && (
+                        <Tag 
+                            value={`+${rowData.users.length - 2}`}
+                            severity="secondary"
+                            className="shadow-1"
+                        />
+                    )}
+                </>
             ) : (
-                <span className="text-500 italic">Aucun utilisateur</span>
+                <Chip 
+                    label="Non affecté" 
+                    className="bg-orange-50 text-orange-600"
+                />
             )}
         </div>
     );
@@ -222,9 +232,9 @@ export default function DnIndex({ dns, users }) {
                 rounded
                 outlined
                 severity="info"
-                tooltip="Modifier"
+                tooltip="Modifier et gérer les affectations"
                 tooltipOptions={{ position: 'top' }}
-                className="custom-action-btn"
+                className="hover-lift"
                 onClick={() => handleEditClick(rowData)}
             />
             <Button
@@ -234,7 +244,7 @@ export default function DnIndex({ dns, users }) {
                 severity="danger"
                 tooltip="Supprimer"
                 tooltipOptions={{ position: 'top' }}
-                className="custom-action-btn"
+                className="hover-lift"
                 onClick={() => handleDeleteClick(rowData)}
             />
         </div>
@@ -242,123 +252,130 @@ export default function DnIndex({ dns, users }) {
 
     return (
         <Layout>
-            <Head title="Périmètre Administrateur" />
+            <Head title="Gestion des DNs" />
             <Toast ref={toast} />
+            
             <div className="grid">
                 <div className="col-12">
-                    {/* Header Section */}
-    
-                     
-        <Card className="shadow-3 border-round-2xl p-4">
-            {/* 🟣 En-tête de la carte */}
-          <div className="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-4 mb-5">
+                    <Card className="shadow-4 border-round-3xl border-none">
+                        {/* En-tête moderne */}
+                        <div className="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-4 mb-5 pb-4 border-bottom-2 surface-border">
+                            <div className="flex align-items-center gap-4">
+                                <div
+                                    className="flex align-items-center justify-content-center border-circle shadow-4"
+                                    style={{
+                                        width: "70px",
+                                        height: "70px",
+                                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                    }}
+                                >
+                                    <i className="pi pi-sitemap text-white text-3xl"></i>
+                                </div>
+                                <div>
+                                    <h1 className="text-900 text-3xl font-bold m-0 mb-2">Gestion des DNs</h1>
+                                    <p className="text-600 m-0 text-base">
+                                        <i className="pi pi-info-circle mr-2"></i>
+                                        Administrez vos Nom du DN et leurs affectations
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                label="Nouveau DN"
+                                onClick={() => setVisible(true)}
+                                className="shadow-3 border-none text-white font-bold px-5 py-3 hover-lift"
+                                style={{
+                                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                    borderRadius: "14px",
+                                    fontSize: "1.05rem"
+                                }}
+                            />
+                        </div>
 
-    {/* 🟦 Logo + Titre */}
-    <div className="flex align-items-center gap-3">
-        <div
-            className="flex align-items-center justify-content-center border-circle shadow-3"
-            style={{
-                width: "55px",
-                height: "55px",
-                background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-                boxShadow: "0 6px 16px rgba(79, 70, 229, 0.25)",
-            }}
-        >
-            <i className="pi pi-sitemap text-white text-2xl"></i>
-        </div>
+                        {/* Section d'affectation rapide */}
+                        <div className="surface-50 border-round-2xl p-4 mb-5 shadow-1">
+                            <div className="flex align-items-center gap-2 mb-3">
+                                <h3 className="text-900 font-bold text-xl m-0">Affectation </h3>
+                            </div>
+                            <div className="grid formgrid">
+                                <div className="col-12 md:col-5">
+                                    <label className="block text-900 font-semibold mb-2 text-sm">
+                                        <i className="pi pi-user mr-2"></i>Utilisateur
+                                    </label>
+                                    <Dropdown
+                                        value={selectedUser}
+                                        options={users.map(u => ({ label: u.name, value: u.id }))}
+                                        onChange={(e) => setSelectedUser(e.value)}
+                                        placeholder="Choisir un utilisateur"
+                                        className="w-full"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+                                <div className="col-12 md:col-5">
+                                    <label className="block text-900 font-semibold mb-2 text-sm">
+                                        <i className="pi pi-sitemap mr-2"></i>DNs à affecter
+                                    </label>
+                                    <MultiSelect
+                                        value={selectedDns}
+                                        options={dns.map(d => ({
+                                            label: `${d.nom} (${d.path})`,
+                                            value: d.id
+                                        }))}
+                                        onChange={(e) => setSelectedDns(e.value)}
+                                        placeholder="Sélectionner des DNs"
+                                        display="chip"
+                                        className="w-full"
+                                        filter
+                                    />
+                                </div>
+                                <div className="col-12 md:col-2 flex align-items-end">
+                                    <Button
+                                        label="Affecter"
+                                        onClick={handleAssignClick}
+                                        className="w-full font-bold"
+                                        severity="success"
+                                        style={{ height: "48px" }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-        <div>
-            <h2 className="text-900 text-2xl font-bold m-0">Gestion des DNs</h2>
-            <p className="text-600 m-0 text-sm md:text-base">
-                Créez, modifiez et assignez des DNs à vos utilisateurs
-            </p>
-        </div>
-    </div>
-
-    {/* 🟩 Bouton d’action */}
-    <Button
-        label="Ajouter un DN"
-        icon="pi pi-plus"
-        onClick={() => setVisible(true)}
-        className="shadow-2 border-none text-white font-semibold px-4 py-3 md:px-5 md:py-3 transition-all duration-300"
-        style={{
-            background: "linear-gradient(135deg, #4f46e5, #6366f1)",
-            borderRadius: "12px",
-        }}
-    />
-</div>
-
-
-            {/* 🧩 Formulaire de sélection */}
-            <div className="grid formgrid mb-4">
-                <div className="col-12 md:col-4">
-                    <label className="block text-900 font-semibold mb-2">Utilisateur</label>
-                    <Dropdown
-                        value={selectedUser}
-                        options={users.map(u => ({ label: u.name, value: u.id }))}
-                        onChange={(e) => setSelectedUser(e.value)}
-                        placeholder="Sélectionner un utilisateur"
-                        className="w-full"
-                        filter
-                    />
-                </div>
-
-                <div className="col-12 md:col-6">
-                    <label className="block text-900 font-semibold mb-2">DNs à affecter</label>
-                    <MultiSelect
-                        value={selectedDns}
-                        options={dns.map(d => ({
-                            label: `${d.nom} (${d.path})`,
-                            value: d.id
-                        }))}
-                        onChange={(e) => setSelectedDns(e.value)}
-                        placeholder="Sélectionner un ou plusieurs DNs"
-                        display="chip"
-                        className="w-full"
-                        filter
-                    />
-                </div>
-
-                <div className="col-12 md:col-2 flex gap-2 align-items-end justify-content-end">
-                    <Button
-                        label="Affecter"
-                        onClick={handleAssignClick}
-                        className="w-full"
-                        style={{
-                            background: "linear-gradient(135deg, #10b981, #059669)",
-                            border: "none",
-                            fontWeight: "600"
-                        }}
-                    />
-                   
-                </div>
-            </div>
-
-            {/* 📋 Tableau des DNs */}
-            <DataTable
-                value={dns}
-                paginator
-                rows={6}
-                stripedRows
-                responsiveLayout="scroll"
-                className="custom-datatable"
-                emptyMessage={
-                    <div className="text-center py-8">
-                        <i className="pi pi-inbox text-400 text-5xl mb-4"></i>
-                        <h3 className="text-900 text-2xl font-semibold mb-2">Aucun DN disponible</h3>
-                        <p className="text-600 text-lg">Commencez par créer votre premier DN</p>
-                    </div>
-                }
-            >
-                <Column field="id" header="ID" body={idTemplate} style={{ width: "80px" }} />
-                <Column field="nom" header="Nom" body={nomTemplate} sortable style={{ minWidth: "200px" }} />
-                <Column field="path" header="Chemin" body={pathTemplate} sortable style={{ minWidth: "250px" }} />
-                <Column header="Utilisateurs" body={usersTemplate} style={{ minWidth: "250px" }} />
-                <Column header="Actions" body={actionsTemplate} style={{ width: "150px" }} />
-            </DataTable>
-        </Card>
-
-                 
+                        {/* Tableau moderne */}
+                        <DataTable
+                            value={dns}
+                            paginator
+                            rows={8}
+                            stripedRows
+                            className="modern-datatable"
+                            emptyMessage={
+                                <div className="text-center py-8">
+                                    <div 
+                                        className="inline-flex align-items-center justify-content-center border-circle mb-4"
+                                        style={{
+                                            width: "100px",
+                                            height: "100px",
+                                            background: "linear-gradient(135deg, #f3f4f6, #e5e7eb)"
+                                        }}
+                                    >
+                                        <i className="pi pi-inbox text-400 text-6xl"></i>
+                                    </div>
+                                    <h3 className="text-900 text-2xl font-bold mb-2">Aucun DN disponible</h3>
+                                    <p className="text-600 text-lg mb-4">Commencez par créer votre premier DN</p>
+                                    <Button 
+                                        label="Créer un DN" 
+                                        icon="pi pi-plus"
+                                        onClick={() => setVisible(true)}
+                                        className="shadow-2"
+                                    />
+                                </div>
+                            }
+                        >
+                            <Column field="nom" header="Nom du DN" body={nomTemplate} sortable style={{ minWidth: "250px" }} />
+                            <Column field="path" header="Chemin LDAP" body={pathTemplate} sortable style={{ minWidth: "300px" }} />
+                            <Column header="Utilisateurs affectés" body={usersTemplate} style={{ minWidth: "280px" }} />
+                            <Column header="Actions" body={actionsTemplate} style={{ width: "130px" }} />
+                        </DataTable>
+                    </Card>
                 </div>
             </div>
 
@@ -368,56 +385,57 @@ export default function DnIndex({ dns, users }) {
                 onHide={() => setVisible(false)}
                 modal
                 dismissableMask
-                style={{ width: "500px" }}
-                className="custom-dialog"
+                style={{ width: "600px" }}
+                className="modern-dialog"
             >
-                <div className="p-4">
-                    <div className="text-center mb-4">
+                <div className="p-5">
+                    <div className="text-center mb-5">
                         <div
-                            className="inline-flex align-items-center justify-content-center border-circle mb-3"
+                            className="inline-flex align-items-center justify-content-center border-circle mb-3 shadow-4"
                             style={{
-                                width: "70px",
-                                height: "70px",
-                                background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                                boxShadow: "0 8px 20px rgba(99, 102, 241, 0.3)",
+                                width: "90px",
+                                height: "90px",
+                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                             }}
                         >
-                            <i className="pi pi-plus text-white" style={{ fontSize: "2rem" }}></i>
+                            <i className="pi pi-plus text-white" style={{ fontSize: "2.5rem" }}></i>
                         </div>
-                        <h2 className="text-900 font-bold text-2xl mb-2">Ajouter un nouveau DN</h2>
-                        <p className="text-600 text-lg">Créez un nouveau Distinguished Name</p>
+                        <h2 className="text-900 font-bold text-3xl mb-2">Nouveau DN</h2>
+                        <p className="text-600 text-lg">Créez un nouveau Distinguished Name pour votre système</p>
                     </div>
 
-                    <div className="flex flex-column gap-4 mb-4">
+                    <div className="flex flex-column gap-4 mb-5">
                         <div>
-                            <label className="block text-900 font-semibold mb-2 text-lg">
-                                Nom du DN
+                            <label className="block text-900 font-bold mb-3 text-base">
+                                <i className="pi pi-tag mr-2"></i>Nom du DN
                             </label>
                             <InputText
                                 value={nom}
                                 onChange={(e) => setNom(e.target.value)}
                                 placeholder="Ex: Direction IT"
                                 className="w-full"
-                                style={{ height: "50px", fontSize: "1.05rem" }}
+                                style={{ height: "55px", fontSize: "1.1rem" }}
                             />
                         </div>
                         <div>
-                            <label className="block text-900 font-semibold mb-2 text-lg">
-                                <i className="pi pi-map-marker mr-2"></i>Chemin du DN
+                            <label className="block text-900 font-bold mb-3 text-base">
+                                <i className="pi pi-map-marker mr-2"></i>Chemin LDAP
                             </label>
                             <InputText
                                 value={path}
                                 onChange={(e) => setPath(e.target.value)}
                                 placeholder="Ex: OU=IT,DC=company,DC=com"
-                                className="w-full"
-                                style={{ height: "50px", fontSize: "1.05rem" }}
+                                className="w-full font-mono"
+                                style={{ height: "55px", fontSize: "1rem" }}
                             />
-                            <small className="text-600 block mt-2">
+                            <small className="text-600 block mt-2 ml-1">
                                 <i className="pi pi-info-circle mr-1"></i>
                                 Respectez le format LDAP standard
                             </small>
                         </div>
                     </div>
+
+                    <Divider />
 
                     <div className="flex gap-3 mt-4">
                         <Button
@@ -425,17 +443,17 @@ export default function DnIndex({ dns, users }) {
                             outlined
                             severity="secondary"
                             onClick={() => setVisible(false)}
-                            className="flex-1"
-                            style={{ height: "50px" }}
+                            className="flex-1 font-semibold"
+                            style={{ height: "55px" }}
                             disabled={isSubmitting}
                         />
                         <Button
-                            label={isSubmitting ? "Création..." : "Créer"}
+                            label={isSubmitting ? "Création..." : "Créer le DN"}
                             onClick={createDn}
-                            className="flex-1"
+                            className="flex-1 font-bold"
                             style={{
-                                height: "50px",
-                                background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+                                height: "55px",
+                                background: "linear-gradient(135deg, #667eea, #764ba2)",
                                 border: "none"
                             }}
                             disabled={isSubmitting}
@@ -444,107 +462,253 @@ export default function DnIndex({ dns, users }) {
                 </div>
             </Dialog>
 
-            {/* Dialog de confirmation */}
+            {/* Dialog d'édition avancée avec gestion des utilisateurs */}
             <Dialog
-                visible={confirmDialog.visible}
+                visible={editDialog.visible}
+                onHide={() => setEditDialog({ visible: false, dn: null, selectedUsers: [] })}
+                modal
+                dismissableMask
+                style={{ width: "700px" }}
+                className="modern-dialog"
+            >
+                <div className="p-5">
+                    <div className="text-center mb-5">
+                        <div
+                            className="inline-flex align-items-center justify-content-center border-circle mb-3 shadow-4"
+                            style={{
+                                width: "90px",
+                                height: "90px",
+                                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                            }}
+                        >
+                            <i className="pi pi-pencil text-white" style={{ fontSize: "2.5rem" }}></i>
+                        </div>
+                        <h2 className="text-900 font-bold text-2xl mb-2">Modifier le DN</h2>
+                        <p className="text-600 text-lg">Modifiez les informations et gérez les affectations</p>
+                    </div>
+
+                    {editDialog.dn && (
+                        <>
+                            <div className="surface-50 border-round-xl p-4 mb-4">
+                                <h3 className="text-900 font-bold mb-3 flex align-items-center gap-2">
+                                    <i className="pi pi-cog text-primary"></i>
+                                    Informations du DN
+                                </h3>
+                                <div className="flex flex-column gap-4">
+                                    <div>
+                                        <label className="block text-900 font-semibold mb-2">Nom du DN</label>
+                                        <InputText
+                                            value={editDialog.dn.nom}
+                                            onChange={(e) => setEditDialog({
+                                                ...editDialog,
+                                                dn: { ...editDialog.dn, nom: e.target.value }
+                                            })}
+                                            className="w-full"
+                                            style={{ height: "50px" }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-900 font-semibold mb-2">Chemin LDAP</label>
+                                        <InputText
+                                            value={editDialog.dn.path}
+                                            onChange={(e) => setEditDialog({
+                                                ...editDialog,
+                                                dn: { ...editDialog.dn, path: e.target.value }
+                                            })}
+                                            className="w-full font-mono"
+                                            style={{ height: "50px" }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="surface-100 border-round-xl p-4 mb-4">
+                                <h3 className="text-900 font-bold mb-3 flex align-items-center gap-2">
+                                    <i className="pi pi-users text-primary"></i>
+                                    Gestion des utilisateurs
+                                </h3>
+                                <MultiSelect
+                                    value={editDialog.selectedUsers}
+                                    options={users.map(u => ({ label: u.name, value: u.id }))}
+                                    onChange={(e) => setEditDialog({
+                                        ...editDialog,
+                                        selectedUsers: e.value
+                                    })}
+                                    placeholder="Sélectionner les utilisateurs"
+                                    display="chip"
+                                    className="w-full"
+                                    filter
+                                    showSelectAll
+                                />
+                                <div className="flex align-items-center gap-2 mt-3 p-3 bg-blue-50 border-round-lg">
+                                    <i className="pi pi-info-circle text-blue-600"></i>
+                                    <small className="text-blue-900">
+                                        <strong>{editDialog.selectedUsers.length}</strong> utilisateur(s) sélectionné(s). 
+                                        Les utilisateurs non sélectionnés seront désaffectés.
+                                    </small>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    <Divider />
+
+                    <div className="flex gap-3 mt-4">
+                        <Button
+                            label="Annuler"
+                            outlined
+                            severity="secondary"
+                            onClick={() => setEditDialog({ visible: false, dn: null, selectedUsers: [] })}
+                            className="flex-1 font-semibold"
+                            style={{ height: "55px" }}
+                            disabled={isSubmitting}
+                        />
+                        <Button
+                            label={isSubmitting ? "Enregistrement..." : "Enregistrer"}
+                            onClick={confirmUpdate}
+                            severity="warning"
+                            className="flex-1 font-bold"
+                            style={{ height: "55px" }}
+                            disabled={isSubmitting}
+                        />
+                    </div>
+                </div>
+            </Dialog>
+
+            {/* Dialog de confirmation suppression */}
+            <Dialog
+                visible={confirmDialog.visible && confirmDialog.type === 'delete'}
                 onHide={() => setConfirmDialog({ visible: false, type: null, data: null })}
                 modal
                 dismissableMask
-                style={{ width: "500px" }}
-                className="custom-dialog"
+                style={{ width: "550px" }}
+                className="modern-dialog"
             >
-                <div className="p-4">
+                <div className="p-5">
                     <div className="text-center mb-4">
                         <div
-                            className="inline-flex align-items-center justify-content-center border-circle mb-3"
+                            className="inline-flex align-items-center justify-content-center border-circle mb-3 shadow-4"
                             style={{
-                                width: "70px",
-                                height: "70px",
-                                background: confirmDialog.type === 'delete'
-                                    ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
-                                    : confirmDialog.type === 'assign'
-                                        ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-                                        : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                                boxShadow: confirmDialog.type === 'delete'
-                                    ? "0 8px 20px rgba(239, 68, 68, 0.3)"
-                                    : confirmDialog.type === 'assign'
-                                        ? "0 8px 20px rgba(16, 185, 129, 0.3)"
-                                        : "0 8px 20px rgba(245, 158, 11, 0.3)",
+                                width: "90px",
+                                height: "90px",
+                                background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
                             }}
                         >
-                            <i
-                                className={`pi ${confirmDialog.type === 'delete' ? 'pi-trash' : confirmDialog.type === 'assign' ? 'pi-user-plus' : 'pi-pencil'} text-white`}
-                                style={{ fontSize: "2rem" }}
-                            />
+                            <i className="pi pi-trash text-white" style={{ fontSize: "2.5rem" }}></i>
                         </div>
-                        <h2 className="text-900 font-bold text-2xl mb-2">
-                            {confirmDialog.type === 'delete' ? 'Supprimer le DN' :
-                                confirmDialog.type === 'assign' ? 'Affecter des DNs' :
-                                    'Modifier le DN'}
-                        </h2>
-                        <p className="text-600 text-lg">
-                            {confirmDialog.type === 'delete' ? 'Êtes-vous sûr de vouloir supprimer ce DN ?' :
-                                confirmDialog.type === 'assign' ? 'Confirmer l\'affectation des DNs' :
-                                    'Modifiez les informations du DN'}
-                        </p>
+                        <h2 className="text-900 font-bold text-3xl mb-2">Confirmer la suppression</h2>
+                        <p className="text-600 text-lg">Cette action est irréversible</p>
                     </div>
 
-                    {/* Contenu selon le type */}
-                    {confirmDialog.type === 'delete' && confirmDialog.data && (
-                        <div className="p-3 bg-red-50 border-round-lg mb-4 border-1 border-red-200">
-                            <div className="flex align-items-center gap-2 mb-2">
-                                <i className="pi pi-folder text-red-600"></i>
-                                <span className="font-semibold text-900 text-lg">{confirmDialog.data.nom}</span>
+                    {confirmDialog.data && (
+                        <>
+                            <div className="p-4 bg-red-50 border-round-xl mb-4 border-2 border-red-200">
+                                <div className="flex align-items-center gap-3 mb-3">
+                                    <i className="pi pi-folder text-red-600 text-xl"></i>
+                                    <span className="font-bold text-900 text-xl">{confirmDialog.data.nom}</span>
+                                </div>
+                                <div className="flex align-items-center gap-2">
+                                    <i className="pi pi-link text-red-600"></i>
+                                    <code className="text-600">{confirmDialog.data.path}</code>
+                                </div>
                             </div>
-                            <div className="flex align-items-center gap-2">
-                                <i className="pi pi-map-marker text-red-600"></i>
-                                <span className="text-600 font-mono text-sm">{confirmDialog.data.path}</span>
+
+                            <div className="p-4 bg-orange-50 border-round-xl border-1 border-orange-200">
+                                <div className="flex align-items-start gap-3">
+                                    <i className="pi pi-exclamation-triangle text-orange-600 text-2xl mt-1"></i>
+                                    <div>
+                                        <div className="font-bold text-orange-900 mb-2 text-lg">Attention !</div>
+                                        <ul className="text-orange-700 m-0 pl-4">
+                                            <li>Le DN sera définitivement supprimé</li>
+                                            <li>Toutes les affectations utilisateurs seront perdues</li>
+                                            <li>Cette action ne peut pas être annulée</li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
 
-                    {confirmDialog.type === 'edit' && confirmDialog.data && (
-                        <div className="flex flex-column gap-4 mb-4">
-                            <div>
-                                <label className="block text-900 font-semibold mb-2">Nom du DN</label>
-                                <InputText
-                                    value={confirmDialog.data.nom}
-                                    onChange={(e) => setConfirmDialog({
-                                        ...confirmDialog,
-                                        data: { ...confirmDialog.data, nom: e.target.value }
-                                    })}
-                                    className="w-full"
-                                    style={{ height: "50px" }}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-900 font-semibold mb-2">Chemin du DN</label>
-                                <InputText
-                                    value={confirmDialog.data.path}
-                                    onChange={(e) => setConfirmDialog({
-                                        ...confirmDialog,
-                                        data: { ...confirmDialog.data, path: e.target.value }
-                                    })}
-                                    className="w-full"
-                                    style={{ height: "50px" }}
-                                />
-                            </div>
-                        </div>
-                    )}
+                    <Divider />
 
-                    {confirmDialog.type === 'assign' && confirmDialog.data && (
-                        <div className="surface-100 border-round-lg p-4 mb-4">
-                            <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
-                                <i className="pi pi-user text-primary text-xl mt-1"></i>
-                                <div className="flex-1">
-                                    <div className="text-500 text-sm mb-1 font-medium">Utilisateur</div>
-                                    <div className="text-900 font-semibold text-lg">{confirmDialog.data.user?.name}</div>
+                    <div className="flex gap-3 mt-4">
+                        <Button
+                            label="Annuler"
+                            outlined
+                            severity="secondary"
+                            onClick={() => setConfirmDialog({ visible: false, type: null, data: null })}
+                            className="flex-1 font-semibold"
+                            style={{ height: "55px" }}
+                            disabled={isSubmitting}
+                        />
+                        <Button
+                            label={isSubmitting ? "Suppression..." : "Supprimer"}
+                            onClick={confirmDelete}
+                            severity="danger"
+                            className="flex-1 font-bold"
+                            style={{ height: "55px" }}
+                            disabled={isSubmitting}
+                        />
+                    </div>
+                </div>
+            </Dialog>
+
+            {/* Dialog de confirmation affectation */}
+            <Dialog
+                visible={confirmDialog.visible && confirmDialog.type === 'assign'}
+                onHide={() => setConfirmDialog({ visible: false, type: null, data: null })}
+                modal
+                dismissableMask
+                style={{ width: "600px" }}
+                className="modern-dialog"
+            >
+                <div className="p-5">
+                    <div className="text-center mb-4">
+                        <div
+                            className="inline-flex align-items-center justify-content-center border-circle mb-3 shadow-4"
+                            style={{
+                                width: "90px",
+                                height: "90px",
+                                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                            }}
+                        >
+                            <i className="pi pi-user-plus text-white" style={{ fontSize: "2.5rem" }}></i>
+                        </div>
+                        <h2 className="text-900 font-bold text-3xl mb-2">Confirmer l'affectation</h2>
+                        <p className="text-600 text-lg">Vérifiez les informations avant de continuer</p>
+                    </div>
+
+                    {confirmDialog.data && (
+                        <div className="surface-100 border-round-xl p-4">
+                            <div className="flex align-items-center gap-3 mb-4 pb-4 border-bottom-1 surface-border">
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle"
+                                    style={{
+                                        width: "50px",
+                                        height: "50px",
+                                        background: "linear-gradient(135deg, #dbeafe, #bfdbfe)"
+                                    }}
+                                >
+                                    <i className="pi pi-user text-primary text-xl"></i>
+                                </div>
+                                <div>
+                                    <div className="text-500 text-sm mb-1">Utilisateur</div>
+                                    <div className="text-900 font-bold text-xl">{confirmDialog.data.user?.name}</div>
                                 </div>
                             </div>
                             <div className="flex align-items-start gap-3">
-                                <i className="pi pi-sitemap text-primary text-xl mt-1"></i>
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle"
+                                    style={{
+                                        width: "50px",
+                                        height: "50px",
+                                        background: "linear-gradient(135deg, #dbeafe, #bfdbfe)"
+                                    }}
+                                >
+                                    <i className="pi pi-sitemap text-primary text-xl"></i>
+                                </div>
                                 <div className="flex-1">
-                                    <div className="text-500 text-sm mb-2 font-medium">
+                                    <div className="text-500 text-sm mb-2">
                                         DNs à affecter ({confirmDialog.data.dns?.length})
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -553,7 +717,8 @@ export default function DnIndex({ dns, users }) {
                                                 key={idx}
                                                 value={dn.nom}
                                                 severity="info"
-                                                style={{ fontSize: "0.9rem" }}
+                                                icon="pi pi-check-circle"
+                                                className="shadow-1"
                                             />
                                         ))}
                                     </div>
@@ -562,48 +727,24 @@ export default function DnIndex({ dns, users }) {
                         </div>
                     )}
 
-                    {/* Message d'avertissement pour suppression */}
-                    {confirmDialog.type === 'delete' && (
-                        <div className="p-3 bg-orange-50 border-round-lg mb-4">
-                            <div className="flex align-items-start gap-2">
-                                <i className="pi pi-exclamation-triangle text-orange-600 mt-1"></i>
-                                <div>
-                                    <div className="font-semibold text-orange-900 mb-1">Attention !</div>
-                                    <small className="text-orange-700">
-                                        Cette action est irréversible. Les associations avec les utilisateurs seront également supprimées.
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <Divider />
 
-                    {/* Boutons d'action */}
                     <div className="flex gap-3 mt-4">
                         <Button
                             label="Annuler"
-                            icon="pi pi-times"
                             outlined
                             severity="secondary"
                             onClick={() => setConfirmDialog({ visible: false, type: null, data: null })}
-                            className="flex-1"
-                            style={{ height: "50px" }}
+                            className="flex-1 font-semibold"
+                            style={{ height: "55px" }}
                             disabled={isSubmitting}
                         />
                         <Button
-                            label={isSubmitting ? "Traitement..." : "Confirmer"}
-                            icon={isSubmitting ? "pi pi-spin pi-spinner" : "pi pi-check"}
-                            onClick={
-                                confirmDialog.type === 'delete' ? confirmDelete :
-                                    confirmDialog.type === 'assign' ? confirmAssign :
-                                        confirmUpdate
-                            }
-                            severity={
-                                confirmDialog.type === 'delete' ? 'danger' :
-                                    confirmDialog.type === 'assign' ? 'success' :
-                                        'warning'
-                            }
-                            className="flex-1"
-                            style={{ height: "50px" }}
+                            label={isSubmitting ? "Affectation..." : "Confirmer"}
+                            onClick={confirmAssign}
+                            severity="success"
+                            className="flex-1 font-bold"
+                            style={{ height: "55px" }}
                             disabled={isSubmitting}
                         />
                     </div>
@@ -616,71 +757,117 @@ export default function DnIndex({ dns, users }) {
                 onHide={() => setSuccessDialog({ visible: false, type: null, data: null })}
                 modal
                 dismissableMask
-                style={{ width: "550px" }}
-                className="custom-dialog"
+                style={{ width: "600px" }}
+                className="modern-dialog"
             >
                 <div className="p-5">
                     <div className="text-center mb-4">
                         <div
-                            className="inline-flex align-items-center justify-content-center border-circle mb-3"
+                            className="inline-flex align-items-center justify-content-center border-circle mb-3 animate-success shadow-5"
                             style={{
-                                width: "90px",
-                                height: "90px",
+                                width: "100px",
+                                height: "100px",
                                 background: successDialog.type === 'delete'
                                     ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
                                     : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                                boxShadow: successDialog.type === 'delete'
-                                    ? "0 8px 25px rgba(239, 68, 68, 0.35)"
-                                    : "0 8px 25px rgba(16, 185, 129, 0.35)",
                             }}
                         >
-                            <i className="pi pi-check text-white" style={{ fontSize: "3rem" }}></i>
+                            <i className="pi pi-check text-white" style={{ fontSize: "3.5rem" }}></i>
                         </div>
-                        <h2 className="text-900 font-bold text-2xl mb-2">
+                        <h2 className="text-900 font-bold text-3xl mb-2">
                             {successDialog.type === 'delete' ? 'DN supprimé !' :
                                 successDialog.type === 'assign' ? 'DNs affectés !' :
                                     'DN mis à jour !'}
                         </h2>
-                        <p className="text-600 text-lg">
-                            L'opération a été effectuée avec succès
+                        <p className="text-600 text-xl">
+                            {successDialog.type === 'delete' ? 'Le DN a été supprimé avec succès' :
+                                successDialog.type === 'assign' ? 'Les DNs ont été affectés à l\'utilisateur' :
+                                    'Les modifications ont été enregistrées'}
                         </p>
                     </div>
 
                     <Divider />
 
-                    {/* Détails selon le type */}
                     {successDialog.type === 'delete' && successDialog.data && (
-                        <div className="surface-100 border-round-lg p-4 mb-4">
-                            <div className="flex align-items-start gap-3 mb-3">
-                                <i className="pi pi-folder text-red-600 text-xl mt-1"></i>
-                                <div className="flex-1">
-                                    <div className="text-500 text-sm mb-1 font-medium">DN supprimé</div>
-                                    <div className="text-900 font-semibold text-lg">{successDialog.data.nom}</div>
+                        <div className="surface-100 border-round-xl p-4 mb-4">
+                            <div className="flex align-items-center gap-3 mb-3">
+                                <i className="pi pi-folder text-red-600 text-2xl"></i>
+                                <div>
+                                    <div className="text-500 text-sm mb-1">DN supprimé</div>
+                                    <div className="text-900 font-bold text-xl">{successDialog.data.nom}</div>
                                 </div>
                             </div>
-                            <div className="flex align-items-start gap-3">
-                                <i className="pi pi-map-marker text-red-600 text-xl mt-1"></i>
-                                <div className="flex-1">
-                                    <div className="text-500 text-sm mb-1 font-medium">Chemin</div>
-                                    <div className="text-600 font-mono text-sm">{successDialog.data.path}</div>
-                                </div>
+                            <div className="flex align-items-center gap-3">
+                                <i className="pi pi-link text-red-600 text-xl"></i>
+                                <code className="text-600">{successDialog.data.path}</code>
                             </div>
                         </div>
                     )}
 
+                    {successDialog.type === 'edit' && successDialog.data && (
+                        <div className="surface-100 border-round-xl p-4 mb-4">
+                            <div className="flex align-items-center gap-3 mb-4 pb-3 border-bottom-1 surface-border">
+                                <i className="pi pi-folder text-primary text-2xl"></i>
+                                <div>
+                                    <div className="text-500 text-sm mb-1">DN modifié</div>
+                                    <div className="text-900 font-bold text-xl">{successDialog.data.nom}</div>
+                                </div>
+                            </div>
+                            {successDialog.data.users && successDialog.data.users.length > 0 && (
+                                <div className="flex align-items-start gap-3">
+                                    <i className="pi pi-users text-primary text-2xl mt-1"></i>
+                                    <div className="flex-1">
+                                        <div className="text-500 text-sm mb-2">
+                                            Utilisateurs affectés ({successDialog.data.users.length})
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {successDialog.data.users.map((user, idx) => (
+                                                <Tag
+                                                    key={idx}
+                                                    value={user.name}
+                                                    severity="success"
+                                                    icon="pi pi-check"
+                                                    className="shadow-1"
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {successDialog.type === 'assign' && successDialog.data && (
-                        <div className="surface-100 border-round-lg p-4 mb-4">
-                            <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
-                                <i className="pi pi-user text-primary text-xl mt-1"></i>
-                                <div className="flex-1">
-                                    <div className="text-500 text-sm mb-1 font-medium">Utilisateur</div>
-                                    <div className="text-900 font-semibold text-lg">{successDialog.data.user?.name}</div>
+                        <div className="surface-100 border-round-xl p-4 mb-4">
+                            <div className="flex align-items-center gap-3 mb-4 pb-3 border-bottom-1 surface-border">
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle"
+                                    style={{
+                                        width: "50px",
+                                        height: "50px",
+                                        background: "linear-gradient(135deg, #dbeafe, #bfdbfe)"
+                                    }}
+                                >
+                                    <i className="pi pi-user text-primary text-xl"></i>
+                                </div>
+                                <div>
+                                    <div className="text-500 text-sm mb-1">Utilisateur</div>
+                                    <div className="text-900 font-bold text-xl">{successDialog.data.user?.name}</div>
                                 </div>
                             </div>
                             <div className="flex align-items-start gap-3">
-                                <i className="pi pi-sitemap text-primary text-xl mt-1"></i>
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle"
+                                    style={{
+                                        width: "50px",
+                                        height: "50px",
+                                        background: "linear-gradient(135deg, #dbeafe, #bfdbfe)"
+                                    }}
+                                >
+                                    <i className="pi pi-sitemap text-primary text-xl"></i>
+                                </div>
                                 <div className="flex-1">
-                                    <div className="text-500 text-sm mb-2 font-medium">
+                                    <div className="text-500 text-sm mb-2">
                                         DNs affectés ({successDialog.data.dns?.length})
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -690,7 +877,7 @@ export default function DnIndex({ dns, users }) {
                                                 value={dn.nom}
                                                 severity="success"
                                                 icon="pi pi-check"
-                                                style={{ fontSize: "0.9rem" }}
+                                                className="shadow-1"
                                             />
                                         ))}
                                     </div>
@@ -699,90 +886,167 @@ export default function DnIndex({ dns, users }) {
                         </div>
                     )}
 
-                    {/* Message de confirmation */}
-                    <div className={`p-3 border-round-lg mb-4 ${
-                        successDialog.type === 'delete' ? 'bg-red-50' : 'bg-green-50'
+                    <div className={`p-4 border-round-xl mb-4 ${
+                        successDialog.type === 'delete' ? 'bg-red-50 border-1 border-red-200' : 'bg-green-50 border-1 border-green-200'
                     }`}>
-                        <div className="flex align-items-start gap-2">
-                            <i className={`pi pi-info-circle mt-1`}
+                        <div className="flex align-items-start gap-3">
+                            <i className={`pi pi-check-circle text-2xl mt-1`}
                                style={{ color: successDialog.type === 'delete' ? '#dc2626' : '#059669' }}></i>
-                            <small className="font-medium" style={{ 
-                                color: successDialog.type === 'delete' ? '#991b1b' : '#065f46' 
-                            }}>
-                                {successDialog.type === 'delete' 
-                                    ? 'Le DN a été définitivement supprimé de la base de données.'
-                                    : successDialog.type === 'assign'
-                                        ? 'Les DNs ont été assignés avec succès à l\'utilisateur.'
-                                        : 'Les modifications ont été enregistrées dans la base de données.'}
-                            </small>
+                            <div>
+                                <div className="font-bold mb-1" style={{ 
+                                    color: successDialog.type === 'delete' ? '#991b1b' : '#065f46' 
+                                }}>
+                                    Opération réussie
+                                </div>
+                                <small style={{ 
+                                    color: successDialog.type === 'delete' ? '#991b1b' : '#065f46' 
+                                }}>
+                                    {successDialog.type === 'delete' 
+                                        ? 'Le DN et toutes ses affectations ont été supprimés de la base de données.'
+                                        : successDialog.type === 'assign'
+                                            ? 'Les DNs ont été correctement assignés à l\'utilisateur sélectionné.'
+                                            : 'Le DN a été mis à jour avec les nouvelles affectations utilisateurs.'}
+                                </small>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Bouton OK */}
                     <Button
-                        label="OK, j'ai compris"
-                        icon="pi pi-check"
+                        label="Ok !"
                         onClick={() => setSuccessDialog({ visible: false, type: null, data: null })}
                         severity={successDialog.type === 'delete' ? 'danger' : 'success'}
-                        className="w-full"
+                        className="w-full font-bold shadow-3"
                         style={{
-                            height: "55px",
-                            fontSize: "1.1rem",
-                            fontWeight: "600"
+                            height: "60px",
+                            fontSize: "1.15rem",
                         }}
                     />
                 </div>
             </Dialog>
 
             <style jsx>{`
-                .custom-datatable :global(.p-datatable-thead > tr > th) {
-                    background: var(--primary-50);
-                    color: var(--primary-700);
-                    font-weight: 600;
-                    font-size: 1rem;
-                    padding: 1.2rem 1rem;
+                .modern-datatable :global(.p-datatable-thead > tr > th) {
+                    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+                    color: #111827;
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    padding: 1.25rem 1rem;
+                    border-bottom: 2px solid #d1d5db;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
                 }
 
-                .custom-datatable :global(.p-datatable-tbody > tr) {
-                    transition: all 0.2s ease;
+                .modern-datatable :global(.p-datatable-tbody > tr) {
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    border-bottom: 1px solid #f3f4f6;
                 }
 
-                .custom-datatable :global(.p-datatable-tbody > tr:hover) {
-                    background: var(--surface-100);
-                    transform: scale(1.01);
+                .modern-datatable :global(.p-datatable-tbody > tr:hover) {
+                    background: linear-gradient(135deg, #faf5ff, #f3e8ff) !important;
+                    transform: translateX(4px);
+                    box-shadow: -4px 0 0 0 #8b5cf6, 0 2px 8px rgba(139, 92, 246, 0.1);
                 }
 
-                .custom-datatable :global(.p-datatable-tbody > tr > td) {
-                    padding: 1rem;
+                .modern-datatable :global(.p-datatable-tbody > tr > td) {
+                    padding: 1.25rem 1rem;
+                    vertical-align: middle;
                 }
 
-                :global(.custom-dialog .p-dialog-content) {
+                :global(.modern-dialog .p-dialog-content) {
                     padding: 0 !important;
-                    border-radius: 12px;
+                    border-radius: 20px;
+                    overflow: hidden;
                 }
 
-                :global(.custom-dialog .p-dialog-header) {
+                :global(.modern-dialog .p-dialog-header) {
                     display: none;
                 }
 
-                :global(.custom-action-btn:hover) {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+                :global(.hover-lift) {
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 }
 
-                :global(.p-tag) {
-                    padding: 0.4rem 0.8rem;
+                :global(.hover-lift:hover) {
+                    transform: translateY(-3px);
+                    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.25) !important;
                 }
 
-                @keyframes slideIn {
+                @keyframes slideInUp {
                     from {
                         opacity: 0;
-                        transform: translateY(-10px);
+                        transform: translateY(20px);
                     }
                     to {
                         opacity: 1;
                         transform: translateY(0);
                     }
+                }
+
+                @keyframes pulse-success {
+                    0%, 100% {
+                        transform: scale(1);
+                    }
+                    50% {
+                        transform: scale(1.05);
+                    }
+                }
+
+                .animate-success {
+                    animation: pulse-success 0.6s ease-in-out;
+                }
+
+                :global(.p-chip) {
+                    font-weight: 600;
+                    padding: 0.5rem 0.85rem;
+                    border-radius: 8px;
+                }
+
+                :global(.p-tag) {
+                    font-weight: 600;
+                    padding: 0.45rem 0.8rem;
+                    border-radius: 8px;
+                }
+
+                :global(.p-button) {
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+
+                :global(.p-multiselect-panel .p-multiselect-items .p-multiselect-item) {
+                    padding: 0.75rem 1rem;
+                    font-size: 0.95rem;
+                }
+
+                :global(.p-dropdown-panel .p-dropdown-items .p-dropdown-item) {
+                    padding: 0.75rem 1rem;
+                    font-size: 0.95rem;
+                }
+
+                :global(.p-inputtext) {
+                    border-radius: 10px;
+                    border: 2px solid #e5e7eb;
+                    transition: all 0.3s ease;
+                }
+
+                :global(.p-inputtext:focus) {
+                    border-color: #8b5cf6;
+                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+                }
+
+                :global(.p-multiselect),
+                :global(.p-dropdown) {
+                    border-radius: 10px;
+                    border: 2px solid #e5e7eb;
+                }
+
+                :global(.p-multiselect:not(.p-disabled):hover),
+                :global(.p-dropdown:not(.p-disabled):hover) {
+                    border-color: #8b5cf6;
+                }
+
+                :global(.p-multiselect.p-focus),
+                :global(.p-dropdown.p-focus) {
+                    border-color: #8b5cf6;
+                    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
                 }
             `}</style>
         </Layout>

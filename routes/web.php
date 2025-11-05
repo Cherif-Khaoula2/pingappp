@@ -86,6 +86,11 @@ Route::delete('users/{user}', [UsersController::class, 'destroy'])
     ->name('users.destroy')
      ->middleware('permission:deleteuser');
 
+Route::delete('/ldap/users/{email}', [LdapUserController::class, 'deleteAuthorizedUser'])
+    ->name('ldap.delete')
+    ->middleware(['auth', 'permission:deleteuser']);
+     
+
 //Route::put('users/{user}/restore', [UsersController::class, 'restore'])
   //  ->name('users.restore')
     //->middleware('auth');

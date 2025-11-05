@@ -32,30 +32,41 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
     });
   };
 
-  // Template pour le nom avec icône et avatar
-  const nameTemplate = (rowData) => {
-    const fullName = `${rowData.first_name || ''} ${rowData.last_name || ''}`.trim();
-    const initial = rowData.first_name ? rowData.first_name.charAt(0).toUpperCase() : 'U';
-    
-    return (
-      <div className="flex align-items-center gap-3">
-        <div 
-          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-          style={{
-            width: '40px',
-            height: '40px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)'
-          }}
-        >
-          {initial}
-        </div>
-        <div>
-          <div className="font-medium text-900">{fullName || 'Sans nom'}</div>
-          <div className="text-sm text-600">{rowData.email}</div>
-        </div>
+const nameTemplate = (rowData) => {
+  // Construit le nom complet et supprime tout point final
+  const fullName = `${rowData.first_name || ''} ${rowData.last_name || ''}`
+    .trim()
+    .replace(/\.$/, ''); // 🔹 enlève le point final s’il existe
+
+  // Si c’est "Système", on ne l’affiche pas du tout
+  if (fullName.toLowerCase() === 'système') {
+    return null;
+  }
+
+  const initial = rowData.first_name
+    ? rowData.first_name.charAt(0).toUpperCase()
+    : 'U';
+
+  return (
+    <div className="flex align-items-center gap-3">
+      <div
+        className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
+        style={{
+          width: '40px',
+          height: '40px',
+          background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+        }}
+      >
+        {initial}
       </div>
-    );
-  };
+      <div>
+        <div className="font-medium text-900">{fullName || 'Sans nom'}</div>
+        <div className="text-sm text-600">{rowData.email}</div>
+      </div>
+    </div>
+  );
+};
+
 
   // Template pour les rôles
   const rolesTemplate = (rowData) => {
@@ -262,13 +273,14 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
   rowClassName={(data) => data.id ? 'cursor-pointer hover:bg-gray-50' : ''}
   selectionMode="single"
 >
-  <Column
-    field="first_name"
-    header="Utilisateur"
-    body={nameTemplate}
-    sortable
-    style={{ minWidth: '250px' }}
-  />
+<Column
+  field="first_name"
+  header="Utilisateur"
+  body={nameTemplate}
+  sortable
+  style={{ minWidth: '250px' }}
+/>
+
   <Column
     field="roles"
     header="Rôles"

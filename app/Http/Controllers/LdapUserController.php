@@ -245,4 +245,25 @@ class LdapUserController extends Controller
             ], 500);
         }
     }
+    /**
+ * 🗑️ Supprimer un utilisateur LDAP autorisé
+ */
+public function deleteAuthorizedUser(Request $request)
+{
+    $email = $request->route('email');
+    
+    // Trouver l'utilisateur local par email
+    $user = User::where('email', $email)->first();
+    
+    if (!$user) {
+        return back()->withErrors(['email' => 'Utilisateur introuvable.']);
+    }
+    
+    // Supprimer définitivement l'utilisateur
+    $user->forceDelete();
+    
+    Log::info("🗑️ Utilisateur LDAP supprimé : {$email}");
+    
+    return redirect()->route('ldap.index')->with('success', 'Utilisateur supprimé avec succès.');
+}
 }
