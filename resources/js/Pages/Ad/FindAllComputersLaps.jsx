@@ -171,10 +171,6 @@ export default function FindAllComputersLaps() {
             style={{ height: '4px', borderRadius: 0 }}
             className="progress-bar-custom"
           />
-          <div className="progress-text">
-            <i className="pi pi-spin pi-spinner mr-2"></i>
-            Récupération des données depuis le serveur... {Math.round(loadingProgress)}%
-          </div>
         </div>
       )}
 
