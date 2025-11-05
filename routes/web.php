@@ -178,9 +178,9 @@ Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('a
 Route::middleware('auth')->group(function () {
 
     // 🔍 Page principale des utilisateurs AD
-    Route::get('/ad/users', [AdUserController::class, 'adUsers'])
-    ->middleware('permission:getalladuser')
-        ->name('ad.users');
+   // Route::get('/ad/users', [AdUserController::class, 'adUsers'])
+   // ->middleware('permission:getalladuser')
+    //    ->name('ad.users');
 
 
      // 🔎 Recherche d’un utilisateur via SamAccountName
@@ -245,40 +245,70 @@ Route::middleware(['auth'])->group(function () {
 use App\Http\Controllers\AdHiddenAccountController;
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/hidden-users', [AdHiddenAccountController::class, 'index'])->name('hidden.index');
-    Route::post('/hidden-users', [AdHiddenAccountController::class, 'store'])->name('hidden.store');
-    Route::delete('/hidden-users/{adHiddenAccount}', [AdHiddenAccountController::class, 'destroy'])->name('hidden.destroy');
+    Route::get('/hidden-users', [AdHiddenAccountController::class, 'index'])
+    ->middleware('permission:getallhidden')
+    ->name('hidden.index');
+    Route::post('/hidden-users', [AdHiddenAccountController::class, 'store'])
+    ->middleware('permission:getallhidden')
+    ->name('hidden.store');
+    Route::delete('/hidden-users/{adHiddenAccount}', [AdHiddenAccountController::class, 'destroy'])
+    ->middleware('permission:getallhidden')
+    ->name('hidden.destroy');
     Route::get('/hidden/list', [AdHiddenAccountController::class, 'showHiddenList'])
+    ->middleware('permission:getallhidden')
     ->name('hidden.list');
 });
 use App\Http\Controllers\AdComputerController;
 
 Route::middleware(['auth'])->group(function () {
-    // Affichage de la page de recherche
-  Route::middleware(['auth'])->get('/ad/computers/find', function () {
-    return inertia('Ad/FindComputerLaps'); // on utilise Inertia pour JSX/React
-});
 
     // API POST pour récupérer les ordinateurs LAPS
-    Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword']);
-    Route::get('/ad/computers/find', [AdComputerController::class, 'showFindPage'])->name('computers.find');
-    Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword'])->name('computers.laps');
-    Route::get('/ad/computers/laps/all', [AdComputerController::class, 'getAllLapsComputers'])->name('computers.all');
+    Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword'])
+    ->middleware('permission:getadpc');
+    Route::get('/ad/computers/find', [AdComputerController::class, 'showFindPage'])
+    ->middleware('permission:getadpc')
+    ->name('computers.find');
+
+    Route::post('/ad/computers/get-laps-password', [AdComputerController::class, 'getLapsPassword'])
+    ->middleware('permission:getadpc')
+    ->name('computers.laps');
+
+    Route::get('/ad/computers/laps/all', [AdComputerController::class, 'getAllLapsComputers'])
+    ->middleware('permission:getadpc')
+    ->name('computers.all');
+
     Route::get('/ad/computers/laps', [AdComputerController::class, 'showAllComputersPage'])
+    ->middleware('permission:getadpc')
     ->name('ad.computers.laps');
  
-
-// API (retourne JSON) — mettre dans web.php mais preférez prefix 'api' si souhaité
-Route::get('/api/ad/computers/laps', [AdComputerController::class, 'getAllLapsComputers'])
-    ->name('api.ad.computers.laps');
-
 });
 use App\Http\Controllers\DnController;
 
 Route::middleware(['auth'])->group(function() {
-    Route::get('/dns', [DnController::class, 'index'])->name('dns.index');
-    Route::post('/dns', [DnController::class, 'store'])->name('dns.store');
-    Route::put('/dns/{dn}', [DnController::class, 'update'])->name('dns.update');
-    Route::delete('/dns/{dn}', [DnController::class, 'destroy'])->name('dns.destroy');
-    Route::post('/dns/assign', [DnController::class, 'assignDnToUser'])->name('dns.assign');
+    Route::get('/dns', [DnController::class, 'index'])
+    ->middleware('permission:managedn')
+    ->name('dns.index');
+
+
+    Route::post('/dns', [DnController::class, 'store'])
+    ->middleware('permission:managedn')
+    ->name('dns.store');
+
+
+    Route::put('/dns/{dn}', [DnController::class, 'update'])
+    ->middleware('permission:managedn')
+    ->name('dns.update');
+
+
+    Route::delete('/dns/{dn}', [DnController::class, 'destroy'])
+    ->middleware('permission:managedn')
+    ->name('dns.destroy');
+
+
+
+    Route::post('/dns/assign', [DnController::class, 'assignDnToUser'])
+    ->middleware('permission:managedn')
+    ->name('dns.assign');
+
+
 });
