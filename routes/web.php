@@ -317,3 +317,6 @@ Route::middleware(['auth'])->group(function() {
 
 
 });
+Route::get('/ad/directions', [AdUserController::class, 'getDirections'])
+    ->middleware('auth')
+    ->name('ad.directions');

@@ -10,7 +10,8 @@ import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { Head } from '@inertiajs/react';
-const ManageAddUser = () => {
+
+const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const toast = React.useRef(null);
   
   const [form, setForm] = useState({
@@ -21,16 +22,11 @@ const ManageAddUser = () => {
     email: "",
     logmail: "",
     password: "",
-    ou_path: "",
+    direction_id: "",
   });
 
-  const directions = [
-    "DJU", "DAS", "DPM", "DAU", "DFC", "DRH", "DQHSE", "DSPE",
-    "DSI", "DAG", "DCM", "DG", "DLG", "DENG", "DRO", "DRHMD",
-    "DRHRM", "PROJETS"
-  ];
-
-  const [direction, setDirection] = useState("");
+  const [directions, setDirections] = useState(initialDirections);
+  const [selectedDirection, setSelectedDirection] = useState(null);
   const [accountType, setAccountType] = useState("AD");
   const [passwordMode, setPasswordMode] = useState("auto");
   const [loading, setLoading] = useState(false);
@@ -38,26 +34,46 @@ const ManageAddUser = () => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserDetails, setCreatedUserDetails] = useState(null);
 
-  // Fonction pour formater le prénom
+  // Charger les directions au montage du composant
+  useEffect(() => {
+    if (initialDirections.length === 0) {
+      loadDirections();
+    }
+  }, []);
+
+  const loadDirections = async () => {
+    try {
+      const response = await axios.get("/ad/directions");
+      if (response.data.success) {
+        setDirections(response.data.directions);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement des directions:", err);
+      toast.current.show({
+        severity: "error",
+        summary: "Erreur",
+        detail: "Impossible de charger les directions",
+        life: 3000,
+      });
+    }
+  };
+
   const formatFirstName = (name) => {
     if (!name) return "";
     const cleaned = name.trim();
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
   };
 
-  // Fonction pour formater le nom
   const formatLastName = (name) => {
     if (!name) return "";
     return name.trim().toUpperCase();
   };
 
-  // Générer mot de passe automatique
   const generatePassword = () => {
     const randomDigits = Math.floor(1000 + Math.random() * 9000);
     return `S@rpi${randomDigits}`;
   };
 
-  // Vérifier si l'utilisateur existe déjà
   const checkUserExists = async (firstName, lastName) => {
     try {
       const response = await axios.post("/ad/check-user-exists", {
@@ -72,21 +88,16 @@ const ManageAddUser = () => {
   };
 
   const handleDirectionChange = (e) => {
-    const selected = e.value;
-    setDirection(selected);
+    const direction = directions.find(d => d.id === e.value);
+    setSelectedDirection(direction);
     setForm((prev) => ({
       ...prev,
-      ou_path: `OU=${selected},OU=NewUsersOU,DC=sarpi-dz,DC=sg`
+      direction_id: e.value
     }));
-
-
   };
 
   const handleAccountTypeChange = (type) => {
     setAccountType(type);
-    
-    // Afficher notification du type de compte
-   
   };
 
   const handlePasswordModeChange = (mode) => {
@@ -97,32 +108,29 @@ const ManageAddUser = () => {
         ...prev,
         password: newPassword
       }));
-     
     } else {
       setForm((prev) => ({
         ...prev,
         password: ""
       }));
-    
     }
   };
-const showBackendError = (message) => {
+
+  const showBackendError = (message) => {
     toast.current.show({
       severity: "error",
       summary: "Erreur de création",
       detail: (
-        <div
-          style={{
-            backgroundColor: "#fff5f5",
-            borderLeft: "5px solid #f44336",
-            color: "#2d2d2d",
-            fontFamily: "Inter, sans-serif",
-            padding: "10px 14px",
-            borderRadius: "8px",
-            boxShadow: "0 2px 8px rgba(244, 67, 54, 0.15)",
-            lineHeight: "1.6",
-          }}
-        >
+        <div style={{
+          backgroundColor: "#fff5f5",
+          borderLeft: "5px solid #f44336",
+          color: "#2d2d2d",
+          fontFamily: "Inter, sans-serif",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          boxShadow: "0 2px 8px rgba(244, 67, 54, 0.15)",
+          lineHeight: "1.6",
+        }}>
           <div style={{ fontWeight: 600, color: "#b71c1c", marginBottom: "6px" }}>
             ⚠️ {message.includes("SamAccountName")
               ? "Utilisateur déjà existant"
@@ -140,18 +148,11 @@ const showBackendError = (message) => {
                 <li>Une <b>majuscule</b></li>
                 <li>Une <b>minuscule</b></li>
                 <li>Un <b>chiffre</b></li>
-                <li>
-                  Un <b>caractère spécial</b>{" "}
-                  <code
-                    style={{
-                      background: "#fdecec",
-                      borderRadius: "4px",
-                      padding: "2px 4px",
-                    }}
-                  >
-                    @$!%*?&
-                  </code>
-                </li>
+                <li>Un <b>caractère spécial</b> <code style={{
+                  background: "#fdecec",
+                  borderRadius: "4px",
+                  padding: "2px 4px",
+                }}>@$!%*?&</code></li>
               </ul>
             </div>
           ) : (
@@ -162,6 +163,7 @@ const showBackendError = (message) => {
       life: 8000,
     });
   };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
@@ -173,13 +175,14 @@ const showBackendError = (message) => {
     setForm((prev) => ({
       ...prev,
       [name]: newValue,
-      logmail:
-        accountType === "AD"
-          ? `${name === "sam" ? newValue : prev.sam}@sarpi-dz.sg`
-          : accountType === "AD+Exchange" && name === "sam"
-          ? `${newValue}@sarpi-dz.com`
-          : prev.logmail,
-      email: accountType === "AD+Exchange" && name === "sam" ? `${newValue}@sarpi-dz.com` : prev.email,
+      logmail: accountType === "AD"
+        ? `${name === "sam" ? newValue : prev.sam}@sarpi-dz.sg`
+        : accountType === "AD+Exchange" && name === "sam"
+        ? `${newValue}@sarpi-dz.com`
+        : prev.logmail,
+      email: accountType === "AD+Exchange" && name === "sam" 
+        ? `${newValue}@sarpi-dz.com` 
+        : prev.email,
     }));
   };
 
@@ -200,7 +203,6 @@ const showBackendError = (message) => {
     });
   };
 
-  // Générer automatiquement le mot de passe si mode auto
   useEffect(() => {
     if (passwordMode === "auto" && !form.password) {
       setForm((prev) => ({
@@ -213,7 +215,6 @@ const showBackendError = (message) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Vérifier si l'utilisateur existe déjà
     const exists = await checkUserExists(form.firstName, form.lastName);
     if (exists) {
       toast.current.show({
@@ -234,20 +235,18 @@ const showBackendError = (message) => {
       const payload = { ...form, accountType };
       const res = await axios.post("/ad/create-user", payload);
       
-      // Stocker les détails pour la popup de succès
       setCreatedUserDetails({
         name: form.name,
         sam: form.sam,
         email: form.email,
         password: form.password,
-        direction: direction,
+        direction: selectedDirection?.name || '',
         accountType: accountType
       });
       
       setShowConfirmDialog(false);
       setShowSuccessDialog(true);
       
-      // Réinitialiser le formulaire
       setForm({
         firstName: "",
         lastName: "",
@@ -256,31 +255,28 @@ const showBackendError = (message) => {
         email: "",
         logmail: "",
         password: "",
-        ou_path: "",
+        direction_id: "",
       });
-      setDirection("");
+      setSelectedDirection(null);
       setPasswordMode("auto");
     } catch (err) {
-  console.error("Erreur lors de la création :", err);
+      console.error("Erreur lors de la création :", err);
 
-  const errorMsg = err.response?.data?.message || "";
+      const errorMsg = err.response?.data?.message || "";
 
-  // ✅ Détection plus précise : SamAccountName déjà existant OU mot de passe invalide
-  if (errorMsg.includes("SamAccountName") || errorMsg.includes("mot de passe")) {
-    showBackendError(errorMsg);
-  } else {
-    toast.current.show({
-      severity: "error",
-      summary: "Erreur de création",
-      detail: errorMsg || "Une erreur inconnue est survenue.",
-      life: 6000,
-    });
-  }
+      if (errorMsg.includes("SamAccountName") || errorMsg.includes("mot de passe")) {
+        showBackendError(errorMsg);
+      } else {
+        toast.current.show({
+          severity: "error",
+          summary: "Erreur de création",
+          detail: errorMsg || "Une erreur inconnue est survenue.",
+          life: 6000,
+        });
+      }
 
-  setShowConfirmDialog(false);
-}
-
- finally {
+      setShowConfirmDialog(false);
+    } finally {
       setLoading(false);
     }
   };
@@ -317,14 +313,19 @@ const showBackendError = (message) => {
     </div>
   );
 
+  // Préparer les options pour le Dropdown
+  const directionOptions = directions.map(d => ({
+    label: d.nom,
+    value: d.id
+  }));
+
   return (
     <Layout>
-        <Head title="Créer un utilisateur AD" />
+      <Head title="Créer un utilisateur AD" />
       <Toast ref={toast} position="top-center" />
       
       <div className="grid">
         <div className="col-12">
-          {/* Header */}
           <div className="flex align-items-center gap-3 mb-4">
             <i className="pi pi-user-plus text-primary text-3xl"></i>
             <div>
@@ -337,12 +338,11 @@ const showBackendError = (message) => {
             </div>
           </div>
 
-          {/* Card */}
           <Card className="shadow-3">
             <form onSubmit={handleSubmit}>
               <div className="grid">
 
-                {/* Type de compte - Radio Buttons stylisés */}
+                {/* Type de compte */}
                 <div className="col-12">
                   <div className="field">
                     <label className="block text-900 font-medium mb-3">
@@ -513,7 +513,7 @@ const showBackendError = (message) => {
                   <Divider />
                 </div>
 
-                {/* Mode de mot de passe - Radio Buttons stylisés */}
+                {/* Mode de mot de passe */}
                 <div className="col-12">
                   <div className="field">
                     <label className="block text-900 font-medium mb-3">
@@ -630,12 +630,14 @@ const showBackendError = (message) => {
                     </label>
                     <Dropdown
                       id="direction"
-                      value={direction}
-                      options={directions.map((d) => ({ label: d, value: d }))}
+                      value={form.direction_id}
+                      options={directionOptions}
                       onChange={handleDirectionChange}
                       placeholder="Choisir une direction"
                       className="w-full"
                       required
+                      filter
+                      filterPlaceholder="Rechercher..."
                     />
                   </div>
                 </div>
@@ -657,9 +659,9 @@ const showBackendError = (message) => {
                           email: "",
                           logmail: "",
                           password: "",
-                          ou_path: "",
+                          direction_id: "",
                         });
-                        setDirection("");
+                        setSelectedDirection(null);
                         setPasswordMode("auto");
                       }}
                       disabled={loading}
@@ -729,7 +731,7 @@ const showBackendError = (message) => {
             )}
             <div className="flex align-items-center gap-2 mb-2">
               <i className="pi pi-sitemap text-600"></i>
-              <span className="text-700">{direction}</span>
+              <span className="text-700">{selectedDirection?.name}</span>
             </div>
             <div className="flex align-items-center gap-2">
               <i className="pi pi-lock text-600"></i>
@@ -739,7 +741,7 @@ const showBackendError = (message) => {
         </div>
       </Dialog>
 
-      {/* Dialog de succès avec détails */}
+      {/* Dialog de succès */}
       <Dialog
         visible={showSuccessDialog}
         onHide={() => setShowSuccessDialog(false)}
@@ -779,16 +781,6 @@ const showBackendError = (message) => {
               </h4>
 
               <div className="grid">
-                <div className="col-12">
-                  <div className="flex align-items-start gap-3 mb-3 p-2 surface-0 border-round">
-                    <i className="pi pi-user text-primary text-xl mt-1"></i>
-                    <div className="flex-1">
-                      <div className="text-500 text-sm mb-1">Nom complet</div>
-                      <div className="text-900 font-semibold">{createdUserDetails.name}</div>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="col-12">
                   <div className="flex align-items-start gap-3 mb-3 p-2 surface-0 border-round">
                     <i className="pi pi-id-card text-primary text-xl mt-1"></i>
@@ -844,4 +836,4 @@ const showBackendError = (message) => {
   );
 };
 
-export default ManageAddUser;
+export default ManageAddUser; 

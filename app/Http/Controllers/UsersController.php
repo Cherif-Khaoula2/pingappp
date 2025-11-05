@@ -57,58 +57,51 @@ public function create(): Response
         ]),
     ]);
 }
-
-
- public function store(UserStoreRequest $request): RedirectResponse
+public function store(UserStoreRequest $request): RedirectResponse
 {
     $data = $request->validated();
 
     // Nettoyer le prénom et le nom pour créer le samaccountname
     $firstName = strtolower(trim($data['first_name']));
     $lastName  = strtolower(trim($data['last_name']));
-
-    // Retirer tout caractère non alphanumérique
     $firstName = preg_replace('/[^a-z0-9]/', '', $firstName);
     $lastName  = preg_replace('/[^a-z0-9]/', '', $lastName);
-
     $samaccountname = $firstName . '.' . $lastName;
 
     $email = strtolower(trim($data['email']));
 
     // Vérifier dans LDAP
-    $ldapUserSam = LdapUser::where('samaccountname', $samaccountname)->first();
-    $ldapUserEmail = LdapUser::where('mail', $email)->first();
-
-    if ($ldapUserSam || $ldapUserEmail) {
+    if (LdapUser::where('samaccountname', $samaccountname)->exists() || 
+        LdapUser::where('mail', $email)->exists()) {
         return Redirect::back()->withErrors([
             'first_name' => "Impossible de créer ce compte : le nom d'utilisateur ou l'email existe déjà dans Active Directory."
         ]);
     }
 
     // Vérifier dans la base locale
-    if (User::where('samaccountname', $samaccountname)->exists() || User::where('email', $email)->exists()) {
+    if (User::where('samaccountname', $samaccountname)->exists() || 
+        User::where('email', $email)->exists()) {
         return Redirect::back()->withErrors([
             'first_name' => "Impossible de créer ce compte : le nom d'utilisateur ou l'email existe déjà localement."
         ]);
     }
 
-    // Supprimer 'role' pour éviter l'erreur SQL
+    // Extraire les rôles puis les retirer des données
     $roles = $data['role'] ?? [];
     unset($data['role']);
 
-   
-
-    // Créer l'utilisateur avec samaccountname
+    // Créer l'utilisateur avec site et samaccountname
     $user = User::create(array_merge($data, [
         'samaccountname' => $samaccountname,
+        'site' => $data['site'] ?? null,
     ]));
-    // Assigner plusieurs rôles
+
+    // Assigner les rôles
     if (!empty($roles)) {
-        $user->assignRole($roles); // ✅ accepte un tableau
+        $user->assignRole($roles);
     } else {
         $user->assignRole('user'); // rôle par défaut
     }
-
     // Envoi manuel de l'email ici
     $token = Password::createToken($user);
     $resetUrl = url(route('password.reset', ['token' => $token, 'email' => $user->email], false));
@@ -192,12 +185,13 @@ public function update(Request $request, User $user)
         'password'   => 'nullable|string|min:6|confirmed', // <-- Ajout de confirmed
         'role'       => 'required|array',
         'role.*'     => 'exists:roles,name',
+         'site'       => 'nullable|string|max:255', 
     ]);
 
     $user->first_name = $validated['first_name'];
     $user->last_name  = $validated['last_name'];
     $user->email      = $validated['email'];
-
+    $user->site       = $validated['site'] ?? null;
     if (!empty($validated['password'])) {
         $user->password = bcrypt($validated['password']);
     }
@@ -221,7 +215,7 @@ public function edit(User $user): Response
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'email' => $user->email,
-          
+          'site' => $user->site,
             'deleted_at' => $user->deleted_at,
             'roles' => $user->roles->pluck('name'), // ✅ renvoie ["admin"] par ex.
         ],
