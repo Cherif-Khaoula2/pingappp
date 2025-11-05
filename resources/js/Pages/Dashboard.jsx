@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router,usePage  } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Chart } from 'primereact/chart';
 import { Tag } from 'primereact/tag';
@@ -13,7 +13,6 @@ import { InputText } from 'primereact/inputtext';
 import { Message } from 'primereact/message';
 import { ProgressBar } from 'primereact/progressbar';
 import Layout from '@/Layouts/layout/layout.jsx';
-
 export default function Dashboard({ 
     stats = {}, 
     activityData = [], 
@@ -29,17 +28,12 @@ export default function Dashboard({
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredLogs, setFilteredLogs] = useState(recentLogs);
     const [periodFilter, setPeriodFilter] = useState(period);
-const { auth } = usePage().props;
+
     const safeStats = stats || {};
     const safeActivityData = Array.isArray(activityData) ? activityData : [];
     const safeRecentLogs = Array.isArray(recentLogs) ? recentLogs : [];
     const safeActionBreakdown = Array.isArray(actionBreakdown) ? actionBreakdown : [];
     const safeTopPerformers = Array.isArray(topPerformers) ? topPerformers : [];
-
-
-const permissions = auth?.user?.permissions || [];
-const canViewLogs = permissions.includes('view_activity_logs');
-console.log(permissions)
 
     // Options pour les filtres - Actions complètes
     const actionOptions = [
@@ -361,14 +355,13 @@ console.log(permissions)
 </div>
 
 
-  
-           
+                {/* Section inférieure - Responsive */}
                 <div className="grid mb-3 md:mb-4">
-               {canViewLogs && (
+                    {/* Journal d'activité détaillé */}
                     <div className="col-12 lg:col-8">
                         <Card title="Journal d'activité détaillé" className="shadow-2 md:shadow-3">
                         
-                          
+                            {/* Résultats du filtrage */}
                             <div className="mb-3 flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center gap-2">
                                <span className="text-sm md:text-base text-600">
                           <i className="pi pi-info-circle mr-2"></i>
@@ -384,7 +377,7 @@ console.log(permissions)
                                 </Link>
                             </div>
 
-                     
+                            {/* DataTable - Responsive */}
                             {filteredLogs.length > 0 ? (
                                 <DataTable 
                                     value={filteredLogs} 
@@ -433,62 +426,53 @@ console.log(permissions)
                             )}
                         </Card>
                     </div>
-             
-                        )}
-                    {/* Top utilisateurs - Responsive */}
+
 <div className="col-12 lg:col-4">
     <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
         <div className="flex flex-column gap-2 md:gap-3">
             {safeTopPerformers.length > 0 ? (
-                safeTopPerformers.slice(0, 5).map((user, idx) => {
-                    // 🔹 Nettoyage du nom (enlève les points)
-                    const displayName = user.name.replace(/\./g, ' ').trim();
+                safeTopPerformers
+                    .filter(user => user.name && user.name.trim().toLowerCase() !== "système") // 🔹 exclure "Système"
+                    .slice(0, 5)
+                    .map((user, idx) => {
+                        // 🔹 Nettoyage du nom (supprime le point à la fin)
+                        const cleanName = user.name?.trim().replace(/\.$/, "") || "";
 
-                    // 🔹 Couleur du badge selon le classement
-                    const rankColor =
-                        idx === 0
-                            ? 'bg-yellow-500'
-                            : idx === 1
-                            ? 'bg-gray-400'
-                            : idx === 2
-                            ? 'bg-orange-600'
-                            : 'bg-indigo-500';
-
-                    // 🔹 Bloc utilisateur (cliquable ou non)
-                    const content = (
-                        <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 hover:bg-gray-100 transition-colors transition-duration-200 cursor-pointer">
-                            <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
-                                <div
-                                    className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${rankColor}`}
-                                >
-                                    {idx + 1}
+                        return (
+                            <Link
+                                key={user.id}
+                                href={`/ad/activity-logs/user/${user.id}`}
+                                className="no-underline text-inherit"
+                            >
+                                <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 hover:bg-gray-100 transition-colors transition-duration-200 cursor-pointer">
+                                    <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
+                                        <div
+                                            className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
+                                                idx === 0
+                                                    ? 'bg-yellow-500'
+                                                    : idx === 1
+                                                    ? 'bg-gray-400'
+                                                    : idx === 2
+                                                    ? 'bg-orange-600'
+                                                    : 'bg-indigo-500'
+                                            }`}
+                                        >
+                                            {idx + 1}
+                                        </div>
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
+                                                {cleanName}
+                                            </p>
+                                            <p className="text-xs md:text-sm text-600 m-0">
+                                                {user.count} activités
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
                                 </div>
-                                <div className="flex-1 overflow-hidden">
-                                    <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
-                                        {displayName}
-                                    </p>
-                                    <p className="text-xs md:text-sm text-600 m-0">
-                                        {user.count} activités
-                                    </p>
-                                </div>
-                            </div>
-                            <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
-                        </div>
-                    );
-
-                    // 🔹 Si "Système", pas de lien
-                    return user.name.toLowerCase() === 'système' ? (
-                        <div key={idx}>{content}</div>
-                    ) : (
-                        <Link
-                            key={user.id}
-                            href={`/ad/activity-logs/user/${user.id}`}
-                            className="no-underline text-inherit"
-                        >
-                            {content}
-                        </Link>
-                    );
-                })
+                            </Link>
+                        );
+                    })
             ) : (
                 <div className="text-center p-4">
                     <i className="pi pi-users text-4xl text-300 mb-2"></i>
@@ -498,6 +482,7 @@ console.log(permissions)
         </div>
     </Card>
 </div>
+
        </div>
             </div>
 

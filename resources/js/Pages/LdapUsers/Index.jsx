@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, router, usePage,Head } from '@inertiajs/react';
+import { useForm, router, usePage, Head } from '@inertiajs/react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Card } from 'primereact/card';
@@ -17,9 +17,13 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedRole, setSelectedRole] = useState('');
   const [visible, setVisible] = useState(false);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
   const { processing } = useForm({});
   
   const pageProps = usePage().props || {};
+  const permissions = pageProps.permissions || [];
+  const canDelete = permissions.includes("deleteuser");
 
   // 🔍 Recherche utilisateur
   const handleSearch = (e) => {
@@ -41,6 +45,18 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
     setSelectedRole('');
   };
 
+  // 🔹 Ouvrir le Dialog de suppression
+  const openDeleteModal = (user) => {
+    setUserToDelete(user);
+    setDeleteVisible(true);
+  };
+
+  // 🔹 Fermer le Dialog de suppression
+  const closeDeleteDialog = () => {
+    setDeleteVisible(false);
+    setUserToDelete(null);
+  };
+
   // 🔹 Autoriser un utilisateur
   const handleAuthorize = () => {
     if (!selectedUser || !selectedRole) {
@@ -53,6 +69,19 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
       {
         onSuccess: closeDialog,
         onError: () => alert('Erreur lors de l\'autorisation de l\'utilisateur.'),
+      }
+    );
+  };
+
+  // 🔹 Supprimer un utilisateur autorisé
+  const handleDelete = () => {
+    if (!userToDelete) return;
+
+    router.delete(
+      route('ldap.delete', { email: userToDelete.email }),
+      {
+        onSuccess: closeDeleteDialog,
+        onError: () => alert('Erreur lors de la suppression de l\'utilisateur.'),
       }
     );
   };
@@ -98,8 +127,23 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
 
   // Template action
   const actionTemplate = (rowData) => {
-    if ( rowData.is_local) return null;
+    if (rowData.is_local) {
+      // Si l'utilisateur est autorisé, afficher le bouton Supprimer
+      return canDelete ? (
+        <Button
+  label="Désactiver"
+  icon="pi pi-ban"
+  size="small"
+  severity="danger"
+  outlined
+  onClick={() => openDeleteModal(rowData)}
+  loading={processing}
+/>
+
+      ) : null;
+    }
     
+    // Si l'utilisateur n'est pas autorisé, afficher le bouton Autoriser
     return (
       <Button
         label="Autoriser"
@@ -115,12 +159,11 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
     );
   };
 
-  // Footer du Dialog
+  // Footer du Dialog d'autorisation
   const footerDialog = (
     <div className="flex justify-content-end gap-2">
       <Button
         label="Annuler"
-        icon="pi pi-times"
         outlined
         severity="secondary"
         onClick={closeDialog}
@@ -136,6 +179,25 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
           background: selectedRole ? 'linear-gradient(135deg, #22c55e, #16a34a)' : undefined,
           border: 'none'
         }}
+      />
+    </div>
+  );
+
+  // Footer du Dialog de suppression
+  const deleteDialogFooter = (
+    <div className="flex justify-content-end gap-2">
+      <Button
+        label="Annuler"
+        outlined
+        severity="secondary"
+        onClick={closeDeleteDialog}
+        disabled={processing}
+      />
+      <Button
+        label={processing ? "Suppression..." : "Supprimer"}
+        severity="danger"
+        onClick={handleDelete}
+        loading={processing}
       />
     </div>
   );
@@ -185,7 +247,6 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
           />
         </div>
       </form>
-
     </div>
   );
 
@@ -232,13 +293,11 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
                 body={statusTemplate}
                 style={{ minWidth: '130px' }}
               />
-            
-                <Column
-                  header="Action"
-                  body={actionTemplate}
-                  style={{ minWidth: '130px', textAlign: 'center' }}
-                />
-            
+              <Column
+                header="Action"
+                body={actionTemplate}
+                style={{ minWidth: '130px', textAlign: 'center' }}
+              />
             </DataTable>
           </Card>
         </div>
@@ -309,6 +368,65 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
                 className="w-full"
               />
             )}
+          </div>
+        )}
+      </Dialog>
+
+      {/* Dialog de confirmation de suppression */}
+      <Dialog
+        visible={deleteVisible}
+        onHide={closeDeleteDialog}
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+            <span>Confirmer la désactivation</span>
+          </div>
+        }
+        footer={deleteDialogFooter}
+        style={{ width: '480px' }}
+        modal
+        draggable={false}
+      >
+        {userToDelete && (
+          <div className="text-center py-3">
+            <div 
+              className="inline-flex align-items-center justify-content-center bg-red-100 border-circle mb-4" 
+              style={{ width: '80px', height: '80px' }}
+            >
+              <i className="pi pi-trash text-5xl text-red-600"></i>
+            </div>
+            
+            <h3 className="text-900 text-xl font-bold mb-2">
+              Désactiver l'autorisation de l'utilisateur LDAP
+            </h3>
+            
+            <p className="text-600 mb-3">
+              Êtes-vous sûr de vouloir désactiver l'autorisation de cet utilisateur ?<br />
+              
+            </p>
+
+            <div className="surface-100 border-round p-3 text-left">
+              <div className="flex align-items-center gap-2 mb-2">
+                <i className="pi pi-user text-600"></i>
+                <span className="text-900 font-medium">
+                  {userToDelete.name}
+                </span>
+              </div>
+              <div className="flex align-items-center gap-2 mb-2">
+                <i className="pi pi-at text-600"></i>
+                <span className="text-700">{userToDelete.username}</span>
+              </div>
+              <div className="flex align-items-center gap-2">
+                <i className="pi pi-envelope text-600"></i>
+                <span className="text-700">{userToDelete.email}</span>
+              </div>
+            </div>
+
+            <Message 
+              severity="warn" 
+              text="L'utilisateur ne pourra plus se connecter après la désactivation." 
+              className="w-full mt-3"
+            />
           </div>
         )}
       </Dialog>
@@ -403,6 +521,10 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
 
         :global(.p-button-outlined) {
           border-width: 2px;
+        }
+
+        :global(.p-button-danger:not(.p-button-outlined):hover) {
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
 
         /* Dialog styling */
