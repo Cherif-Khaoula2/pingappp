@@ -20,7 +20,7 @@ class User extends Authenticatable
     'password',
     'samaccountname',
     'auth_type',
-    
+    'site',
 ];
 
     protected $hidden = [

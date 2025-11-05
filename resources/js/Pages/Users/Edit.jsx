@@ -18,16 +18,18 @@ const UsersEdit = () => {
   const canupdate = permissions.includes("updateuser");
   const candelete = permissions.includes("deleteuser");
   const canviewrole = permissions.includes("getallrole");
+const { data, setData, errors, post, processing } = useForm({
+  first_name: user.first_name || '',
+  last_name: user.last_name || '',
+  email: user.email || '',
+  password: '',
+  password_confirmation: '',
+  role: user.roles || [],
+  site: user.site || '', // <-- ajout du champ site
+  _method: 'put'
+});
 
-  const { data, setData, errors, post, processing } = useForm({
-    first_name: user.first_name || '',
-    last_name: user.last_name || '',
-    email: user.email || '',
-    password: '',
-    password_confirmation: '',
-    role: user.roles || [],
-    _method: 'put'
-  });
+
 
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -209,7 +211,7 @@ const UsersEdit = () => {
   </div>
 </div>
 
-<div className="col-12">
+<div className="col-12 md:col-6">
   <div className="field">
     <label htmlFor="email" className="block text-900 font-medium mb-2">
       Adresse email
@@ -221,6 +223,20 @@ const UsersEdit = () => {
       readOnly                
       className="w-full"
     />
+  </div>
+</div>
+<div className="col-12 md:col-6">
+  <div className="field">
+    <label htmlFor="site" className="block text-900 font-medium mb-2">
+      Site
+    </label>
+    <InputText
+      id="site"
+      value={data.site}
+      onChange={(e) => setData('site', e.target.value)}
+      className="w-full"
+    />
+    {errors.site && <small className="p-error block mt-2">{errors.site}</small>}
   </div>
 </div>
 
