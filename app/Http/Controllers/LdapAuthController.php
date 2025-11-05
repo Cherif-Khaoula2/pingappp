@@ -127,7 +127,8 @@ class LdapAuthController extends Controller
     $user = Auth::user();
 
     if ($user) {
-        $loginName = strstr($user->email, '@', true); // juste "khaoula.hamadouche"
+        $loginName = strtolower(strstr($user->email, '@', true));
+
 
         // ✅ Log de déconnexion
         $this->logAdActivity(
