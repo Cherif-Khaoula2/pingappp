@@ -432,28 +432,32 @@ export default function Dashboard({
     <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
         <div className="flex flex-column gap-2 md:gap-3">
             {safeTopPerformers.length > 0 ? (
-                safeTopPerformers.slice(0, 5).map((user, idx) => (
-                    <Link 
-                        key={user.id} 
-                        href={`/ad/activity-logs/user/${user.id}`} 
-                        className="no-underline text-inherit"
-                    >
+                safeTopPerformers.slice(0, 5).map((user, idx) => {
+                    // 🔹 Nettoyage du nom (enlève les points)
+                    const displayName = user.name.replace(/\./g, ' ').trim();
+
+                    // 🔹 Couleur du badge selon le classement
+                    const rankColor =
+                        idx === 0
+                            ? 'bg-yellow-500'
+                            : idx === 1
+                            ? 'bg-gray-400'
+                            : idx === 2
+                            ? 'bg-orange-600'
+                            : 'bg-indigo-500';
+
+                    // 🔹 Bloc utilisateur (cliquable ou non)
+                    const content = (
                         <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 hover:bg-gray-100 transition-colors transition-duration-200 cursor-pointer">
                             <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
-                                <div className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
-                                    idx === 0
-                                        ? 'bg-yellow-500'
-                                        : idx === 1
-                                        ? 'bg-gray-400'
-                                        : idx === 2
-                                        ? 'bg-orange-600'
-                                        : 'bg-indigo-500'
-                                }`}>
+                                <div
+                                    className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${rankColor}`}
+                                >
                                     {idx + 1}
                                 </div>
                                 <div className="flex-1 overflow-hidden">
                                     <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
-                                        {user.name}
+                                        {displayName}
                                     </p>
                                     <p className="text-xs md:text-sm text-600 m-0">
                                         {user.count} activités
@@ -462,8 +466,21 @@ export default function Dashboard({
                             </div>
                             <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
                         </div>
-                    </Link>
-                ))
+                    );
+
+                    // 🔹 Si "Système", pas de lien
+                    return user.name.toLowerCase() === 'système' ? (
+                        <div key={idx}>{content}</div>
+                    ) : (
+                        <Link
+                            key={user.id}
+                            href={`/ad/activity-logs/user/${user.id}`}
+                            className="no-underline text-inherit"
+                        >
+                            {content}
+                        </Link>
+                    );
+                })
             ) : (
                 <div className="text-center p-4">
                     <i className="pi pi-users text-4xl text-300 mb-2"></i>
@@ -473,7 +490,7 @@ export default function Dashboard({
         </div>
     </Card>
 </div>
-                </div>
+       </div>
             </div>
 
             <style jsx>{`
