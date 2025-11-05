@@ -350,19 +350,18 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // 🔍 Construction du filtre PowerShell
-    if (empty($search)) {
-        $filter = 'Name -like "*"';
-    } else {
-        $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
-        $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
-    }
+    // 🔍 Filtre PowerShell
+    $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
+    $filter = empty($search)
+        ? 'Name -like "*"'
+        : "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
 
-    $psScript = 
-                "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
-                "-Properties Name,SamAccountName,EmailAddress,Enabled; " .
-                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled | " .
-                "ConvertTo-Json -Depth 3";
+    // ⚡ Ajout de DistinguishedName à la requête AD
+    $psScript =
+        "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
+        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
+        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+        "ConvertTo-Json -Depth 3";
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
@@ -378,13 +377,9 @@ public function findUser(Request $request)
         : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
     try {
-        $start = microtime(true);
-
         $process = new Process($command);
         $process->setTimeout(60);
         $process->run();
-
-        $afterSsh = microtime(true);
 
         if (!$process->isSuccessful()) {
             \Log::error('PowerShell SSH Error', [
@@ -397,81 +392,74 @@ public function findUser(Request $request)
         }
 
         $output = trim($process->getOutput());
-
-        $afterOutput = microtime(true);
-
         if (empty($output)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Aucun utilisateur trouvé',
-                'users' => []
-            ]);
+            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé', 'users' => []]);
         }
 
         $adUsers = json_decode($output, true);
-
-        $afterJson = microtime(true);
-
         if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur de décodage JSON',
-                'users' => []
-            ]);
+            return response()->json(['success' => false, 'message' => 'Erreur de décodage JSON', 'users' => []]);
         }
 
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
 
-        $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')
-            ->map(fn($sam) => strtolower($sam))
-            ->toArray();
+        // 🔹 DNs autorisés pour l'utilisateur connecté
+        $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
 
+        // 🔹 Comptes cachés et e-mails existants
+        $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')->map(fn($sam) => strtolower($sam))->toArray();
         $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
 
-        $afterCollectionStart = microtime(true);
+        $users = collect($adUsers)->map(function ($adUser) use ($existingEmails, $hiddenSamAccounts, $userAuthDns) {
+            $email = strtolower($adUser['EmailAddress'] ?? '');
+            $sam = strtolower($adUser['SamAccountName'] ?? '');
+            $dn = $adUser['DistinguishedName'] ?? '';
+            $enabled = (bool)($adUser['Enabled'] ?? false);
+            $isLocal = in_array($email, $existingEmails);
 
-        $users = collect($adUsers)->map(function ($user) use ($existingEmails, $hiddenSamAccounts) {
-            $email = strtolower($user['EmailAddress'] ?? '');
-            $sam = strtolower($user['SamAccountName'] ?? '');
-            $lastLogonRaw = $user['LastLogonDate'] ?? null;
-
-            $lastLogon = null;
-            if ($lastLogonRaw && preg_match('/Date\((\d+)\)/', $lastLogonRaw, $matches)) {
-                $timestamp = intval($matches[1]) / 1000;
-                $lastLogon = date('Y-m-d H:i:s', $timestamp);
+            // 🔹 Vérification de l’autorisation du DN
+            $isAuthorizedDn = false;
+            foreach ($userAuthDns as $allowedDn) {
+                if (stripos($dn, $allowedDn) !== false) {
+                    $isAuthorizedDn = true;
+                    break;
+                }
             }
 
             return [
-                'name' => $user['Name'] ?? '',
-                'sam' => $user['SamAccountName'] ?? '',
+                'name' => $adUser['Name'] ?? '',
+                'sam' => $adUser['SamAccountName'] ?? '',
                 'email' => $email,
-                'enabled' => (bool)($user['Enabled'] ?? false),
-                'is_local' => in_array($email, $existingEmails),
-                'last_logon' => $lastLogon,
+                'enabled' => $enabled,
+                'is_local' => $isLocal,
+                'dn' => $dn,
+                'is_authorized_dn' => $isAuthorizedDn,
                 'source' => 'active_directory'
             ];
-        })->filter(fn($user) =>
-            !empty($user['name']) &&
-            !empty($user['sam']) &&
-            !in_array(strtolower($user['sam']), $hiddenSamAccounts)
-        )->values()->toArray();
+        })
+        ->filter(fn($u) =>
+            !empty($u['name']) &&
+            !empty($u['sam']) &&
+            !in_array(strtolower($u['sam']), $hiddenSamAccounts)
+        )
+        ->values();
 
-        $afterCollectionEnd = microtime(true);
-
-        // 🔹 Log du temps pris à chaque étape
-        \Log::info('Timing findUser', [
-            'ssh' => $afterSsh - $start,
-            'output_trim' => $afterOutput - $afterSsh,
-            'json_decode' => $afterJson - $afterOutput,
-            'collection_processing' => $afterCollectionEnd - $afterCollectionStart,
-        ]);
+        // 🔹 Séparation des utilisateurs selon autorisation
+        $authorizedUsers = $users->where('is_authorized_dn', true)->values();
+        $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
         return response()->json([
             'success' => true,
-            'users' => $users,
-            'count' => count($users)
+            'users' => $authorizedUsers,
+            'unauthorized' => $unauthorizedUsers->map(fn($u) => [
+                'name' => $u['name'],
+                'dn' => $u['dn'],
+                'message' => "Cet utilisateur appartient à un DN auquel vous n’êtes pas autorisé à accéder."
+            ]),
+            'count' => $authorizedUsers->count(),
+            'unauthorized_count' => $unauthorizedUsers->count(),
         ]);
 
     } catch (\Throwable $e) {
@@ -488,6 +476,7 @@ public function findUser(Request $request)
         ], 500);
     }
 }
+
 
 public function managePassword()
 {

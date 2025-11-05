@@ -71,6 +71,10 @@ class User extends Authenticatable
     // Désactive complètement la logique "utilisateur démo"
     return false;
 }
+public function dns()
+{
+    return $this->belongsToMany(Dn::class, 'dn_user', 'user_id', 'dn_id');
+}
 
 }
 

@@ -273,4 +273,12 @@ Route::get('/api/ad/computers/laps', [AdComputerController::class, 'getAllLapsCo
     ->name('api.ad.computers.laps');
 
 });
+use App\Http\Controllers\DnController;
 
+Route::middleware(['auth'])->group(function() {
+    Route::get('/dns', [DnController::class, 'index'])->name('dns.index');
+    Route::post('/dns', [DnController::class, 'store'])->name('dns.store');
+    Route::put('/dns/{dn}', [DnController::class, 'update'])->name('dns.update');
+    Route::delete('/dns/{dn}', [DnController::class, 'destroy'])->name('dns.destroy');
+    Route::post('/dns/assign', [DnController::class, 'assignDnToUser'])->name('dns.assign');
+});

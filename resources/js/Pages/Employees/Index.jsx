@@ -23,7 +23,6 @@ export default function Index({ employees }) {
     const { data, setData, post, reset, errors } = useForm({
         first_name: '',
         last_name: '',
-        last_name: '',
         email: '',
         first_name: '',
         department: null,
