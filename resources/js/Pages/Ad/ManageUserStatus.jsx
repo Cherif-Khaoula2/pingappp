@@ -176,26 +176,12 @@ const handleSearch = async () => {
                 />
               </div>
 
-             {error && (
-  <div className="p-3 bg-red-100 text-red-700 rounded mb-3">
-    {error}
-  </div>
-)}
-
-{!loading && users.length === 0 && !error && (
-  <p className="text-gray-500">Aucun utilisateur à afficher.</p>
-)}
-
-{users.length > 0 && (
-  <DataTable value={users} paginator rows={10}>
-    <Column field="name" header="Nom" />
-    <Column field="sam" header="SamAccountName" />
-    <Column field="email" header="Email" />
-    <Column field="enabled" header="Actif" body={(row) => (row.enabled ? "Oui" : "Non")} />
-    <Column field="dn" header="DN" />
-  </DataTable>
-)}
-
+              {error && (
+                <div className="p-3 bg-red-50 border-round flex align-items-center gap-2">
+                  <i className="pi pi-exclamation-triangle text-red-600"></i>
+                  <span className="text-red-700">{error}</span>
+                </div>
+              )}
 
               {/* Table */}
               <DataTable value={users} emptyMessage="Aucun utilisateur affiché." stripedRows responsiveLayout="scroll">
