@@ -3,15 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
 
 class AdActivityLog extends Model
 {
+    protected $table = 'ad_activity_logs';
+
     protected $fillable = [
+        'performed_by_id',
         'action',
         'target_user',
         'target_user_name',
-        'performed_by',
         'performed_by_name',
         'ip_address',
         'user_agent',
@@ -23,28 +25,44 @@ class AdActivityLog extends Model
     protected $casts = [
         'details' => 'array',
         'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
-    public function performer(): BelongsTo
+    /**
+     * ✅ Relation avec le modèle User (celui qui a effectué l'action)
+     */
+    public function performer()
     {
-        return $this->belongsTo(User::class, 'performed_by');
+        return $this->belongsTo(User::class, 'performed_by_id');
     }
 
-    // Helper pour créer un log facilement
+    /**
+     * ✅ Alias pour compatibilité
+     */
+    public function performedBy()
+    {
+        return $this->belongsTo(User::class, 'performed_by_id');
+    }
+
+    /**
+     * ✅ Méthode statique pour enregistrer une action
+     */
     public static function logAction(
         string $action,
-        string $targetUser,
+        ?string $targetUser = null,
         ?string $targetUserName = null,
         ?array $details = null,
         string $status = 'success',
         ?string $errorMessage = null
     ): self {
+        $user = Auth::user();
+
         return self::create([
+            'performed_by_id' => $user?->id,
             'action' => $action,
             'target_user' => $targetUser,
             'target_user_name' => $targetUserName,
-            'performed_by' => auth()->id(),
-            'performed_by_name' => auth()->user()?->name ?? 'System',
+            'performed_by_name' => $user ? trim($user->first_name . ' ' . $user->last_name) : 'Système',
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'details' => $details,
@@ -53,19 +71,58 @@ class AdActivityLog extends Model
         ]);
     }
 
-    // Scope pour filtrer par action
-    public function scopeOfAction($query, string $action)
+    /**
+     * ✅ Accesseur pour obtenir le nom de celui qui a effectué l'action
+     */
+    public function getPerformedByNameAttribute($value)
+    {
+        // Si la valeur existe déjà en base, on la retourne
+        if ($value) {
+            return $value;
+        }
+
+        // Sinon on essaie de la récupérer depuis la relation
+        if ($this->performer) {
+            return trim($this->performer->first_name . ' ' . $this->performer->last_name) 
+                   ?: $this->performer->email;
+        }
+
+        return 'Système';
+    }
+
+    /**
+     * ✅ Scopes pour faciliter les requêtes
+     */
+    public function scopeByAction($query, string $action)
     {
         return $query->where('action', $action);
     }
 
-    // Scope pour filtrer par utilisateur ciblé
-    public function scopeForUser($query, string $targetUser)
+    public function scopeByUser($query, int $userId)
     {
-        return $query->where('target_user', $targetUser);
+        return $query->where('performed_by_id', $userId);
     }
 
-    // Scope pour filtrer par date
+    public function scopeByTarget($query, string $targetUser)
+    {
+        return $query->where('target_user', 'like', "%{$targetUser}%");
+    }
+
+    public function scopeSuccessful($query)
+    {
+        return $query->where('status', 'success');
+    }
+
+    public function scopeFailed($query)
+    {
+        return $query->where('status', 'failed');
+    }
+
+    public function scopeToday($query)
+    {
+        return $query->whereDate('created_at', today());
+    }
+
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
         return $query->whereBetween('created_at', [$startDate, $endDate]);

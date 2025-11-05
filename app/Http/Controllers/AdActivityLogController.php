@@ -130,25 +130,24 @@ public function showUserLogs($id)
 {
     $user = User::findOrFail($id);
 
-    $email = strtolower($user->email);
-    $username = strtolower(explode('@', $email)[0]);
+    $email = $user->email;
+    $username = explode('@', $email)[0];
+    $fullName = trim(strtolower($user->first_name . ' ' . $user->last_name));
 
-    // 🔍 Recherche dans plusieurs champs possibles
-    $logs = AdActivityLog::where(function($query) use ($id, $email, $username) {
+    $logs = AdActivityLog::where(function($query) use ($email, $username, $fullName, $id) {
         $query
-            // Actions effectuées PAR l’utilisateur (login, logout, reset, etc.)
+            // ✅ Logs effectués PAR l'utilisateur (connexion, déconnexion, etc.)
             ->where('performed_by_id', $id)
-            ->orWhereRaw('LOWER(performed_by_name) LIKE ?', ['%' . $username . '%'])
-            ->orWhereRaw('LOWER(performed_by_name) LIKE ?', ['%' . $email . '%'])
-
-            // Actions effectuées SUR l’utilisateur (blocage, création, etc.)
-            ->orWhereRaw('LOWER(target_user) = ?', [$email])
-            ->orWhereRaw('LOWER(target_user) = ?', [$username])
-            ->orWhereRaw('LOWER(target_user_name) LIKE ?', ['%' . $username . '%'])
-            ->orWhereRaw('LOWER(target_user_name) LIKE ?', ['%' . $email . '%']);
+            
+            // ✅ OU logs sur cet utilisateur (bloqué, débloqué, créé, reset, etc.)
+            ->orWhere(function($q) use ($email, $username, $fullName) {
+                $q->whereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($email) . '%'])
+                  ->orWhereRaw('LOWER(target_user) LIKE ?', ['%' . strtolower($username) . '%'])
+                  ->orWhereRaw('LOWER(target_user_name) LIKE ?', ['%' . $fullName . '%']);
+            });
     })
     ->with('performer')
-    ->orderByDesc('created_at')
+    ->orderBy('created_at', 'desc')
     ->get();
 
     return Inertia::render('Ad/UserActivityHistory', [
@@ -156,7 +155,6 @@ public function showUserLogs($id)
         'logs' => $logs
     ]);
 }
-
 
  public function performer()
     {
