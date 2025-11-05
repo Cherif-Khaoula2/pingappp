@@ -259,7 +259,7 @@ class AdUserController extends Controller
         'string',
         'min:8',
         'max:128',
-        'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/'
+        'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
     ],
 ], [
     'new_password.required' => 'Le mot de passe est obligatoire',
@@ -502,7 +502,12 @@ public function createAdUser(Request $request)
 { $this->authorize('addaduser'); 
     $request->validate([
         'name' => 'required|string',
-        'sam' => 'required|string|max:25',
+        'sam' => [
+    'required',
+    'max:25',
+    'regex:/^[A-Za-z\.]+$/',
+],
+
         'email' => 'nullable|email',
         'logmail' => 'required|string',
         'password'   => [
@@ -510,7 +515,7 @@ public function createAdUser(Request $request)
         'string',
         'min:8',
         'max:128',
-        'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/'
+       'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
     ],
     ], [
     'password.required' => 'Le mot de passe est obligatoire',

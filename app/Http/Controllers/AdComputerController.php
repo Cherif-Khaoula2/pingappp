@@ -12,7 +12,7 @@ class AdComputerController extends Controller
 {
     public function getLapsPassword(Request $request)
     {
-        $this->authorize('getaduser');
+        $this->authorize('getadpc');
 
         $request->validate([
             'sam' => 'required|string|max:100'
@@ -102,7 +102,7 @@ class AdComputerController extends Controller
 
 public function getAllLapsComputers(Request $request)
 {
-    $this->authorize('getaduser');
+    $this->authorize('getadpc');
 
     // Optionnel : tu peux filtrer par statut si tu veux (ici on récupère tout)
     // $onlyEnabled = $request->boolean('onlyEnabled', false);

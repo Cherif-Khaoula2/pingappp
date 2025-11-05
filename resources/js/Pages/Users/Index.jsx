@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm, router, usePage } from '@inertiajs/react';
+import { useForm, router, usePage,Head } from '@inertiajs/react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Card } from 'primereact/card';
@@ -193,6 +193,7 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
 
   return (
     <Layout>
+        <Head title="Gestion des utilisateurs" />
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-2">

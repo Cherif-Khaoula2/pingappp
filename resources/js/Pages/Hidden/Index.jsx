@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { router } from "@inertiajs/react";
+import { router ,Head} from "@inertiajs/react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
@@ -154,6 +154,7 @@ export default function HiddenIndex({ users, search }) {
 
     return (
         <Layout>
+            <Head title="Masquer utilisateur" />
             <Toast ref={toast} />
 
             <div className="card shadow-3">

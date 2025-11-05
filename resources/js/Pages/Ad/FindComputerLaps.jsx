@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import {Head} from '@inertiajs/react';
 export default function FindComputerLaps() {
   const [computer, setComputer] = useState("");
   const [rows, setRows] = useState([]);
@@ -44,6 +44,7 @@ export default function FindComputerLaps() {
 
   return (
     <Layout>
+        <Head title="Mdp Admin Local" />
       <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">
           🔍 Recherche Ordinateur (AD) — LAPS
