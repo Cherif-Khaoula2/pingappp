@@ -115,8 +115,9 @@ class DashboardController extends Controller
             // ==================== 5️⃣ DERNIERS LOGS ====================
             $recentLogs = AdActivityLog::with('performer:id,first_name,last_name,email')
                 ->latest()
-                ->limit(100)
+                ->limit(10)
                 ->get()
+                
                 ->map(function ($log) use ($tz) {
                     $performerName = 'Système';
 
