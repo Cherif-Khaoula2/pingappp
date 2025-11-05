@@ -31,10 +31,10 @@ class AdActivityLog extends Model
     /**
      * ✅ Relation avec le modèle User (celui qui a effectué l'action)
      */
-    public function performer()
-    {
-        return $this->belongsTo(User::class, 'performed_by_id');
-    }
+ public function performer()
+{
+    return $this->belongsTo(User::class, 'performed_by_id');
+}
 
     /**
      * ✅ Alias pour compatibilité
