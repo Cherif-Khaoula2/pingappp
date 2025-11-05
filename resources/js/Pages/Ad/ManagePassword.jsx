@@ -28,6 +28,7 @@ export default function ResetUserPassword() {
 
   // Contrôle d'affichage du mot de passe (uniquement pour le mode manuel)
   const [showManualPassword, setShowManualPassword] = useState(false);
+const [resetError, setResetError] = useState(null);
 
   // 🔹 Changement du mode de mot de passe
   const handlePasswordModeChange = (mode) => {
