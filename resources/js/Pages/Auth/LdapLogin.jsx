@@ -29,7 +29,7 @@ export default function LdapLoginPage({ status }) {
         <GuestLayout>
             <Head title="Connexion LDAP" />
 
-            {/* Container plein écran comme ABEX */}
+            {/* Container plein écran */}
             <div className="fullscreen-container">
                 {/* Décorations de fond */}
                 <div className="background-decorations">
@@ -38,111 +38,113 @@ export default function LdapLoginPage({ status }) {
                     <div className="decoration-circle circle-3"></div>
                 </div>
 
-                {/* Conteneur principal du formulaire - centré comme ABEX */}
-                <div className="form-wrapper">
-                    <div className="login-card">
-                        {/* Logo et titre */}
-                        <div className="login-header">
-                            <div className="logo-wrapper">
-                                {/* Logo "To | sys" original */}
-                                <div className="topbar-logo-split">
-                                    <span className="logo-part-blue">To</span>
-                                    <span className="logo-part-red">sys</span>
+                {/* Grid responsive - Mobile: col-12, Tablette: col-8, Desktop: col-6, Large: col-4 */}
+                <div className="container-wrapper">
+                    <div className="grid-container">
+                        <div className="login-column">
+                            <div className="login-card">
+                                {/* Logo et titre */}
+                                <div className="login-header">
+                                    <div className="logo-wrapper">
+                                        <div className="topbar-logo-split">
+                                            <span className="logo-part-blue">To</span>
+                                            <span className="logo-part-red">sys</span>
+                                        </div>
+                                    </div>
+                                    <h1 className="login-title">Connexion LDAP</h1>
+                                    <p className="login-subtitle">
+                                        <i className="pi pi-building"></i>
+                                        <span>Connectez-vous avec votre compte Active Directory</span>
+                                    </p>
                                 </div>
-                            </div>
-                            <h1 className="login-title">Connexion LDAP</h1>
-                            <p className="login-subtitle">
-                                <i className="pi pi-building mr-2"></i>
-                                Connectez-vous avec votre compte Active Directory
-                            </p>
-                        </div>
 
-                        {/* Message de statut (Succès) */}
-                        {status && (
-                            <div className="mb-4 status-message">
-                                <p className="status-text">
-                                    <i className="pi pi-check-circle mr-2"></i>{status}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Formulaire de connexion LDAP */}
-                        <form onSubmit={submit} className="login-form">
-                            <div className="form-field">
-                               
-                                <div className="input-wrapper">
-                                    <span className="input-icon">
-                                        <i className="pi pi-user"></i>
-                                    </span>
-                                    <InputText
-                                        id="username"
-                                        type="text"
-                                        className="custom-input"
-                                        value={data.username}
-                                        onChange={(e) => setData('username', e.target.value)}
-                                        autoComplete="username"
-                                        aria-invalid={!!errors.username}
-                                        aria-describedby="username-error"
-                                        placeholder="Prenom.nom"
-                                    />
-                                </div>
-                                <InputError message={errors.username} className="error-message" id="username-error" />
-                            </div>
-
-                            <div className="form-field">
-                               
-                                <div className="input-wrapper">
-                                    <span className="input-icon">
-                                        <i className="pi pi-lock"></i>
-                                    </span>
-                                    <InputText
-                                        id="password"
-                                        type={showPassword ? "text" : "password"}
-                                        className="custom-input"
-                                        value={data.password}
-                                        onChange={(e) => setData('password', e.target.value)}
-                                        autoComplete="current-password"
-                                        aria-invalid={!!errors.password}
-                                        aria-describedby="password-error"
-                                        placeholder="Mot de passe"
-                                    />
-                                </div>
-                                <InputError message={errors.password} className="error-message" id="password-error" />
-                            </div>
-
-                            {/* Bouton de connexion noir */}
-                            <PrimaryButton
-                                className="submit-button"
-                                disabled={processing}
-                            >
-                                {processing ? (
-                                    <span className="button-content">
-                                        <i className="pi pi-spin pi-spinner mr-2"></i>
-                                        Connexion en cours...
-                                    </span>
-                                ) : (
-                                    <span className="button-content">
-                                        <i className="pi pi-sign-in mr-2"></i>
-                                        Se connecter
-                                    </span>
+                                {/* Message de statut */}
+                                {status && (
+                                    <div className="status-message">
+                                        <p className="status-text">
+                                            <i className="pi pi-check-circle"></i>
+                                            <span>{status}</span>
+                                        </p>
+                                    </div>
                                 )}
-                            </PrimaryButton>
-                        </form>
 
-                        {/* Message d'erreur général */}
-                        {errors.error && (
-                            <div className="error-banner">
-                                <p className="error-text">
-                                    <i className="pi pi-times-circle mr-2"></i>
-                                    {errors.error}
-                                </p>
+                                {/* Formulaire de connexion LDAP */}
+                                <form onSubmit={submit} className="login-form">
+                                    <div className="form-field">
+                                        <div className="input-wrapper">
+                                            <span className="input-icon">
+                                                <i className="pi pi-user"></i>
+                                            </span>
+                                            <InputText
+                                                id="username"
+                                                type="text"
+                                                className="custom-input"
+                                                value={data.username}
+                                                onChange={(e) => setData('username', e.target.value)}
+                                                autoComplete="username"
+                                                aria-invalid={!!errors.username}
+                                                aria-describedby="username-error"
+                                                placeholder="Prenom.nom"
+                                            />
+                                        </div>
+                                        <InputError message={errors.username} className="error-message" id="username-error" />
+                                    </div>
+
+                                    <div className="form-field">
+                                        <div className="input-wrapper">
+                                            <span className="input-icon">
+                                                <i className="pi pi-lock"></i>
+                                            </span>
+                                            <InputText
+                                                id="password"
+                                                type={showPassword ? "text" : "password"}
+                                                className="custom-input"
+                                                value={data.password}
+                                                onChange={(e) => setData('password', e.target.value)}
+                                                autoComplete="current-password"
+                                                aria-invalid={!!errors.password}
+                                                aria-describedby="password-error"
+                                                placeholder="Mot de passe"
+                                            />
+                                        </div>
+                                        <InputError message={errors.password} className="error-message" id="password-error" />
+                                    </div>
+
+                                    {/* Bouton de connexion */}
+                                    <PrimaryButton
+                                        className="submit-button"
+                                        disabled={processing}
+                                    >
+                                        {processing ? (
+                                            <span className="button-content">
+                                                <i className="pi pi-spin pi-spinner"></i>
+                                                <span>Connexion en cours...</span>
+                                            </span>
+                                        ) : (
+                                            <span className="button-content">
+                                                <i className="pi pi-sign-in"></i>
+                                                <span>Se connecter</span>
+                                            </span>
+                                        )}
+                                    </PrimaryButton>
+                                </form>
+
+                                {/* Message d'erreur général */}
+                                {errors.error && (
+                                    <div className="error-banner">
+                                        <p className="error-text">
+                                            <i className="pi pi-times-circle"></i>
+                                            <span>{errors.error}</span>
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Message "Connexion sécurisée" */}
+                                <div className="secure-message">
+                                    <i className="pi pi-shield"></i>
+                                    <span>Connexion sécurisée</span>
+                                </div>
                             </div>
-                        )}
-
-                        {/* Message "Connexion sécurisée" */}
-                        <div className="secure-message">
-                            <i className="pi pi-shield mr-2"></i>
-                            Connexion sécurisée
                         </div>
                     </div>
                 </div>
@@ -162,7 +164,7 @@ export default function LdapLoginPage({ status }) {
                     overflow-x: hidden;
                 }
 
-                /* Container plein écran - style ABEX */
+                /* Container plein écran */
                 .fullscreen-container {
                     position: fixed;
                     top: 0;
@@ -174,9 +176,10 @@ export default function LdapLoginPage({ status }) {
                     justify-content: center;
                     background: linear-gradient(135deg, #e9dcfaff 0%, #fae4cfff 100%);
                     overflow-y: auto;
+                    padding: 1rem;
                 }
 
-                /* --- Décorations de fond --- */
+                /* Décorations de fond */
                 .background-decorations {
                     position: fixed;
                     top: 0;
@@ -193,6 +196,7 @@ export default function LdapLoginPage({ status }) {
                     border-radius: 50%;
                     opacity: 0.08;
                     filter: blur(60px);
+                    transition: all 0.3s ease;
                 }
 
                 .circle-1 {
@@ -202,6 +206,7 @@ export default function LdapLoginPage({ status }) {
                     left: -80px;
                     background: linear-gradient(135deg, #a78bfa, #818cf8);
                 }
+                
                 .circle-2 {
                     width: 200px;
                     height: 200px;
@@ -209,6 +214,7 @@ export default function LdapLoginPage({ status }) {
                     right: -60px;
                     background: linear-gradient(135deg, #fb7185, #f472b6);
                 }
+                
                 .circle-3 {
                     width: 180px;
                     height: 180px;
@@ -219,59 +225,142 @@ export default function LdapLoginPage({ status }) {
                     background: linear-gradient(135deg, #60a5fa, #3b82f6);
                 }
 
-                /* Wrapper du formulaire - centré comme ABEX */
-                .form-wrapper {
+                /* Wrapper principal */
+                .container-wrapper {
                     position: relative;
                     z-index: 10;
                     width: 100%;
-                    max-width: 420px;
-                    padding: 1rem;
+                    max-width: 1400px;
+                    margin: 0 auto;
+                }
+
+                /* Grid système */
+                .grid-container {
+                    display: grid;
+                    grid-template-columns: repeat(12, 1fr);
+                    gap: 1rem;
+                    width: 100%;
+                }
+
+                /* Colonne de login - Responsive 
+                   Mobile: 12/12 (100%)
+                   Tablette: 10/12 (83%)
+                   Desktop: 6/12 (50%)
+                   Large Desktop: 4/12 (33%)
+                */
+                .login-column {
+                    grid-column: span 12;
+                    width: 100%;
+                }
+
+                /* Tablette (≥640px) - 10/12 colonnes centrées */
+                @media (min-width: 640px) {
+                    .login-column {
+                        grid-column: 2 / span 10;
+                    }
+                    
+                    .circle-1 {
+                        width: 300px;
+                        height: 300px;
+                    }
+                }
+
+                /* Tablette large (≥768px) - 8/12 colonnes centrées */
+                @media (min-width: 768px) {
+                    .login-column {
+                        grid-column: 3 / span 8;
+                    }
+                }
+
+                /* Desktop (≥1024px) - 6/12 colonnes centrées */
+                @media (min-width: 1024px) {
+                    .login-column {
+                        grid-column: 4 / span 6;
+                    }
+                    
+                    .circle-2 {
+                        width: 250px;
+                        height: 250px;
+                    }
+                }
+
+                /* Large desktop (≥1280px) - 4/12 colonnes centrées */
+                @media (min-width: 1280px) {
+                    .login-column {
+                         grid-column: 4 / span 6;
+                    }
+                }
+
+                /* Extra large (≥1536px) - 4/12 colonnes centrées */
+                @media (min-width: 1536px) {
+                    .login-column {
+                        grid-column: 4 / span 6;
+                    }
                 }
 
                 /* Carte de connexion */
                 .login-card {
                     background: #ffffff;
-                    border-radius: 20px;
-                    padding: 2.5rem 2rem;
+                    border-radius: 16px;
+                    padding: 1.5rem;
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+                    width: 100%;
                 }
 
-                /* Adaptation mobile */
-                @media (max-width: 768px) {
-                    .form-wrapper {
-                        max-width: 90%;
-                        padding: 0.5rem;
-                    }
-
+                @media (min-width: 640px) {
                     .login-card {
-                        padding: 2rem 1.5rem;
-                        border-radius: 16px;
+                        border-radius: 20px;
+                        padding: 2rem;
+                    }
+                }
+
+                @media (min-width: 768px) {
+                    .login-card {
+                        padding: 2.5rem 2rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .login-card {
+                        padding: 3rem 2.5rem;
                     }
                 }
 
                 /* En-tête du login */
                 .login-header {
                     text-align: center;
-                    margin-bottom: 2rem;
-                }
-
-               .logo-wrapper {
                     margin-bottom: 1.5rem;
                 }
 
-                @media (max-width: 768px) {
-                    .logo-wrapper {
-                        margin-bottom: 1rem;
+                @media (min-width: 640px) {
+                    .login-header {
+                        margin-bottom: 2rem;
                     }
                 }
 
-                /* Styles du logo original "To | sys" */
+                @media (min-width: 1024px) {
+                    .login-header {
+                        margin-bottom: 2.5rem;
+                    }
+                }
+
+                .logo-wrapper {
+                    margin-bottom: 1rem;
+                }
+
+                @media (min-width: 640px) {
+                    .logo-wrapper {
+                        margin-bottom: 1.5rem;
+                    }
+                }
+
+                /* Logo "To | sys" */
                 .topbar-logo-split {
                     display: inline-flex;
                     align-items: center;
                     font-family: 'Poppins', 'Inter', sans-serif;
                     font-weight: 900;
-                    font-size: 2.5rem;
+                    font-size: 2rem;
                     letter-spacing: -0.04em;
                     user-select: none;
                     position: relative;
@@ -279,6 +368,18 @@ export default function LdapLoginPage({ status }) {
                 }
 
                 @media (min-width: 640px) {
+                    .topbar-logo-split {
+                        font-size: 2.5rem;
+                    }
+                }
+
+                @media (min-width: 768px) {
+                    .topbar-logo-split {
+                        font-size: 3rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
                     .topbar-logo-split {
                         font-size: 3.5rem;
                     }
@@ -328,27 +429,59 @@ export default function LdapLoginPage({ status }) {
                     50% { transform: translateX(4px); }
                 }
 
-                /* Titre et sous-titre */
+                /* Titre */
                 .login-title {
-                    font-size: 1.75rem;
+                    font-size: 1.25rem;
                     font-weight: 700;
                     color: #1f2937;
                     margin-bottom: 0.5rem;
                 }
 
-                @media (max-width: 768px) {
+                @media (min-width: 640px) {
                     .login-title {
                         font-size: 1.5rem;
                     }
                 }
 
+                @media (min-width: 768px) {
+                    .login-title {
+                        font-size: 1.75rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .login-title {
+                        font-size: 2rem;
+                    }
+                }
+
+                /* Sous-titre */
                 .login-subtitle {
-                    font-size: 0.9rem;
+                    font-size: 0.8rem;
                     color: #6b7280;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     gap: 0.5rem;
+                    flex-wrap: wrap;
+                }
+
+                @media (min-width: 640px) {
+                    .login-subtitle {
+                        font-size: 0.85rem;
+                    }
+                }
+
+                @media (min-width: 768px) {
+                    .login-subtitle {
+                        font-size: 0.9rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .login-subtitle {
+                        font-size: 1rem;
+                    }
                 }
 
                 /* Formulaire */
@@ -357,15 +490,19 @@ export default function LdapLoginPage({ status }) {
                 }
 
                 .form-field {
-                    margin-bottom: 1.25rem;
+                    margin-bottom: 1rem;
                 }
 
-                .field-label {
-                    display: block;
-                    font-size: 0.9rem;
-                    font-weight: 600;
-                    color: #374151;
-                    margin-bottom: 0.5rem;
+                @media (min-width: 640px) {
+                    .form-field {
+                        margin-bottom: 1.25rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .form-field {
+                        margin-bottom: 1.5rem;
+                    }
                 }
 
                 /* Input wrapper */
@@ -381,24 +518,52 @@ export default function LdapLoginPage({ status }) {
                     left: 0;
                     top: 0;
                     bottom: 0;
-                    width: 45px;
+                    width: 40px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     color: #9ca3af;
-                    font-size: 1.1rem;
+                    font-size: 1rem;
                     pointer-events: none;
                     z-index: 1;
                 }
 
+                @media (min-width: 640px) {
+                    .input-icon {
+                        width: 45px;
+                        font-size: 1.1rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .input-icon {
+                        width: 50px;
+                        font-size: 1.2rem;
+                    }
+                }
+
                 .custom-input {
                     width: 100%;
-                    padding: 0.85rem 1rem 0.85rem 45px !important;
+                    padding: 0.75rem 1rem 0.75rem 40px !important;
                     font-size: 16px !important;
                     border: 1px solid #d1d5db;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     background-color: #f9fafb;
                     transition: all 0.2s ease;
+                }
+
+                @media (min-width: 640px) {
+                    .custom-input {
+                        padding: 0.85rem 1rem 0.85rem 45px !important;
+                        border-radius: 10px;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .custom-input {
+                        padding: 1rem 1.25rem 1rem 50px !important;
+                        border-radius: 12px;
+                    }
                 }
 
                 .custom-input:focus {
@@ -415,20 +580,32 @@ export default function LdapLoginPage({ status }) {
                 /* Message d'erreur */
                 .error-message {
                     color: #dc2626;
-                    font-size: 0.85rem;
+                    font-size: 0.8rem;
                     margin-top: 0.4rem;
+                }
+
+                @media (min-width: 640px) {
+                    .error-message {
+                        font-size: 0.85rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .error-message {
+                        font-size: 0.9rem;
+                    }
                 }
 
                 /* Bouton de connexion */
                 .submit-button {
                     width: 100%;
-                    padding: 0.9rem 1.5rem;
+                    padding: 0.8rem 1.5rem;
                     margin-top: 0.5rem;
                     background-color: #1a1a1a;
                     border: none;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     color: white;
-                    font-size: 1rem;
+                    font-size: 0.95rem;
                     font-weight: 600;
                     cursor: pointer;
                     transition: all 0.3s ease;
@@ -436,6 +613,22 @@ export default function LdapLoginPage({ status }) {
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                }
+
+                @media (min-width: 640px) {
+                    .submit-button {
+                        padding: 0.9rem 1.5rem;
+                        border-radius: 10px;
+                        font-size: 1rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .submit-button {
+                        padding: 1rem 1.5rem;
+                        border-radius: 12px;
+                        font-size: 1.05rem;
+                    }
                 }
 
                 .submit-button:hover:not(:disabled) {
@@ -458,49 +651,117 @@ export default function LdapLoginPage({ status }) {
 
                 /* Messages de statut */
                 .status-message {
-                    padding: 0.85rem 1rem;
+                    padding: 0.75rem 1rem;
                     background-color: #d1fae5;
                     border: 1px solid #6ee7b7;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     margin-bottom: 1rem;
+                }
+
+                @media (min-width: 640px) {
+                    .status-message {
+                        padding: 0.85rem 1rem;
+                        border-radius: 10px;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .status-message {
+                        padding: 1rem 1.25rem;
+                        border-radius: 12px;
+                    }
                 }
 
                 .status-text {
                     color: #047857;
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                     display: flex;
                     align-items: center;
+                    gap: 0.5rem;
                     margin: 0;
+                }
+
+                @media (min-width: 640px) {
+                    .status-text {
+                        font-size: 0.9rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .status-text {
+                        font-size: 0.95rem;
+                    }
                 }
 
                 /* Bannière d'erreur */
                 .error-banner {
-                    padding: 0.85rem 1rem;
+                    padding: 0.75rem 1rem;
                     background-color: #fee2e2;
                     border: 1px solid #fca5a5;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     margin-top: 1rem;
                     animation: fadeIn 0.3s ease;
                 }
 
+                @media (min-width: 640px) {
+                    .error-banner {
+                        padding: 0.85rem 1rem;
+                        border-radius: 10px;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .error-banner {
+                        padding: 1rem 1.25rem;
+                        border-radius: 12px;
+                    }
+                }
+
                 .error-text {
                     color: #dc2626;
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                     display: flex;
                     align-items: center;
+                    gap: 0.5rem;
                     margin: 0;
+                }
+
+                @media (min-width: 640px) {
+                    .error-text {
+                        font-size: 0.9rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .error-text {
+                        font-size: 0.95rem;
+                    }
                 }
 
                 /* Message sécurisé */
                 .secure-message {
-                    margin-top: 1.5rem;
+                    margin-top: 1.25rem;
                     text-align: center;
                     color: #059669;
-                    font-size: 0.85rem;
+                    font-size: 0.8rem;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     gap: 0.4rem;
+                }
+
+                @media (min-width: 640px) {
+                    .secure-message {
+                        margin-top: 1.5rem;
+                        font-size: 0.85rem;
+                    }
+                }
+
+                @media (min-width: 1024px) {
+                    .secure-message {
+                        margin-top: 2rem;
+                        font-size: 0.9rem;
+                    }
                 }
 
                 /* Animation */
@@ -515,13 +776,23 @@ export default function LdapLoginPage({ status }) {
                     }
                 }
 
-                /* Utilities */
-                .mr-2 {
-                    margin-right: 0.5rem;
-                }
-
-                .mb-4 {
-                    margin-bottom: 1rem;
+                /* Ajustements pour très petits écrans */
+                @media (max-width: 360px) {
+                    .fullscreen-container {
+                        padding: 0.5rem;
+                    }
+                    
+                    .login-card {
+                        padding: 1.25rem;
+                    }
+                    
+                    .topbar-logo-split {
+                        font-size: 1.75rem;
+                    }
+                    
+                    .login-title {
+                        font-size: 1.1rem;
+                    }
                 }
             `}</style>
         </GuestLayout>
