@@ -112,11 +112,6 @@ class AdHiddenAccountController extends Controller
 
         $account = AdHiddenAccount::create($validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Compte ajouté à la liste des masqués.',
-            'data' => $account
-        ], 201);
     }
 
     /**
@@ -126,10 +121,6 @@ class AdHiddenAccountController extends Controller
     {
         $adHiddenAccount->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Compte supprimé de la liste des masqués.'
-        ]);
     }
    public function showHiddenList()
 {
