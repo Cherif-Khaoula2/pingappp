@@ -289,7 +289,6 @@ const showBackendError = (message) => {
     <div className="flex justify-content-end gap-2">
       <Button
         label="Annuler"
-        icon="pi pi-times"
         outlined
         onClick={() => setShowConfirmDialog(false)}
         disabled={loading}
@@ -308,7 +307,6 @@ const showBackendError = (message) => {
     <div className="flex justify-content-center">
       <Button
         label="OK"
-        icon="pi pi-check"
         onClick={() => setShowSuccessDialog(false)}
         style={{
           background: "linear-gradient(135deg, #10b981, #059669)",
@@ -648,7 +646,6 @@ const showBackendError = (message) => {
                     <Button
                       type="button"
                       label="Annuler"
-                      icon="pi pi-times"
                       outlined
                       onClick={() => {
                         setForm({

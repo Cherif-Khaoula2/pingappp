@@ -196,8 +196,8 @@ export default function ResetUserPassword() {
                     <div
                       className="inline-flex align-items-center justify-content-center border-circle"
                       style={{ 
-                        width: "60px", 
-                        height: "60px",
+                        width: "40px", 
+                        height: "40px",
                         background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
                         boxShadow: "0 8px 20px rgba(99, 102, 241, 0.4)"
                       }}
@@ -412,7 +412,6 @@ export default function ResetUserPassword() {
           <div className="flex gap-3 mt-4">
             <Button
               label="Annuler"
-              icon="pi pi-times"
               outlined
               severity="secondary"
               onClick={() => {
@@ -471,15 +470,13 @@ export default function ResetUserPassword() {
             {/* Détails */}
             <div className="surface-100 border-round-lg p-4 mb-4">
               <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
-                <i className="pi pi-user text-primary text-xl mt-1"></i>
-                <div className="flex-1">
+                                <div className="flex-1">
                   <div className="text-500 text-sm mb-1 font-medium">Nom complet</div>
                   <div className="text-900 font-semibold text-lg">{resetSuccessDetails.name}</div>
                 </div>
               </div>
 
               <div className="flex align-items-start gap-3 mb-3">
-                <i className="pi pi-id-card text-primary text-xl mt-1"></i>
                 <div className="flex-1">
                   <div className="text-500 text-sm mb-1 font-medium">Nom d'utilisateur</div>
                   <div className="text-900 font-semibold text-lg">{resetSuccessDetails.sam}</div>
@@ -520,7 +517,6 @@ export default function ResetUserPassword() {
             {/* Bouton OK */}
             <Button
               label="OK, j'ai compris"
-              icon="pi pi-check"
               onClick={() => setShowSuccessDialog(false)}
               severity="success"
               className="w-full"

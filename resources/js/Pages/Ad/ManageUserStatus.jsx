@@ -199,8 +199,8 @@ export default function ManageUserStatus() {
                     <div
                       className="inline-flex align-items-center justify-content-center border-circle"
                       style={{ 
-                        width: "60px", 
-                        height: "60px",
+                        width: "40px", 
+                        height: "40px",
                         background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
                         boxShadow: "0 8px 20px rgba(239, 68, 68, 0.4)"
                       }}
