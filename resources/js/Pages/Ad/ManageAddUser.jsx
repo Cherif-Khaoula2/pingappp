@@ -106,7 +106,62 @@ const ManageAddUser = () => {
     
     }
   };
+const showBackendError = (message) => {
+    toast.current.show({
+      severity: "error",
+      summary: "Erreur de création",
+      detail: (
+        <div
+          style={{
+            backgroundColor: "#fff5f5",
+            borderLeft: "5px solid #f44336",
+            color: "#2d2d2d",
+            fontFamily: "Inter, sans-serif",
+            padding: "10px 14px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(244, 67, 54, 0.15)",
+            lineHeight: "1.6",
+          }}
+        >
+          <div style={{ fontWeight: 600, color: "#b71c1c", marginBottom: "6px" }}>
+            ⚠️ {message.includes("SamAccountName")
+              ? "Utilisateur déjà existant"
+              : "Erreur détectée"}
+          </div>
 
+          {message.includes("SamAccountName") ? (
+            <p style={{ margin: 0 }}>
+              Un utilisateur avec ce <b>SamAccountName</b> existe déjà dans Active Directory.
+            </p>
+          ) : message.includes("mot de passe") ? (
+            <div>
+              <p style={{ marginBottom: "4px" }}>Le mot de passe doit contenir :</p>
+              <ul style={{ margin: "0 0 0 18px", padding: 0 }}>
+                <li>Une <b>majuscule</b></li>
+                <li>Une <b>minuscule</b></li>
+                <li>Un <b>chiffre</b></li>
+                <li>
+                  Un <b>caractère spécial</b>{" "}
+                  <code
+                    style={{
+                      background: "#fdecec",
+                      borderRadius: "4px",
+                      padding: "2px 4px",
+                    }}
+                  >
+                    @$!%*?&
+                  </code>
+                </li>
+              </ul>
+            </div>
+          ) : (
+            <p style={{ margin: 0 }}>{message}</p>
+          )}
+        </div>
+      ),
+      life: 8000,
+    });
+  };
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
@@ -207,20 +262,24 @@ const ManageAddUser = () => {
       setPasswordMode("auto");
     } catch (err) {
   console.error("Erreur lors de la création :", err);
-  
-  const errorMsg =
-    err.response?.data?.message ||
-    "Erreur lors de la réinitialisation du mot de passe. Vérifiez le mot de passe et réessayez. Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).";
 
-  toast.current.show({
-    severity: 'error',
-    summary: 'Erreur de création',
-    detail: errorMsg,
-    life: 6000
-  });
+  const errorMsg = err.response?.data?.message || "";
+
+  // ✅ Détection plus précise : SamAccountName déjà existant OU mot de passe invalide
+  if (errorMsg.includes("SamAccountName") || errorMsg.includes("mot de passe")) {
+    showBackendError(errorMsg);
+  } else {
+    toast.current.show({
+      severity: "error",
+      summary: "Erreur de création",
+      detail: errorMsg || "Une erreur inconnue est survenue.",
+      life: 6000,
+    });
+  }
 
   setShowConfirmDialog(false);
 }
+
  finally {
       setLoading(false);
     }
