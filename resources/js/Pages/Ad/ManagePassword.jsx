@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { router } from "@inertiajs/react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Card } from "primereact/card";
@@ -27,8 +25,8 @@ export default function ResetUserPassword() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [resetSuccessDetails, setResetSuccessDetails] = useState(null);
 
-  // NEW: contrôle d'affichage du champ mot de passe (true = visible)
-  const [showPassword, setShowPassword] = useState(true); // par défaut visible (non masqué)
+  // Contrôle d'affichage du mot de passe (uniquement pour le mode manuel)
+  const [showManualPassword, setShowManualPassword] = useState(false);
 
   // 🔹 Changement du mode de mot de passe
   const handlePasswordModeChange = (mode) => {
@@ -36,12 +34,14 @@ export default function ResetUserPassword() {
     if (mode === "auto") {
       const pwd = generatePassword();
       setNewPassword(pwd);
+      // En mode auto, pas besoin du toggle manuel
     } else {
       setNewPassword("");
+      setShowManualPassword(false); // Reset le toggle pour le mode manuel
     }
   };
 
-  // 🔹 Recherche d’un utilisateur
+  // 🔹 Recherche d'un utilisateur
   const handleSearch = async () => {
     if (!search.trim()) {
       alert("Veuillez saisir un SamAccountName");
@@ -82,9 +82,8 @@ export default function ResetUserPassword() {
       setNewPassword(generatePassword());
     } else {
       setNewPassword("");
+      setShowManualPassword(false);
     }
-    // par défaut on affiche le mot de passe (conformément à ta demande)
-    setShowPassword(true);
   };
 
   // 🔹 Confirmer la réinitialisation
@@ -255,39 +254,66 @@ export default function ResetUserPassword() {
             <div className="flex gap-3">
               <div
                 onClick={() => handlePasswordModeChange("auto")}
-                className={`p-3 border-2 border-round cursor-pointer flex-1 ${
+                className={`p-3 border-2 border-round cursor-pointer flex-1 text-center ${
                   passwordMode === "auto" ? "border-green-500 bg-green-50 shadow-3" : "border-300 hover:border-400 hover:bg-gray-50"
                 }`}
               >
-                Génération automatique
+                <i className="pi pi-sparkles text-green-600 mr-2"></i>
+                <span className="font-semibold">Automatique</span>
               </div>
               <div
                 onClick={() => handlePasswordModeChange("manual")}
-                className={`p-3 border-2 border-round cursor-pointer flex-1 ${
+                className={`p-3 border-2 border-round cursor-pointer flex-1 text-center ${
                   passwordMode === "manual" ? "border-orange-500 bg-orange-50 shadow-3" : "border-300 hover:border-400 hover:bg-gray-50"
                 }`}
               >
-                Saisie manuelle
+                <i className="pi pi-pencil text-orange-600 mr-2"></i>
+                <span className="font-semibold">Manuel</span>
               </div>
             </div>
           </div>
 
-          {/* Input mot de passe — affiché en clair par défaut, avec bouton pour basculer */}
-          <div className="p-inputgroup" style={{ gap: 8 }}>
-            <InputText
-              // type basé sur l'état showPassword ; showPassword=true => texte visible
-              type={showPassword ? "text" : "password"}
-              placeholder="Nouveau mot de passe..."
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              style={{ width: "100%", height: "45px" }}
-            />
-            <Button
-              icon={showPassword ? "pi pi-eye-slash" : "pi pi-eye"}
-              className="p-button-outlined"
-              onClick={() => setShowPassword((s) => !s)}
-              tooltip={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-            />
+          {/* Input mot de passe avec logique conditionnelle */}
+          <div className="mb-3">
+            <label className="block text-900 font-medium mb-2">
+              {passwordMode === "auto" ? "Mot de passe généré" : "Nouveau mot de passe"}
+            </label>
+            <div className="p-inputgroup">
+              <InputText
+                type={passwordMode === "auto" ? "text" : (showManualPassword ? "text" : "password")}
+                placeholder={passwordMode === "auto" ? "Généré automatiquement" : "Saisissez le mot de passe..."}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={passwordMode === "auto"}
+                style={{ 
+                  height: "45px",
+                  backgroundColor: passwordMode === "auto" ? "#f8f9fa" : "white"
+                }}
+                className={passwordMode === "auto" ? "font-bold text-green-700" : ""}
+              />
+              {passwordMode === "manual" && (
+                <Button
+                  icon={showManualPassword ? "pi pi-eye-slash" : "pi pi-eye"}
+                  className="p-button-outlined"
+                  onClick={() => setShowManualPassword((s) => !s)}
+                  tooltip={showManualPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                />
+              )}
+              {passwordMode === "auto" && (
+                <Button
+                  icon="pi pi-refresh"
+                  className="p-button-outlined p-button-success"
+                  onClick={() => setNewPassword(generatePassword())}
+                  tooltip="Régénérer le mot de passe"
+                />
+              )}
+            </div>
+            {passwordMode === "auto" && (
+              <small className="text-green-600 block mt-2">
+                <i className="pi pi-info-circle mr-1"></i>
+                Le mot de passe est affiché en clair pour faciliter la copie
+              </small>
+            )}
           </div>
         </div>
 
@@ -298,7 +324,12 @@ export default function ResetUserPassword() {
             outlined
             onClick={() => setResetDialog({ visible: false, sam: null, userName: null })}
           />
-          <Button label="Confirmer" icon="pi pi-check" onClick={confirmResetPassword} />
+          <Button 
+            label="Confirmer" 
+            icon="pi pi-check" 
+            onClick={confirmResetPassword}
+            severity="success"
+          />
         </div>
       </Dialog>
 
@@ -348,13 +379,14 @@ export default function ResetUserPassword() {
               </div>
 
               {resetSuccessDetails.password && (
-                <div className="flex align-items-start gap-3 p-2 bg-yellow-50 border-round border-1 border-yellow-200">
+                <div className="flex align-items-start gap-3 p-3 bg-yellow-50 border-round border-1 border-yellow-200">
                   <i className="pi pi-lock text-yellow-700 text-xl mt-1"></i>
-                  <div>
+                  <div className="flex-1">
                     <div className="text-yellow-700 text-sm font-semibold mb-1">Mot de passe temporaire</div>
-                    <div className="text-900 font-bold text-lg">{resetSuccessDetails.password}</div>
-                    <small className="text-yellow-700">
-                      ⚠️ Veuillez noter ce mot de passe et le communiquer à l'utilisateur
+                    <div className="text-900 font-bold text-lg mb-2">{resetSuccessDetails.password}</div>
+                    <small className="text-yellow-700 block">
+                      <i className="pi pi-exclamation-triangle mr-1"></i>
+                      Veuillez noter ce mot de passe et le communiquer à l'utilisateur
                     </small>
                   </div>
                 </div>
