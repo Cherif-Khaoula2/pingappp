@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from "react";
 import { Card } from "primereact/card";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -12,53 +11,86 @@ import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function FindAllComputersLaps() {
   const [computers, setComputers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState("");
   const [globalFilter, setGlobalFilter] = useState("");
+  const eventSourceRef = useRef(null);
 
   useEffect(() => {
-    fetchComputers();
+    fetchComputersStream();
+    
+    return () => {
+      // Cleanup: fermer la connexion SSE si le composant est démonté
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
   }, []);
 
-  const fetchComputers = async () => {
+  const fetchComputersStream = () => {
     setLoading(true);
     setLoadingProgress(0);
     setError("");
     setComputers([]);
-    
-    try {
-      const response = await axios.get("/ad/computers/laps/all");
-      
-      if (response.data.success) {
-        const allComputers = response.data.computers;
-        setTotalCount(allComputers.length);
-        
-        // Afficher les PC un par un dans le tableau
-        for (let i = 0; i < allComputers.length; i++) {
-          // Délai de 100ms entre chaque PC pour une meilleure expérience
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          setComputers(prev => [...prev, allComputers[i]]);
-          setLoadingProgress(Math.round(((i + 1) / allComputers.length) * 100));
+    setTotalCount(0);
+
+    // Fermer la connexion précédente si elle existe
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    // Créer une nouvelle connexion Server-Sent Events
+    const eventSource = new EventSource("/ad/computers/laps/stream");
+    eventSourceRef.current = eventSource;
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'total':
+            setTotalCount(data.count);
+            break;
+
+          case 'computer':
+            setComputers(prev => [...prev, data.data]);
+            // Mettre à jour la progression
+            setLoadingProgress(prev => {
+              const newProgress = totalCount > 0 
+                ? Math.round(((computers.length + 1) / totalCount) * 100)
+                : prev + 1;
+              return Math.min(newProgress, 100);
+            });
+            break;
+
+          case 'done':
+            setLoading(false);
+            setLoadingProgress(100);
+            setTimeout(() => setLoadingProgress(0), 500);
+            eventSource.close();
+            break;
+
+          case 'error':
+            setError(data.message || "Erreur inconnue");
+            setLoading(false);
+            setLoadingProgress(0);
+            eventSource.close();
+            break;
         }
-        
-        setLoading(false);
-        
-        // Masquer la barre de progression après 500ms
-        setTimeout(() => {
-          setLoadingProgress(0);
-        }, 500);
-      } else {
-        setError(response.data.message || "Erreur inconnue");
-        setLoading(false);
+      } catch (err) {
+        console.error("Erreur de parsing SSE:", err);
       }
-    } catch (err) {
-      setError(err.response?.data?.message || err.message);
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("Erreur SSE:", err);
+      setError("Erreur de connexion au serveur");
       setLoading(false);
       setLoadingProgress(0);
-    }
+      eventSource.close();
+    };
   };
 
   const statusBodyTemplate = (rowData) => (
@@ -126,7 +158,7 @@ export default function FindAllComputersLaps() {
         </h2>
         <p className="text-600 text-sm m-0">
           {loading 
-            ? `Chargement... ${computers.length}/${totalCount} ordinateur(s)`
+            ? `Chargement... ${computers.length}${totalCount > 0 ? `/${totalCount}` : ''} ordinateur(s)`
             : `${computers.length} ordinateur(s) disponible(s)`
           }
         </p>
@@ -145,7 +177,7 @@ export default function FindAllComputersLaps() {
         <Button
           icon="pi pi-refresh"
           className="p-button-outlined"
-          onClick={fetchComputers}
+          onClick={fetchComputersStream}
           tooltip="Actualiser"
           tooltipOptions={{ position: "bottom" }}
           disabled={loading}
@@ -167,7 +199,7 @@ export default function FindAllComputersLaps() {
           />
           <div className="progress-text">
             <i className="pi pi-spin pi-spinner mr-2"></i>
-            Chargement des ordinateurs... {computers.length}/{totalCount} ({loadingProgress}%)
+            Chargement en temps réel... {computers.length}{totalCount > 0 ? `/${totalCount}` : ''} ({loadingProgress}%)
           </div>
         </div>
       )}
@@ -183,7 +215,7 @@ export default function FindAllComputersLaps() {
           />
         )}
 
-        {/* Tableau des données - Affiche les PC au fur et à mesure */}
+        {/* Tableau des données - Les PC apparaissent en temps réel */}
         <Card className="data-card">
           <DataTable
             value={computers}
@@ -204,11 +236,11 @@ export default function FindAllComputersLaps() {
                   )}
                 </div>
                 <h3 className="empty-title">
-                  {loading ? "Chargement en cours..." : "Aucun ordinateur trouvé"}
+                  {loading ? "Connexion au serveur..." : "Aucun ordinateur trouvé"}
                 </h3>
                 <p className="empty-description">
                   {loading 
-                    ? "Les ordinateurs apparaîtront progressivement..."
+                    ? "Les ordinateurs apparaîtront en temps réel..."
                     : "Aucun ordinateur avec LAPS n'est disponible"
                   }
                 </p>
@@ -241,7 +273,6 @@ export default function FindAllComputersLaps() {
       </div>
 
       <style jsx>{`
-        /* Barre de progression en haut */
         .top-progress-bar {
           position: fixed;
           top: 0;
@@ -275,10 +306,6 @@ export default function FindAllComputersLaps() {
           border-top: 1px solid #e5e7eb;
         }
 
-        :global(.progress-bar-custom) {
-          border-radius: 0 !important;
-        }
-
         :global(.progress-bar-custom .p-progressbar-value) {
           background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
           background-size: 200% 100%;
@@ -302,7 +329,6 @@ export default function FindAllComputersLaps() {
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
-        /* État vide */
         .empty-state {
           text-align: center;
           padding: 4rem 2rem;
@@ -331,7 +357,6 @@ export default function FindAllComputersLaps() {
           margin: 0;
         }
 
-        /* DataTable personnalisé */
         :global(.modern-datatable .p-datatable-header) {
           background: transparent;
           border: none;
@@ -361,7 +386,6 @@ export default function FindAllComputersLaps() {
           border-bottom: 1px solid #f3f4f6;
         }
 
-        /* Animation pour chaque ligne qui apparaît */
         @keyframes fadeInRow {
           from {
             opacity: 0;
@@ -373,7 +397,6 @@ export default function FindAllComputersLaps() {
           }
         }
 
-        /* Effet de brillance sur la dernière ligne ajoutée */
         :global(.modern-datatable .p-datatable-tbody > tr:last-child) {
           background: linear-gradient(90deg, rgba(79, 70, 229, 0.05) 0%, transparent 100%);
           animation: fadeInRow 0.4s ease-out, highlight 1s ease-out;
@@ -388,7 +411,6 @@ export default function FindAllComputersLaps() {
           }
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
           .page-container {
             padding: 1rem;
