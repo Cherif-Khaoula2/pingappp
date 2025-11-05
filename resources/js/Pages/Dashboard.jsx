@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router,usePage  } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Chart } from 'primereact/chart';
 import { Tag } from 'primereact/tag';
@@ -13,6 +13,7 @@ import { InputText } from 'primereact/inputtext';
 import { Message } from 'primereact/message';
 import { ProgressBar } from 'primereact/progressbar';
 import Layout from '@/Layouts/layout/layout.jsx';
+
 export default function Dashboard({ 
     stats = {}, 
     activityData = [], 
@@ -28,12 +29,17 @@ export default function Dashboard({
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredLogs, setFilteredLogs] = useState(recentLogs);
     const [periodFilter, setPeriodFilter] = useState(period);
-
+const { auth } = usePage().props;
     const safeStats = stats || {};
     const safeActivityData = Array.isArray(activityData) ? activityData : [];
     const safeRecentLogs = Array.isArray(recentLogs) ? recentLogs : [];
     const safeActionBreakdown = Array.isArray(actionBreakdown) ? actionBreakdown : [];
     const safeTopPerformers = Array.isArray(topPerformers) ? topPerformers : [];
+
+
+const permissions = auth?.user?.permissions || [];
+const canViewLogs = permissions.includes('view_activity_logs');
+console.log(permissions)
 
     // Options pour les filtres - Actions complètes
     const actionOptions = [
@@ -355,13 +361,14 @@ export default function Dashboard({
 </div>
 
 
-                {/* Section inférieure - Responsive */}
+  
+           
                 <div className="grid mb-3 md:mb-4">
-                    {/* Journal d'activité détaillé */}
+               {canViewLogs && (
                     <div className="col-12 lg:col-8">
                         <Card title="Journal d'activité détaillé" className="shadow-2 md:shadow-3">
                         
-                            {/* Résultats du filtrage */}
+                          
                             <div className="mb-3 flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center gap-2">
                                <span className="text-sm md:text-base text-600">
                           <i className="pi pi-info-circle mr-2"></i>
@@ -377,7 +384,7 @@ export default function Dashboard({
                                 </Link>
                             </div>
 
-                            {/* DataTable - Responsive */}
+                     
                             {filteredLogs.length > 0 ? (
                                 <DataTable 
                                     value={filteredLogs} 
@@ -426,7 +433,8 @@ export default function Dashboard({
                             )}
                         </Card>
                     </div>
-
+             
+                        )}
                     {/* Top utilisateurs - Responsive */}
 <div className="col-12 lg:col-4">
     <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">

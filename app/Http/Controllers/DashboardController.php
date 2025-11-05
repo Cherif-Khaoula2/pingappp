@@ -167,6 +167,7 @@ class DashboardController extends Controller
             ]);
 
             return Inertia::render('Dashboard', [
+                'permissions' => auth()->user()->getAllPermissions()->pluck('name'),
                 'stats' => array_fill_keys([
                     'total_logs', 'today_logs', 'failed', 'login_count', 'logout_count',
                     'block_count', 'unblock_count', 'create_count', 'update_count',
