@@ -109,7 +109,13 @@ export default function ResetUserPassword() {
           setResetDialog({ visible: false, sam: null, userName: null });
           setNewPassword("");
         },
-        onError: () => alert("Erreur lors de la réinitialisation du mot de passe."),
+        onError: (errors) => {
+  const errorMsg =
+    errors?.message ||
+    "Erreur lors de la réinitialisation du mot de passe. Vérifiez le mot de passe et réessayez.";
+  setResetError(errorMsg);
+},
+
       }
     );
   };
@@ -323,8 +329,15 @@ export default function ResetUserPassword() {
           
           </div>
         </div>
+{resetError && (
+  <div className="p-3 bg-red-50 border-round flex align-items-center gap-2 mb-3">
+    <i className="pi pi-exclamation-triangle text-red-600"></i>
+    <span className="text-red-700 font-medium">{resetError}</span>
+  </div>
+)}
 
         <div className="flex justify-content-end gap-2 mt-4">
+          
           <Button
             label="Annuler"
             icon="pi pi-times"
