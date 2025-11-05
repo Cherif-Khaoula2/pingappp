@@ -56,7 +56,12 @@ const AppMenu = () => {
                     label: 'LOG',
                     icon: 'pi pi-fw pi-file',
                     to: safeRoute('ad.logs.index'),
-                }
+                },
+               permissions.includes('managedn') && {
+                   label: 'Périmètre utilisateur',
+                   icon: 'pi pi-link',
+                   to: safeRoute('dns.index'),
+               },
             ].filter(Boolean), // très important pour enlever les "false"
         },
         {

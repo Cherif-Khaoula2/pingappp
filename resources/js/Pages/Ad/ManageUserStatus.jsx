@@ -21,38 +21,55 @@ export default function ManageUserStatus() {
     action: null,
     userName: null,
   });
+// 🔹 Recherche d’un utilisateur
+const handleSearch = async () => {
+  if (!search.trim()) {
+    alert("Veuillez saisir un SamAccountName");
+    return;
+  }
 
-  // 🔹 Recherche d’un utilisateur
-  const handleSearch = async () => {
-    if (!search.trim()) {
-      alert("Veuillez saisir un SamAccountName");
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await axios.post("/ad/users/find", { search });
-      if (response.data.success && Array.isArray(response.data.users)) {
-        const mappedUsers = response.data.users.map((user) => ({
+  setLoading(true);
+  try {
+    const response = await axios.post("/ad/users/find", { search });
+    const data = response.data;
+
+    if (data.success) {
+      // --- Cas 1 : Aucun utilisateur autorisé ---
+      if (!data.users || data.users.length === 0) {
+        setUsers([]);
+        setError("Aucun utilisateur affiché. Vous n’êtes pas autorisé à accéder à ce DN.");
+
+        // 🔹 Optionnel : afficher les utilisateurs non autorisés (juste pour info)
+        if (data.unauthorized && data.unauthorized.length > 0) {
+          console.warn("Utilisateurs non autorisés :", data.unauthorized);
+        }
+      }
+      // --- Cas 2 : Utilisateurs autorisés trouvés ---
+      else {
+        const mappedUsers = data.users.map((user) => ({
           name: user.name,
           sam: user.sam,
           email: user.email,
           enabled: user.enabled,
           lastLogon: user.last_logon,
+          dn: user.dn,
         }));
+
         setUsers(mappedUsers);
         setError(null);
-      } else {
-        setUsers([]);
-        setError("Aucun utilisateur trouvé.");
       }
-    } catch (err) {
-      console.error("Erreur lors de la recherche :", err);
-      setError("Erreur lors de la recherche de l'utilisateur.");
+    } else {
       setUsers([]);
-    } finally {
-      setLoading(false);
+      setError(data.message || "Aucun utilisateur trouvé.");
     }
-  };
+  } catch (err) {
+    console.error("Erreur lors de la recherche :", err);
+    setError("Erreur lors de la recherche de l'utilisateur.");
+    setUsers([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // 🔹 Ouverture du dialog de confirmation
   const handleToggleClick = (user, action) => {
@@ -159,12 +176,26 @@ export default function ManageUserStatus() {
                 />
               </div>
 
-              {error && (
-                <div className="p-3 bg-red-50 border-round flex align-items-center gap-2">
-                  <i className="pi pi-exclamation-triangle text-red-600"></i>
-                  <span className="text-red-700">{error}</span>
-                </div>
-              )}
+             {error && (
+  <div className="p-3 bg-red-100 text-red-700 rounded mb-3">
+    {error}
+  </div>
+)}
+
+{!loading && users.length === 0 && !error && (
+  <p className="text-gray-500">Aucun utilisateur à afficher.</p>
+)}
+
+{users.length > 0 && (
+  <DataTable value={users} paginator rows={10}>
+    <Column field="name" header="Nom" />
+    <Column field="sam" header="SamAccountName" />
+    <Column field="email" header="Email" />
+    <Column field="enabled" header="Actif" body={(row) => (row.enabled ? "Oui" : "Non")} />
+    <Column field="dn" header="DN" />
+  </DataTable>
+)}
+
 
               {/* Table */}
               <DataTable value={users} emptyMessage="Aucun utilisateur affiché." stripedRows responsiveLayout="scroll">

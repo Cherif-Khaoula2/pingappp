@@ -33,7 +33,8 @@ class PermissionSeeder extends Seeder
             'getaduser',
             'getlog',
             'getallhidden',
-            'getadpc'
+            'getadpc',
+            'managedn'
 
         ];
 
