@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { router,Head } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Card } from "primereact/card";
@@ -11,8 +11,10 @@ import { Dialog } from "primereact/dialog";
 import { Message } from "primereact/message";
 import { Divider } from "primereact/divider";
 import Layout from "@/Layouts/layout/layout.jsx";
+import { Head } from '@inertiajs/react';
 
 export default function ManageUserStatus() {
+   
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
@@ -112,21 +114,10 @@ export default function ManageUserStatus() {
     const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : "U";
     return (
       <div className="flex align-items-center gap-3">
-        <div
-          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-          style={{
-            width: "45px",
-            height: "45px",
-            background: "linear-gradient(135deg, #6366f1, #a855f7)",
-            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-          }}
-        >
-          {initial}
-        </div>
+        
         <div>
           <div className="font-semibold text-900 text-lg">{rowData.name}</div>
           <div className="text-sm text-600 flex align-items-center gap-1">
-            <i className="pi pi-id-card" style={{ fontSize: "0.8rem" }}></i>
             {rowData.sam}
           </div>
         </div>
@@ -185,7 +176,7 @@ export default function ManageUserStatus() {
 
   return (
     <Layout>
-      <Head title="Bloquer/Débloquer un utilisateur AD" />
+      <Head title="Gestion Blocage / Déblocage" />
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-3 border-round-xl">
@@ -198,15 +189,8 @@ export default function ManageUserStatus() {
                 <div className="flex flex-column gap-4">
                   <div className="flex align-items-center gap-3">
                     <div
-                      className="inline-flex align-items-center justify-content-center border-circle"
-                      style={{ 
-                        width: "60px", 
-                        height: "60px",
-                        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                        boxShadow: "0 8px 20px rgba(239, 68, 68, 0.4)"
-                      }}
+                      
                     >
-                      <i className="pi pi-lock text-white" style={{ fontSize: "1.8rem" }}></i>
                     </div>
                     <div>
                       <h1 className="text-900 text-3xl font-bold m-0 mb-1">
@@ -219,9 +203,7 @@ export default function ManageUserStatus() {
                   </div>
 
                   <div className="p-inputgroup" style={{ height: "52px" }}>
-                    <span className="p-inputgroup-addon bg-primary">
-                      <i className="pi pi-search text-white"></i>
-                    </span>
+                   
                     <InputText
                       placeholder="Nom d'utilisateur ou SamAccountName..."
                       value={search}
@@ -353,7 +335,6 @@ export default function ManageUserStatus() {
           <div className="flex gap-3 mt-4">
             <Button
               label="Annuler"
-              icon="pi pi-times"
               outlined
               severity="secondary"
               onClick={() => setConfirmDialog({ visible: false, sam: null, action: null, userName: null })}
@@ -362,8 +343,7 @@ export default function ManageUserStatus() {
               disabled={isToggling}
             />
             <Button
-              label={isToggling ? "Traitement..." : "Confirmer"}
-              icon={isToggling ? "pi pi-spin pi-spinner" : "pi pi-check"}
+              label={isToggling ? "Confirmer..." : "Confirmer"}
               onClick={confirmToggle}
               severity={confirmDialog.action === "block" ? "danger" : "success"}
               className="flex-1"
@@ -462,7 +442,6 @@ export default function ManageUserStatus() {
           {/* Bouton OK */}
           <Button
             label="OK, j'ai compris"
-            icon="pi pi-check"
             onClick={() => setSuccessDialog({ visible: false, action: null, userName: null, sam: null })}
             severity={successDialog.action === "block" ? "danger" : "success"}
             className="w-full"

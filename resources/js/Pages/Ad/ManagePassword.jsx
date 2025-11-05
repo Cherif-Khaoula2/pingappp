@@ -8,7 +8,8 @@ import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import { Message } from "primereact/message";
 import Layout from "@/Layouts/layout/layout.jsx";
-import { router ,Head} from "@inertiajs/react";
+import { router } from "@inertiajs/react";
+import { Head } from '@inertiajs/react';
 
 // Fonction pour générer un mot de passe automatique
 const generatePassword = () => {
@@ -139,21 +140,10 @@ export default function ResetUserPassword() {
     const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : "U";
     return (
       <div className="flex align-items-center gap-3">
-        <div
-          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-          style={{
-            width: "45px",
-            height: "45px",
-            background: "linear-gradient(135deg, #6366f1, #a855f7)",
-            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-          }}
-        >
-          {initial}
-        </div>
+      
         <div>
           <div className="font-semibold text-900 text-lg">{rowData.name}</div>
           <div className="text-sm text-600 flex align-items-center gap-1">
-            <i className="pi pi-id-card" style={{ fontSize: "0.8rem" }}></i>
             {rowData.sam}
           </div>
         </div>
@@ -182,7 +172,8 @@ export default function ResetUserPassword() {
 
   return (
     <Layout>
-       <Head title="Réinitialiser Mdp utilisateur" />
+    <Head title="Réinitialisation des mots de passe" />
+
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-3 border-round-xl">
@@ -195,15 +186,7 @@ export default function ResetUserPassword() {
                 <div className="flex flex-column gap-4">
                   <div className="flex align-items-center gap-3">
                     <div
-                      className="inline-flex align-items-center justify-content-center border-circle"
-                      style={{ 
-                        width: "60px", 
-                        height: "60px",
-                        background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                        boxShadow: "0 8px 20px rgba(99, 102, 241, 0.4)"
-                      }}
                     >
-                      <i className="pi pi-key text-white" style={{ fontSize: "1.8rem" }}></i>
                     </div>
                     <div>
                       <h1 className="text-900 text-3xl font-bold m-0 mb-1">
@@ -216,9 +199,7 @@ export default function ResetUserPassword() {
                   </div>
 
                   <div className="p-inputgroup" style={{ height: "52px" }}>
-                    <span className="p-inputgroup-addon bg-primary">
-                      <i className="pi pi-search text-white"></i>
-                    </span>
+                
                     <InputText
                       placeholder="Nom d'utilisateur ou SamAccountName..."
                       value={search}
@@ -413,7 +394,6 @@ export default function ResetUserPassword() {
           <div className="flex gap-3 mt-4">
             <Button
               label="Annuler"
-              icon="pi pi-times"
               outlined
               severity="secondary"
               onClick={() => {
@@ -425,7 +405,6 @@ export default function ResetUserPassword() {
             />
             <Button
               label={isResetting ? "Réinitialisation..." : "Confirmer"}
-              icon={isResetting ? "pi pi-spin pi-spinner" : "pi pi-check"}
               onClick={confirmResetPassword}
               disabled={isResetting}
               className="flex-1"
@@ -472,15 +451,13 @@ export default function ResetUserPassword() {
             {/* Détails */}
             <div className="surface-100 border-round-lg p-4 mb-4">
               <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
-                <i className="pi pi-user text-primary text-xl mt-1"></i>
-                <div className="flex-1">
+                                <div className="flex-1">
                   <div className="text-500 text-sm mb-1 font-medium">Nom complet</div>
                   <div className="text-900 font-semibold text-lg">{resetSuccessDetails.name}</div>
                 </div>
               </div>
 
               <div className="flex align-items-start gap-3 mb-3">
-                <i className="pi pi-id-card text-primary text-xl mt-1"></i>
                 <div className="flex-1">
                   <div className="text-500 text-sm mb-1 font-medium">Nom d'utilisateur</div>
                   <div className="text-900 font-semibold text-lg">{resetSuccessDetails.sam}</div>
@@ -521,7 +498,6 @@ export default function ResetUserPassword() {
             {/* Bouton OK */}
             <Button
               label="OK, j'ai compris"
-              icon="pi pi-check"
               onClick={() => setShowSuccessDialog(false)}
               severity="success"
               className="w-full"

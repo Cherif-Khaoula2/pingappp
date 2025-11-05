@@ -9,7 +9,7 @@ import { Divider } from "primereact/divider";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
-import {Head} from '@inertiajs/react';
+
 const ManageAddUser = () => {
   const toast = React.useRef(null);
   
@@ -289,7 +289,6 @@ const showBackendError = (message) => {
     <div className="flex justify-content-end gap-2">
       <Button
         label="Annuler"
-        icon="pi pi-times"
         outlined
         onClick={() => setShowConfirmDialog(false)}
         disabled={loading}
@@ -308,7 +307,6 @@ const showBackendError = (message) => {
     <div className="flex justify-content-center">
       <Button
         label="OK"
-        icon="pi pi-check"
         onClick={() => setShowSuccessDialog(false)}
         style={{
           background: "linear-gradient(135deg, #10b981, #059669)",
@@ -321,7 +319,6 @@ const showBackendError = (message) => {
 
   return (
     <Layout>
-      <Head title="Créer un utilisateur AD" />
       <Toast ref={toast} position="top-center" />
       
       <div className="grid">
@@ -649,7 +646,6 @@ const showBackendError = (message) => {
                     <Button
                       type="button"
                       label="Annuler"
-                      icon="pi pi-times"
                       outlined
                       onClick={() => {
                         setForm({
