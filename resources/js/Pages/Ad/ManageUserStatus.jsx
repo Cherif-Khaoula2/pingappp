@@ -205,7 +205,7 @@ export default function ManageUserStatus() {
                   <div className="p-inputgroup" style={{ height: "52px" }}>
                    
                     <InputText
-                      placeholder="Rechercher un utilisateur dans AD (nom, samaccountname , email)..."
+                      placeholder="Nom d'utilisateur ou SamAccountName..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSearch()}
