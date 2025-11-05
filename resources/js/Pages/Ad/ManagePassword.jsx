@@ -113,7 +113,7 @@ const [resetError, setResetError] = useState(null);
         onError: (errors) => {
   const errorMsg =
     errors?.message ||
-    "Erreur lors de la réinitialisation du mot de passe. Vérifiez le mot de passe et réessayez.";
+    "Erreur lors de la réinitialisation du mot de passe. Vérifiez le mot de passe et réessayez.Le mot de passe doit contenir au moins 8 caractères  avec une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)";
   setResetError(errorMsg);
 },
 
