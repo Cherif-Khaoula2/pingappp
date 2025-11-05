@@ -76,7 +76,7 @@ const ManageAddUser = () => {
     setDirection(selected);
     setForm((prev) => ({
       ...prev,
-      ou_path: `OU=${selected},OU=OuTempUsers,DC=sarpi-dz,DC=sg`
+      ou_path: `OU=${selected},OU=NewUsersOU,DC=sarpi-dz,DC=sg`
     }));
 
 
