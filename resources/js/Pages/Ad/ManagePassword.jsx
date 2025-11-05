@@ -86,7 +86,7 @@ export default function ResetUserPassword() {
     }
   };
 
-  // 🔹 Confirmer la réinitialisation
+ // 🔹 Confirmer la réinitialisation
   const confirmResetPassword = () => {
     if (!newPassword.trim()) {
       alert("Veuillez saisir un mot de passe.");
@@ -278,36 +278,47 @@ export default function ResetUserPassword() {
             <label className="block text-900 font-medium mb-2">
               {passwordMode === "auto" ? "Mot de passe généré" : "Nouveau mot de passe"}
             </label>
-            <div className="p-inputgroup">
-              <InputText
-                type={passwordMode === "auto" ? "text" : (showManualPassword ? "text" : "password")}
-                placeholder={passwordMode === "auto" ? "Généré automatiquement" : "Saisissez le mot de passe..."}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                disabled={passwordMode === "auto"}
-                style={{ 
-                  height: "45px",
-                  backgroundColor: passwordMode === "auto" ? "#f8f9fa" : "white"
-                }}
-                className={passwordMode === "auto" ? "font-bold text-green-700" : ""}
-              />
-              {passwordMode === "manual" && (
-                <Button
-                  icon={showManualPassword ? "pi pi-eye-slash" : "pi pi-eye"}
-                  className="p-button-outlined"
-                  onClick={() => setShowManualPassword((s) => !s)}
-                  tooltip={showManualPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            
+            {passwordMode === "auto" ? (
+              // Mode automatique : champ en lecture seule avec bouton régénérer
+              <div className="p-inputgroup">
+                <InputText
+                  type="text"
+                  placeholder="Généré automatiquement"
+                  value={newPassword}
+                  disabled
+                  style={{ 
+                    height: "45px",
+                    backgroundColor: "#f8f9fa"
+                  }}
+                  className="font-bold text-green-700"
                 />
-              )}
-              {passwordMode === "auto" && (
                 <Button
                   icon="pi pi-refresh"
                   className="p-button-outlined p-button-success"
                   onClick={() => setNewPassword(generatePassword())}
                   tooltip="Régénérer le mot de passe"
                 />
-              )}
-            </div>
+              </div>
+            ) : (
+              // Mode manuel : champ modifiable avec bouton afficher/masquer
+              <div className="p-inputgroup">
+                <InputText
+                  type={showManualPassword ? "text" : "password"}
+                  placeholder="Saisissez le mot de passe..."
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ height: "45px" }}
+                />
+                <Button
+                  icon={showManualPassword ? "pi pi-eye-slash" : "pi pi-eye"}
+                  className="p-button-outlined"
+                  onClick={() => setShowManualPassword((s) => !s)}
+                  tooltip={showManualPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                />
+              </div>
+            )}
+            
             {passwordMode === "auto" && (
               <small className="text-green-600 block mt-2">
                 <i className="pi pi-info-circle mr-1"></i>
@@ -324,12 +335,8 @@ export default function ResetUserPassword() {
             outlined
             onClick={() => setResetDialog({ visible: false, sam: null, userName: null })}
           />
-          <Button 
-            label="Confirmer" 
-            icon="pi pi-check" 
-            onClick={confirmResetPassword}
-            severity="success"
-          />
+          
+           <Button label="Confirmer" icon="pi pi-check" onClick={confirmResetPassword} />
         </div>
       </Dialog>
 
