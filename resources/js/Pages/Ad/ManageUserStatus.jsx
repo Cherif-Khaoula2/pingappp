@@ -11,8 +11,10 @@ import { Dialog } from "primereact/dialog";
 import { Message } from "primereact/message";
 import { Divider } from "primereact/divider";
 import Layout from "@/Layouts/layout/layout.jsx";
+import { Head } from '@inertiajs/react';
 
 export default function ManageUserStatus() {
+   
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
@@ -174,6 +176,7 @@ export default function ManageUserStatus() {
 
   return (
     <Layout>
+      <Head title="Gestion Blocage / Déblocage" />
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-3 border-round-xl">
