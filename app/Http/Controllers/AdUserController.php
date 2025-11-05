@@ -252,10 +252,20 @@ class AdUserController extends Controller
     public function resetPassword(Request $request)
     {
         $this->authorize('resetpswaduser'); 
-        $request->validate([
-            'sam' => 'required|string',
-            'new_password' => 'required|string|min:8',
-        ]);
+       $request->validate([
+    'sam' => 'required|string|max:100',
+    'new_password' => [
+        'required',
+        'string',
+        'min:8',
+        'max:128',
+        'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/'
+    ],
+], [
+    'new_password.required' => 'Le mot de passe est obligatoire',
+    'new_password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
+    'new_password.regex' => 'Le mot de passe doit contenir au moins : une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)',
+]);
 
         $host = env('SSH_HOST');
         $user = env('SSH_USER');
