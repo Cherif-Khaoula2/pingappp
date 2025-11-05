@@ -205,9 +205,6 @@ export default function FindAllComputersLaps() {
                     <i className="pi pi-inbox"></i>
                   )}
                 </div>
-                <h3 className="empty-title">
-                  {loading ? "Chargement en cours..." : "Aucun ordinateur trouvé"}
-                </h3>
                 <p className="empty-description">
                   {loading 
                     ? "Récupération des données depuis le serveur..."
@@ -229,7 +226,7 @@ export default function FindAllComputersLaps() {
               header="Statut" 
               body={statusBodyTemplate} 
               sortable={!loading}
-              style={{ minWidth: '120px' }}
+              style={{ minWidth: '250px' }}
               align="center"
             />
             <Column 
