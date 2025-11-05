@@ -248,12 +248,14 @@ export default function ResetUserPassword() {
           <div className="mb-4">
             <label className="block text-900 font-medium mb-2">Mode de mot de passe</label>
             <div className="flex gap-3">
-              <div
-                onClick={() => handlePasswordModeChange("auto")}
-                className={`p-3 border-2 border-round cursor-pointer flex-1 ${
-                  passwordMode === "auto" ? "border-green-500 bg-green-50 shadow-3" : "border-300 hover:border-400 hover:bg-gray-50"
-                }`}
-              >
+             <div
+  onClick={() => handlePasswordModeChange("auto")}
+  className={`p-3 border-2 border-round cursor-pointer flex-1 ${
+    passwordMode === "auto"
+      ? "border-green-500 bg-green-50 shadow-3"
+      : "border-300 hover:border-400 hover:bg-gray-50"
+  }`}
+>
                 Génération automatique
               </div>
               <div
