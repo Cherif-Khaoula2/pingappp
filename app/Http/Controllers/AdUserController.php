@@ -555,7 +555,7 @@ public function createAdUser(Request $request)
     $accountType = $request->input('accountType');
     
     // ✅ Récupérer le path depuis la base de données
-    $direction = Dn::findOrFail($directionId);
+     $direction = Dn::findOrFail($directionId);
     $ouPath = $direction->path;
     
     $userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
