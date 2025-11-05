@@ -16,7 +16,7 @@ class AdHiddenAccountController extends Controller
      */
     public function index(Request $request)
     {
-      $search = $request->input('search');
+        $search = $request->input('search');
         $ldapUsers = collect();
 
         if ($search) {
@@ -25,17 +25,13 @@ class AdHiddenAccountController extends Controller
             $words = array_filter(explode(' ', strtolower($searchTerm)));
 
             if (count($words) > 1) {
-                // Recherche multi-mots (ex: "khaoula cherif")
-                // On recherche d'abord sur le premier mot
                 $allUsers = LdapUser::query()
                     ->whereContains('cn', $words[0])
                     ->orWhereContains('givenname', $words[0])
                     ->orWhereContains('sn', $words[0])
                     ->orWhereContains('samaccountname', $words[0])
-                    ->limit(200)
-                    ->get();
+                    ->get(); // ✅ SUPPRESSION DE limit(200)
 
-                // Ensuite on filtre pour vérifier que tous les mots sont présents
                 $ldapUsers = $allUsers->filter(function ($user) use ($words) {
                     $fullText = strtolower(
                         ($user->cn[0] ?? '') . ' ' .
@@ -51,23 +47,21 @@ class AdHiddenAccountController extends Controller
                         }
                     }
                     return true;
-                })->take(50);
+                }); // ✅ SUPPRESSION DE ->take(50)
             } else {
-                // Recherche simple (un seul mot)
+                // Recherche simple (un seul mot) - SANS LIMITE
                 $ldapUsers = LdapUser::query()
                     ->whereContains('cn', $searchTerm)
                     ->orWhereContains('givenname', $searchTerm)
                     ->orWhereContains('sn', $searchTerm)
                     ->orWhereContains('samaccountname', $searchTerm)
                     ->orWhereContains('mail', $searchTerm)
-                    ->limit(50)
-                    ->get();
+                    ->get(); // ✅ SUPPRESSION DE limit(50)
             }
         } else {
-            // Aucune recherche : afficher les premiers utilisateurs
-            $ldapUsers = LdapUser::query()->limit(50)->get();
+            // ✅ AFFICHER TOUS LES UTILISATEURS (pas seulement 50)
+            $ldapUsers = LdapUser::query()->get();
         }
-
 
         // 📋 Récupérer les comptes déjà masqués
         $hiddenAccounts = AdHiddenAccount::pluck('samaccountname')->toArray();
@@ -112,6 +106,7 @@ class AdHiddenAccountController extends Controller
 
         $account = AdHiddenAccount::create($validated);
 
+        return back();
     }
 
     /**
@@ -121,14 +116,15 @@ class AdHiddenAccountController extends Controller
     {
         $adHiddenAccount->delete();
 
+        return back();
     }
-   public function showHiddenList()
-{
-    $hiddenAccounts = AdHiddenAccount::all();
 
-    return Inertia::render('Hidden/Hidden', [
-        'hiddenAccounts' => $hiddenAccounts
-    ]);
-}
+    public function showHiddenList()
+    {
+        $hiddenAccounts = AdHiddenAccount::all();
 
+        return Inertia::render('Hidden/Hidden', [
+            'hiddenAccounts' => $hiddenAccounts
+        ]);
+    }
 }

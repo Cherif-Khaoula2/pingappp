@@ -7,7 +7,6 @@ import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { Chip } from "primereact/chip";
-import { Tag } from "primereact/tag";
 import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function HiddenIndex({ users, search }) {
@@ -100,16 +99,32 @@ export default function HiddenIndex({ users, search }) {
     const actionBodyTemplate = (rowData) => {
         if (rowData.is_hidden) {
             return (
-                <Tag value="Déjà masqué" severity="secondary" icon="pi pi-eye-slash" />
+                <div className="flex align-items-center justify-content-center">
+                    <div className="px-3 py-2 border-round flex align-items-center gap-2" 
+                         style={{ 
+                             background: 'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)',
+                             border: '1px solid #9ca3af'
+                         }}>
+                        <i className="pi pi-check-circle" style={{ color: '#6b7280', fontSize: '0.9rem' }} />
+                        
+                    </div>
+                </div>
             );
         }
         return (
             <Button
-                label="Masquer"
                 icon="pi pi-eye-slash"
                 severity="warning"
                 size="small"
                 onClick={() => handleHideClick(rowData)}
+                className="custom-hide-button"
+                style={{
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    border: 'none',
+                    fontWeight: '600',
+                    padding: '0.5rem 1.25rem',
+                    transition: 'all 0.3s ease'
+                }}
             />
         );
     };
@@ -126,16 +141,14 @@ export default function HiddenIndex({ users, search }) {
                     style={{ backgroundColor: "var(--primary-color)", color: "white" }}
                 />
             </div>
-            <span className="p-input-icon-left">
-                <i className="pi pi-search" />
-                <InputText
-                    type="search"
-                    value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
-                    placeholder="Filtrer le tableau..."
-                    className="w-full md:w-20rem"
-                />
-            </span>
+          <form onSubmit={handleSearch} className="flex gap-2 mb-3">
+          <InputText
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Rechercher un utilisateur LDAP..."
+          />
+          <Button label="Rechercher" type="submit" />
+        </form>
         </div>
     );
 
@@ -172,8 +185,6 @@ export default function HiddenIndex({ users, search }) {
 
                 {/* Ligne de séparation */}
                 <div className="border-top-1 surface-border mb-4" />
-
-               
 
                 {/* Tableau */}
                 <DataTable
@@ -385,7 +396,7 @@ export default function HiddenIndex({ users, search }) {
                 }
 
                 .success-icon-circle {
-                 position: absolute;
+                    position: absolute;
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
@@ -397,6 +408,18 @@ export default function HiddenIndex({ users, search }) {
                     align-items: center;
                     justify-content: center;
                     box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+                }
+
+                /* Bouton Masquer amélioré */
+                :global(.custom-hide-button:hover) {
+                    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4) !important;
+                }
+
+                :global(.custom-hide-button:active) {
+                    transform: translateY(0);
+                    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3) !important;
                 }
             `}</style>
         </Layout>
