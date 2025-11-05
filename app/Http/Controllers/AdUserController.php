@@ -505,8 +505,18 @@ public function createAdUser(Request $request)
         'sam' => 'required|string|max:25',
         'email' => 'nullable|email',
         'logmail' => 'required|string',
-        'password' => 'required|string|min:8',
-    ]);
+        'password'   => [
+        'required',
+        'string',
+        'min:8',
+        'max:128',
+        'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/'
+    ],
+    ], [
+    'password.required' => 'Le mot de passe est obligatoire',
+    'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
+    'password.regex' => 'Le mot de passe doit contenir au moins : une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)',
+]);
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
