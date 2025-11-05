@@ -197,15 +197,8 @@ export default function ManageUserStatus() {
                 <div className="flex flex-column gap-4">
                   <div className="flex align-items-center gap-3">
                     <div
-                      className="inline-flex align-items-center justify-content-center border-circle"
-                      style={{ 
-                        width: "40px", 
-                        height: "40px",
-                        background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                        boxShadow: "0 8px 20px rgba(239, 68, 68, 0.4)"
-                      }}
+                      
                     >
-                      <i className="pi pi-lock text-white" style={{ fontSize: "1.8rem" }}></i>
                     </div>
                     <div>
                       <h1 className="text-900 text-3xl font-bold m-0 mb-1">
@@ -218,9 +211,7 @@ export default function ManageUserStatus() {
                   </div>
 
                   <div className="p-inputgroup" style={{ height: "52px" }}>
-                    <span className="p-inputgroup-addon bg-primary">
-                      <i className="pi pi-search text-white"></i>
-                    </span>
+                   
                     <InputText
                       placeholder="Nom d'utilisateur ou SamAccountName..."
                       value={search}
@@ -362,7 +353,6 @@ export default function ManageUserStatus() {
             />
             <Button
               label={isToggling ? "Traitement..." : "Confirmer"}
-              icon={isToggling ? "pi pi-spin pi-spinner" : "pi pi-check"}
               onClick={confirmToggle}
               severity={confirmDialog.action === "block" ? "danger" : "success"}
               className="flex-1"
