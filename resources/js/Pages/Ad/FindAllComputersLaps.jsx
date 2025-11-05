@@ -157,51 +157,9 @@ export default function FindAllComputersLaps() {
   return (
     <Layout>
       <div className="page-container">
-        {/* Barre supérieure avec statistiques */}
-        <div className="top-bar">
-          <div className="stats-grid">
-      
-          </div>
-        </div>
+       
 
-        {/* Barre de recherche principale */}
-        <Card className="search-card">
-          <div className="search-container">
-            <div className="search-input-group">
-              <span className="p-input-icon-left flex-1">
-                <i className="pi pi-search" />
-                <InputText
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                  placeholder="Rechercher un ordinateur par nom..."
-                  className="w-full search-input"
-                />
-              </span>
-              <Button
-                label="Rechercher"
-                icon="pi pi-search"
-                onClick={handleSearch}
-                className="search-button"
-              />
-              {search && (
-                <Button
-                  label="Effacer"
-                  icon="pi pi-times"
-                  onClick={handleClearSearch}
-                  className="p-button-outlined p-button-secondary"
-                />
-              )}
-            </div>
-            {search && (
-              <div className="search-info">
-                <i className="pi pi-info-circle mr-2"></i>
-                Recherche active : <strong>"{search}"</strong>
-              </div>
-            )}
-          </div>
-        </Card>
+    
 
         {/* Message d'erreur */}
         {error && (
