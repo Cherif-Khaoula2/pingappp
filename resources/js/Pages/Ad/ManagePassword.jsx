@@ -7,6 +7,7 @@ import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import Layout from "@/Layouts/layout/layout.jsx";
+import { router } from "@inertiajs/react";
 
 // Fonction pour générer un mot de passe automatique
 const generatePassword = () => {
@@ -319,12 +320,7 @@ export default function ResetUserPassword() {
               </div>
             )}
             
-            {passwordMode === "auto" && (
-              <small className="text-green-600 block mt-2">
-                <i className="pi pi-info-circle mr-1"></i>
-                Le mot de passe est affiché en clair pour faciliter la copie
-              </small>
-            )}
+          
           </div>
         </div>
 
