@@ -112,21 +112,10 @@ export default function ManageUserStatus() {
     const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : "U";
     return (
       <div className="flex align-items-center gap-3">
-        <div
-          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-          style={{
-            width: "45px",
-            height: "45px",
-            background: "linear-gradient(135deg, #6366f1, #a855f7)",
-            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-          }}
-        >
-          {initial}
-        </div>
+        
         <div>
           <div className="font-semibold text-900 text-lg">{rowData.name}</div>
           <div className="text-sm text-600 flex align-items-center gap-1">
-            <i className="pi pi-id-card" style={{ fontSize: "0.8rem" }}></i>
             {rowData.sam}
           </div>
         </div>
@@ -343,7 +332,6 @@ export default function ManageUserStatus() {
           <div className="flex gap-3 mt-4">
             <Button
               label="Annuler"
-              icon="pi pi-times"
               outlined
               severity="secondary"
               onClick={() => setConfirmDialog({ visible: false, sam: null, action: null, userName: null })}
@@ -352,7 +340,7 @@ export default function ManageUserStatus() {
               disabled={isToggling}
             />
             <Button
-              label={isToggling ? "Traitement..." : "Confirmer"}
+              label={isToggling ? "Confirmer..." : "Confirmer"}
               onClick={confirmToggle}
               severity={confirmDialog.action === "block" ? "danger" : "success"}
               className="flex-1"
@@ -451,7 +439,6 @@ export default function ManageUserStatus() {
           {/* Bouton OK */}
           <Button
             label="OK, j'ai compris"
-            icon="pi pi-check"
             onClick={() => setSuccessDialog({ visible: false, action: null, userName: null, sam: null })}
             severity={successDialog.action === "block" ? "danger" : "success"}
             className="w-full"

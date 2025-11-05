@@ -139,21 +139,10 @@ export default function ResetUserPassword() {
     const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : "U";
     return (
       <div className="flex align-items-center gap-3">
-        <div
-          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-          style={{
-            width: "45px",
-            height: "45px",
-            background: "linear-gradient(135deg, #6366f1, #a855f7)",
-            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-          }}
-        >
-          {initial}
-        </div>
+      
         <div>
           <div className="font-semibold text-900 text-lg">{rowData.name}</div>
           <div className="text-sm text-600 flex align-items-center gap-1">
-            <i className="pi pi-id-card" style={{ fontSize: "0.8rem" }}></i>
             {rowData.sam}
           </div>
         </div>
