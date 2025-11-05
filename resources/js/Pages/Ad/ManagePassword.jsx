@@ -27,6 +27,9 @@ export default function ResetUserPassword() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [resetSuccessDetails, setResetSuccessDetails] = useState(null);
 
+  // NEW: contrôle d'affichage du champ mot de passe (true = visible)
+  const [showPassword, setShowPassword] = useState(true); // par défaut visible (non masqué)
+
   // 🔹 Changement du mode de mot de passe
   const handlePasswordModeChange = (mode) => {
     setPasswordMode(mode);
@@ -80,6 +83,8 @@ export default function ResetUserPassword() {
     } else {
       setNewPassword("");
     }
+    // par défaut on affiche le mot de passe (conformément à ta demande)
+    setShowPassword(true);
   };
 
   // 🔹 Confirmer la réinitialisation
@@ -266,29 +271,24 @@ export default function ResetUserPassword() {
               </div>
             </div>
           </div>
-{passwordMode === "auto" && newPassword && (
-  <div className="p-3 my-3 border-round bg-green-50 border-1 border-green-200 flex justify-content-between align-items-center">
-    <div>
-      <div className="text-green-700 font-medium mb-1">Mot de passe généré :</div>
-      <div className="text-green-900 text-lg font-bold">{newPassword}</div>
-    </div>
-    <Button
-      icon="pi pi-copy"
-      label="Copier"
-      className="p-button-sm p-button-success"
-      onClick={() => navigator.clipboard.writeText(newPassword)}
-    />
-  </div>
-)}
 
-          <InputText
-            type="password"
-            placeholder="Nouveau mot de passe..."
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            style={{ width: "100%", height: "45px" }}
-            toggleMask
-          />
+          {/* Input mot de passe — affiché en clair par défaut, avec bouton pour basculer */}
+          <div className="p-inputgroup" style={{ gap: 8 }}>
+            <InputText
+              // type basé sur l'état showPassword ; showPassword=true => texte visible
+              type={showPassword ? "text" : "password"}
+              placeholder="Nouveau mot de passe..."
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              style={{ width: "100%", height: "45px" }}
+            />
+            <Button
+              icon={showPassword ? "pi pi-eye-slash" : "pi pi-eye"}
+              className="p-button-outlined"
+              onClick={() => setShowPassword((s) => !s)}
+              tooltip={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            />
+          </div>
         </div>
 
         <div className="flex justify-content-end gap-2 mt-4">
