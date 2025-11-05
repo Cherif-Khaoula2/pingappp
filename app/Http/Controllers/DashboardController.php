@@ -104,35 +104,35 @@ class DashboardController extends Controller
                 })
                 ->toArray();
 
-            // ==================== TOP UTILISATEURS ACTIFS ====================
-            $topPerformers = AdActivityLog::select(
-                    'performed_by',
-                    DB::raw('COUNT(*) as count')
-                )
-                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
-                ->whereNotNull('performed_by')
-                ->groupBy('performed_by')
-                ->orderBy('count', 'desc')
-                ->limit(10)
-                ->with('performer:id,first_name,last_name,email')
-                ->get()
-                ->map(function ($item) {
-                    $name = 'Système';
-                    
-                    if ($item->performer) {
-                        $name = trim($item->performer->first_name . ' ' . $item->performer->last_name);
-                        if (empty($name)) {
-                            $name = $item->performer->email;
-                        }
-                    }
-                    
-                    return [
-                        'id' => $item->performed_by,
-                        'name' => $name,
-                        'count' => (int) $item->count,
-                    ];
-                })
-                ->toArray();
+          // ==================== TOP UTILISATEURS ACTIFS ====================
+$topPerformers = AdActivityLog::select(
+        'performed_by_id',
+        DB::raw('COUNT(*) as count')
+    )
+    ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+    ->whereNotNull('performed_by_id')
+    ->groupBy('performed_by_id')
+    ->orderBy('count', 'desc')
+    ->limit(10)
+    ->with('performer:id,first_name,last_name,email')
+    ->get()
+    ->map(function ($item) {
+        $name = 'Système';
+
+        if ($item->performer) {
+            $name = trim($item->performer->first_name . ' ' . $item->performer->last_name);
+            if (empty($name)) {
+                $name = $item->performer->email;
+            }
+        }
+
+        return [
+            'id' => $item->performed_by_id,
+            'name' => $name,
+            'count' => (int) $item->count,
+        ];
+    })
+    ->toArray();
 
             // ==================== LOGS RÉCENTS (100 pour permettre un bon filtrage) ====================
             $recentLogs = AdActivityLog::with('performer:id,first_name,last_name,email')
