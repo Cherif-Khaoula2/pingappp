@@ -14,6 +14,7 @@ export default function FindAllComputersLaps() {
   const [computers, setComputers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState("");
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -32,20 +33,20 @@ export default function FindAllComputersLaps() {
       
       if (response.data.success) {
         const allComputers = response.data.computers;
-        const totalComputers = allComputers.length;
+        setTotalCount(allComputers.length);
         
-        // Charger les PC un par un
-        for (let i = 0; i < totalComputers; i++) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Afficher les PC un par un dans le tableau
+        for (let i = 0; i < allComputers.length; i++) {
+          // Délai de 100ms entre chaque PC pour une meilleure expérience
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           setComputers(prev => [...prev, allComputers[i]]);
-          setLoadingProgress(Math.round(((i + 1) / totalComputers) * 100));
+          setLoadingProgress(Math.round(((i + 1) / allComputers.length) * 100));
         }
         
         setLoading(false);
-        setLoadingProgress(100);
         
-        // Masquer la barre après 500ms
+        // Masquer la barre de progression après 500ms
         setTimeout(() => {
           setLoadingProgress(0);
         }, 500);
@@ -56,6 +57,7 @@ export default function FindAllComputersLaps() {
     } catch (err) {
       setError(err.response?.data?.message || err.message);
       setLoading(false);
+      setLoadingProgress(0);
     }
   };
 
@@ -123,7 +125,10 @@ export default function FindAllComputersLaps() {
           Ordinateurs LAPS
         </h2>
         <p className="text-600 text-sm m-0">
-          {computers.length} ordinateur(s) disponible(s)
+          {loading 
+            ? `Chargement... ${computers.length}/${totalCount} ordinateur(s)`
+            : `${computers.length} ordinateur(s) disponible(s)`
+          }
         </p>
       </div>
       <div className="flex gap-2">
@@ -151,7 +156,7 @@ export default function FindAllComputersLaps() {
 
   return (
     <Layout>
-      {/* Barre de progression fine en haut - Position fixe */}
+      {/* Barre de progression fine en haut */}
       {loadingProgress > 0 && (
         <div className="top-progress-bar">
           <ProgressBar 
@@ -162,7 +167,7 @@ export default function FindAllComputersLaps() {
           />
           <div className="progress-text">
             <i className="pi pi-spin pi-spinner mr-2"></i>
-            Chargement des ordinateurs... {computers.length} chargé(s) ({loadingProgress}%)
+            Chargement des ordinateurs... {computers.length}/{totalCount} ({loadingProgress}%)
           </div>
         </div>
       )}
@@ -178,11 +183,11 @@ export default function FindAllComputersLaps() {
           />
         )}
 
-        {/* Tableau des données */}
+        {/* Tableau des données - Affiche les PC au fur et à mesure */}
         <Card className="data-card">
           <DataTable
             value={computers}
-            paginator
+            paginator={!loading}
             rows={15}
             rowsPerPageOptions={[10, 15, 25, 50]}
             responsiveLayout="scroll"
@@ -192,15 +197,19 @@ export default function FindAllComputersLaps() {
             emptyMessage={
               <div className="empty-state">
                 <div className="empty-icon">
-                  <i className="pi pi-inbox"></i>
+                  {loading ? (
+                    <i className="pi pi-spin pi-spinner text-primary"></i>
+                  ) : (
+                    <i className="pi pi-inbox"></i>
+                  )}
                 </div>
                 <h3 className="empty-title">
                   {loading ? "Chargement en cours..." : "Aucun ordinateur trouvé"}
                 </h3>
                 <p className="empty-description">
                   {loading 
-                    ? "Veuillez patienter pendant le chargement des ordinateurs"
-                    : "Aucun ordinateur avec LAPS n'est disponible pour le moment"
+                    ? "Les ordinateurs apparaîtront progressivement..."
+                    : "Aucun ordinateur avec LAPS n'est disponible"
                   }
                 </p>
               </div>
@@ -211,13 +220,13 @@ export default function FindAllComputersLaps() {
               field="name" 
               header="Nom de l'ordinateur" 
               body={nameBodyTemplate}
-              sortable 
+              sortable={!loading}
               style={{ minWidth: '250px' }}
             />
             <Column 
               header="Statut" 
               body={statusBodyTemplate} 
-              sortable 
+              sortable={!loading}
               style={{ minWidth: '120px' }}
               align="center"
             />
@@ -232,7 +241,7 @@ export default function FindAllComputersLaps() {
       </div>
 
       <style jsx>{`
-        /* Barre de progression en haut - Style professionnel */
+        /* Barre de progression en haut */
         .top-progress-bar {
           position: fixed;
           top: 0;
@@ -266,7 +275,6 @@ export default function FindAllComputersLaps() {
           border-top: 1px solid #e5e7eb;
         }
 
-        /* Personnalisation de la barre de progression */
         :global(.progress-bar-custom) {
           border-radius: 0 !important;
         }
@@ -306,6 +314,10 @@ export default function FindAllComputersLaps() {
           margin-bottom: 1.5rem;
         }
 
+        .empty-icon .pi-spinner {
+          font-size: 4rem;
+        }
+
         .empty-title {
           font-size: 1.5rem;
           font-weight: 700;
@@ -336,7 +348,7 @@ export default function FindAllComputersLaps() {
 
         :global(.modern-datatable .p-datatable-tbody > tr) {
           transition: background-color 0.2s;
-          animation: fadeIn 0.3s ease-in;
+          animation: fadeInRow 0.4s ease-out;
         }
 
         :global(.modern-datatable .p-datatable-tbody > tr:hover) {
@@ -349,14 +361,30 @@ export default function FindAllComputersLaps() {
           border-bottom: 1px solid #f3f4f6;
         }
 
-        @keyframes fadeIn {
+        /* Animation pour chaque ligne qui apparaît */
+        @keyframes fadeInRow {
           from {
             opacity: 0;
-            transform: translateY(-10px);
+            transform: translateX(-20px);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateX(0);
+          }
+        }
+
+        /* Effet de brillance sur la dernière ligne ajoutée */
+        :global(.modern-datatable .p-datatable-tbody > tr:last-child) {
+          background: linear-gradient(90deg, rgba(79, 70, 229, 0.05) 0%, transparent 100%);
+          animation: fadeInRow 0.4s ease-out, highlight 1s ease-out;
+        }
+
+        @keyframes highlight {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
           }
         }
 
