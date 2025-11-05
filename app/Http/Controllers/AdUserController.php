@@ -525,7 +525,7 @@ public function createAdUser(Request $request)
             'max:128',
             'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
         ],
-        'direction_id' => 'required|exists:directions,id', // ✅ Validation de la direction
+        'direction_id' => 'required|exists:dns,id', // ✅ Validation de la direction
     ], [
         'password.required' => 'Le mot de passe est obligatoire',
         'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
