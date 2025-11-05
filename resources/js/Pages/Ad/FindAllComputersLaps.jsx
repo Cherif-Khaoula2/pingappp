@@ -18,11 +18,11 @@ export default function FindAllComputersLaps() {
 
   const fetchComputers = async (filter = "") => {
     setLoading(true);
+    setError("");
     try {
       const response = await axios.get("/ad/computers/laps/all", { params: { search: filter } });
       if (response.data.success) {
         setComputers(response.data.computers);
-        setError("");
       } else {
         setError(response.data.message || "Erreur inconnue");
       }
@@ -55,7 +55,7 @@ export default function FindAllComputersLaps() {
     <Layout>
       <Card className="shadow-2 p-4">
         {/* Barre de recherche */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-2">
           <input
             type="text"
             className="p-inputtext"
@@ -74,7 +74,7 @@ export default function FindAllComputersLaps() {
 
         {/* Barre de chargement linéaire */}
         {loading && (
-          <div className="w-full h-1 bg-gray-200 mb-2 relative overflow-hidden">
+          <div className="w-full h-1 bg-gray-200 overflow-hidden mb-2 relative">
             <div className="h-1 bg-blue-500 absolute left-0 top-0 animate-slide"></div>
           </div>
         )}
@@ -102,7 +102,6 @@ export default function FindAllComputersLaps() {
         </DataTable>
       </Card>
 
-      {/* Style pour l'animation */}
       <style>{`
         @keyframes slide {
           0% { transform: translateX(-100%); }
