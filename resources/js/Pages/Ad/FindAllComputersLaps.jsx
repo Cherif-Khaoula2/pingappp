@@ -6,52 +6,59 @@ import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
-import { Skeleton } from "primereact/skeleton";
+import { ProgressBar } from "primereact/progressbar";
 import { Message } from "primereact/message";
-import { Tooltip } from "primereact/tooltip";
 import Layout from "@/Layouts/layout/layout.jsx";
 
 export default function FindAllComputersLaps() {
   const [computers, setComputers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
   const [globalFilter, setGlobalFilter] = useState("");
 
   useEffect(() => {
     fetchComputers();
   }, []);
 
-  const fetchComputers = async (filter = "") => {
+  const fetchComputers = async () => {
     setLoading(true);
+    setLoadingProgress(0);
     setError("");
+    setComputers([]);
+    
     try {
-      const response = await axios.get("/ad/computers/laps/all", {
-        params: { search: filter }
-      });
+      const response = await axios.get("/ad/computers/laps/all");
+      
       if (response.data.success) {
-        setComputers(response.data.computers);
+        const allComputers = response.data.computers;
+        const totalComputers = allComputers.length;
+        
+        // Charger les PC un par un
+        for (let i = 0; i < totalComputers; i++) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          setComputers(prev => [...prev, allComputers[i]]);
+          setLoadingProgress(Math.round(((i + 1) / totalComputers) * 100));
+        }
+        
+        setLoading(false);
+        setLoadingProgress(100);
+        
+        // Masquer la barre après 500ms
+        setTimeout(() => {
+          setLoadingProgress(0);
+        }, 500);
       } else {
         setError(response.data.message || "Erreur inconnue");
+        setLoading(false);
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message);
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = () => {
-    fetchComputers(search);
-  };
-
-  const handleClearSearch = () => {
-    setSearch("");
-    setGlobalFilter("");
-    fetchComputers();
-  };
-
-  // Templates pour les colonnes
   const statusBodyTemplate = (rowData) => (
     <Tag
       value={rowData.enabled ? "Actif" : "Inactif"}
@@ -108,20 +115,6 @@ export default function FindAllComputersLaps() {
     );
   };
 
-  // Skeleton pour le chargement
-  const renderSkeletonTable = () => (
-    <div className="flex flex-column gap-3">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="flex gap-3 p-3 border-round bg-gray-50">
-          <Skeleton width="30%" height="2rem" />
-          <Skeleton width="20%" height="2rem" />
-          <Skeleton width="50%" height="2rem" />
-        </div>
-      ))}
-    </div>
-  );
-
-  // En-tête du tableau
   const tableHeader = (
     <div className="flex flex-column md:flex-row justify-content-between align-items-center gap-3">
       <div>
@@ -130,7 +123,7 @@ export default function FindAllComputersLaps() {
           Ordinateurs LAPS
         </h2>
         <p className="text-600 text-sm m-0">
-          Gestion des mots de passe administrateur local
+          {computers.length} ordinateur(s) disponible(s)
         </p>
       </div>
       <div className="flex gap-2">
@@ -141,14 +134,16 @@ export default function FindAllComputersLaps() {
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder="Filtrer les résultats..."
             className="w-full md:w-20rem"
+            disabled={loading}
           />
         </span>
         <Button
           icon="pi pi-refresh"
           className="p-button-outlined"
-          onClick={() => fetchComputers(search)}
+          onClick={fetchComputers}
           tooltip="Actualiser"
           tooltipOptions={{ position: "bottom" }}
+          disabled={loading}
         />
       </div>
     </div>
@@ -156,11 +151,23 @@ export default function FindAllComputersLaps() {
 
   return (
     <Layout>
+      {/* Barre de progression fine en haut - Position fixe */}
+      {loadingProgress > 0 && (
+        <div className="top-progress-bar">
+          <ProgressBar 
+            value={loadingProgress} 
+            showValue={false}
+            style={{ height: '4px', borderRadius: 0 }}
+            className="progress-bar-custom"
+          />
+          <div className="progress-text">
+            <i className="pi pi-spin pi-spinner mr-2"></i>
+            Chargement des ordinateurs... {computers.length} chargé(s) ({loadingProgress}%)
+          </div>
+        </div>
+      )}
+
       <div className="page-container">
-       
-
-    
-
         {/* Message d'erreur */}
         {error && (
           <Message 
@@ -173,178 +180,118 @@ export default function FindAllComputersLaps() {
 
         {/* Tableau des données */}
         <Card className="data-card">
-          {loading ? (
-            renderSkeletonTable()
-          ) : (
-            <DataTable
-              value={computers}
-              paginator
-              rows={15}
-              rowsPerPageOptions={[10, 15, 25, 50]}
-              responsiveLayout="scroll"
-              stripedRows
-              header={tableHeader}
-              globalFilter={globalFilter}
-              emptyMessage={
-                <div className="empty-state">
-                  <div className="empty-icon">
-                    <i className="pi pi-inbox"></i>
-                  </div>
-                  <h3 className="empty-title">Aucun ordinateur trouvé</h3>
-                  <p className="empty-description">
-                    {search 
-                      ? "Essayez de modifier votre recherche ou effacez les filtres" 
-                      : "Aucun ordinateur avec LAPS n'est disponible pour le moment"}
-                  </p>
-                  {search && (
-                    <Button
-                      label="Effacer la recherche"
-                      icon="pi pi-times"
-                      className="p-button-outlined mt-3"
-                      onClick={handleClearSearch}
-                    />
-                  )}
+          <DataTable
+            value={computers}
+            paginator
+            rows={15}
+            rowsPerPageOptions={[10, 15, 25, 50]}
+            responsiveLayout="scroll"
+            stripedRows
+            header={tableHeader}
+            globalFilter={globalFilter}
+            emptyMessage={
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <i className="pi pi-inbox"></i>
                 </div>
-              }
-              className="modern-datatable"
-            >
-              <Column 
-                field="name" 
-                header="Nom de l'ordinateur" 
-                body={nameBodyTemplate}
-                sortable 
-                style={{ minWidth: '250px' }}
-              />
-              <Column 
-                header="Statut" 
-                body={statusBodyTemplate} 
-                sortable 
-                style={{ minWidth: '120px' }}
-                align="center"
-              />
-              <Column 
-                field="laps_password" 
-                header="Mot de passe LAPS" 
-                body={lapsPasswordTemplate}
-                style={{ minWidth: '350px' }}
-              />
-            </DataTable>
-          )}
+                <h3 className="empty-title">
+                  {loading ? "Chargement en cours..." : "Aucun ordinateur trouvé"}
+                </h3>
+                <p className="empty-description">
+                  {loading 
+                    ? "Veuillez patienter pendant le chargement des ordinateurs"
+                    : "Aucun ordinateur avec LAPS n'est disponible pour le moment"
+                  }
+                </p>
+              </div>
+            }
+            className="modern-datatable"
+          >
+            <Column 
+              field="name" 
+              header="Nom de l'ordinateur" 
+              body={nameBodyTemplate}
+              sortable 
+              style={{ minWidth: '250px' }}
+            />
+            <Column 
+              header="Statut" 
+              body={statusBodyTemplate} 
+              sortable 
+              style={{ minWidth: '120px' }}
+              align="center"
+            />
+            <Column 
+              field="laps_password" 
+              header="Mot de passe LAPS" 
+              body={lapsPasswordTemplate}
+              style={{ minWidth: '350px' }}
+            />
+          </DataTable>
         </Card>
-
       </div>
 
       <style jsx>{`
+        /* Barre de progression en haut - Style professionnel */
+        .top-progress-bar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 9999;
+          background: white;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+          from {
+            transform: translateY(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        .progress-text {
+          padding: 0.75rem 1.5rem;
+          font-size: 0.875rem;
+          color: #4f46e5;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          background: #f8f9fa;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        /* Personnalisation de la barre de progression */
+        :global(.progress-bar-custom) {
+          border-radius: 0 !important;
+        }
+
+        :global(.progress-bar-custom .p-progressbar-value) {
+          background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+          background-size: 200% 100%;
+          animation: gradient-shift 2s ease infinite;
+        }
+
+        @keyframes gradient-shift {
+          0% { background-position: 0% 0%; }
+          50% { background-position: 100% 0%; }
+          100% { background-position: 0% 0%; }
+        }
+
         .page-container {
           padding: 1.5rem;
-          background: linear-gradient(135deg, #f5f7fa 0%, #ffffffff 100%);
+          background: #f8f9fa;
           min-height: 100vh;
         }
 
-        /* Barre supérieure */
-        .top-bar {
-          margin-bottom: 1.5rem;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 1rem;
-        }
-
-        .stat-card {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .stat-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-        }
-
-        .stat-content {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 0.5rem;
-        }
-
-        .stat-icon {
-          width: 60px;
-          height: 60px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.5rem;
-        }
-
-        .stat-info {
-          flex: 1;
-        }
-
-        .stat-label {
-          font-size: 0.875rem;
-          color: #6b7280;
-          margin: 0 0 0.25rem 0;
-          font-weight: 500;
-        }
-
-        .stat-value {
-          font-size: 1.75rem;
-          font-weight: 700;
-          color: #1f2937;
-          margin: 0;
-        }
-
-        /* Carte de recherche */
-        .search-card {
-          margin-bottom: 1.5rem;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .search-container {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .search-input-group {
-          display: flex;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-        }
-
-        .search-input {
-          padding: 0.75rem 1rem 0.75rem 2.5rem !important;
-          font-size: 1rem !important;
-          border-radius: 8px !important;
-        }
-
-        .search-button {
-          padding: 0.75rem 1.5rem;
-          font-weight: 600;
-        }
-
-        .search-info {
-          display: flex;
-          align-items: center;
-          padding: 0.75rem 1rem;
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          border-radius: 8px;
-          color: #1e40af;
-          font-size: 0.875rem;
-        }
-
-        /* Carte de données */
         .data-card {
           border-radius: 12px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-          margin-bottom: 1.5rem;
         }
 
         /* État vide */
@@ -370,43 +317,6 @@ export default function FindAllComputersLaps() {
           font-size: 1rem;
           color: #6b7280;
           margin: 0;
-          max-width: 500px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-
-        /* Barre inférieure */
-        .bottom-bar {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-          padding: 1rem 1.5rem;
-        }
-
-        .bottom-info {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 1rem;
-          flex-wrap: wrap;
-        }
-
-        .info-item {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          font-size: 0.875rem;
-          color: #6b7280;
-        }
-
-        .info-item i {
-          font-size: 1.25rem;
-        }
-
-        .info-actions {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
         }
 
         /* DataTable personnalisé */
@@ -426,6 +336,7 @@ export default function FindAllComputersLaps() {
 
         :global(.modern-datatable .p-datatable-tbody > tr) {
           transition: background-color 0.2s;
+          animation: fadeIn 0.3s ease-in;
         }
 
         :global(.modern-datatable .p-datatable-tbody > tr:hover) {
@@ -438,39 +349,26 @@ export default function FindAllComputersLaps() {
           border-bottom: 1px solid #f3f4f6;
         }
 
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
           .page-container {
             padding: 1rem;
           }
 
-          .stats-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .search-input-group {
-            flex-direction: column;
-          }
-
-          .search-input-group > * {
-            width: 100%;
-          }
-
-          .bottom-info {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .stat-value {
-            font-size: 1.5rem;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .stat-icon {
-            width: 50px;
-            height: 50px;
-            font-size: 1.25rem;
+          .progress-text {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
           }
 
           .empty-icon {
