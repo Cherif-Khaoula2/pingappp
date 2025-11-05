@@ -17,7 +17,6 @@ export default function FindAllComputersLaps() {
   const [totalCount, setTotalCount] = useState(0);
   const [error, setError] = useState("");
   const [globalFilter, setGlobalFilter] = useState("");
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
     fetchComputers();
@@ -28,7 +27,7 @@ export default function FindAllComputersLaps() {
     setLoadingProgress(0);
     setError("");
     setComputers([]);
-    setIsInitialLoad(true);
+    setTotalCount(0);
     
     try {
       // Simuler une progression pendant le chargement depuis le serveur
@@ -46,22 +45,11 @@ export default function FindAllComputersLaps() {
       if (response.data.success) {
         const allComputers = response.data.computers;
         setTotalCount(allComputers.length);
-        setLoadingProgress(95);
-        
-        // Petite pause avant d'afficher les résultats
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Afficher les PC un par un dans le tableau
-        for (let i = 0; i < allComputers.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          setComputers(prev => [...prev, allComputers[i]]);
-          setLoadingProgress(95 + Math.round(((i + 1) / allComputers.length) * 5));
-        }
-        
         setLoadingProgress(100);
+        
+        // Afficher TOUS les ordinateurs d'un coup
+        setComputers(allComputers);
         setLoading(false);
-        setIsInitialLoad(false);
         
         // Masquer la barre de progression après 500ms
         setTimeout(() => {
@@ -70,13 +58,11 @@ export default function FindAllComputersLaps() {
       } else {
         setError(response.data.message || "Erreur inconnue");
         setLoading(false);
-        setIsInitialLoad(false);
         setLoadingProgress(0);
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message);
       setLoading(false);
-      setIsInitialLoad(false);
       setLoadingProgress(0);
     }
   };
@@ -146,7 +132,7 @@ export default function FindAllComputersLaps() {
         </h2>
         <p className="text-600 text-sm m-0">
           {loading 
-            ? `Chargement... ${computers.length}/${totalCount || '?'} ordinateur(s)`
+            ? "Chargement en cours..."
             : `${computers.length} ordinateur(s) disponible(s)`
           }
         </p>
@@ -187,10 +173,7 @@ export default function FindAllComputersLaps() {
           />
           <div className="progress-text">
             <i className="pi pi-spin pi-spinner mr-2"></i>
-            {isInitialLoad && computers.length === 0
-              ? `Récupération des données... ${Math.round(loadingProgress)}%`
-              : `Chargement des ordinateurs... ${computers.length}/${totalCount} (${Math.round(loadingProgress)}%)`
-            }
+            Récupération des données depuis le serveur... {Math.round(loadingProgress)}%
           </div>
         </div>
       )}
@@ -206,11 +189,11 @@ export default function FindAllComputersLaps() {
           />
         )}
 
-        {/* Tableau des données - Affiche les PC au fur et à mesure */}
+        {/* Tableau des données */}
         <Card className="data-card">
           <DataTable
             value={computers}
-            paginator={!loading}
+            paginator={!loading && computers.length > 0}
             rows={15}
             rowsPerPageOptions={[10, 15, 25, 50]}
             responsiveLayout="scroll"
@@ -231,9 +214,7 @@ export default function FindAllComputersLaps() {
                 </h3>
                 <p className="empty-description">
                   {loading 
-                    ? isInitialLoad 
-                      ? "Récupération des données depuis le serveur..."
-                      : "Les ordinateurs apparaîtront progressivement..."
+                    ? "Récupération des données depuis le serveur..."
                     : "Aucun ordinateur avec LAPS n'est disponible"
                   }
                 </p>
@@ -373,7 +354,6 @@ export default function FindAllComputersLaps() {
 
         :global(.modern-datatable .p-datatable-tbody > tr) {
           transition: background-color 0.2s;
-          animation: fadeInRow 0.4s ease-out;
         }
 
         :global(.modern-datatable .p-datatable-tbody > tr:hover) {
@@ -384,33 +364,6 @@ export default function FindAllComputersLaps() {
           padding: 1rem;
           border: none;
           border-bottom: 1px solid #f3f4f6;
-        }
-
-        /* Animation pour chaque ligne qui apparaît */
-        @keyframes fadeInRow {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        /* Effet de brillance sur la dernière ligne ajoutée */
-        :global(.modern-datatable .p-datatable-tbody > tr:last-child) {
-          background: linear-gradient(90deg, rgba(79, 70, 229, 0.05) 0%, transparent 100%);
-          animation: fadeInRow 0.4s ease-out, highlight 1s ease-out;
-        }
-
-        @keyframes highlight {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
         }
 
         /* Responsive */
