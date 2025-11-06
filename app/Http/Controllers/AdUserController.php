@@ -254,10 +254,7 @@ class AdUserController extends Controller
                 'email' => $adUser['email'],
             ], $action);
 
-            return response()->json([
-                'success' => true,
-                'message' => $action === 'block' ? 'Utilisateur bloqué avec succès' : 'Utilisateur débloqué avec succès'
-            ]);
+          
             
         } catch (\Throwable $e) {
             Log::error('toggleUserStatus error: ' . $e->getMessage());
@@ -367,10 +364,7 @@ class AdUserController extends Controller
                 'name' => $adUser['name'],
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Mot de passe réinitialisé avec succès'
-            ]);
+        
 
         } catch (\Throwable $e) {
             Log::error('resetPassword error: ' . $e->getMessage());
