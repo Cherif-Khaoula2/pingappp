@@ -87,7 +87,7 @@ export default function LdapLoginPage({ status }) {
                                                 autoComplete="username"
                                                 aria-invalid={!!errors.username}
                                                 aria-describedby="username-error"
-                                                placeholder="Prenom.nom"
+                                                placeholder="Nom utilisateur"
                                             />
                                         </div>
                                         <InputError message={errors.username} className="error-message" id="username-error" />
