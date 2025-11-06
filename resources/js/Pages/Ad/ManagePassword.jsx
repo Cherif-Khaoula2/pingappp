@@ -122,9 +122,6 @@ const confirmResetPassword = () => {
     { 
       sam: resetDialog.sam, 
       new_password: newPassword, 
-      user_name: resetDialog.userName,
-      user_email: resetDialog.userEmail,  // 🆕 AJOUTER
-      user_dn: resetDialog.userDn,        // 🆕 AJOUTER
     },
     {
       onSuccess: () => {
