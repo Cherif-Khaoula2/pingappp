@@ -6,14 +6,14 @@ import { Tag } from 'primereact/tag';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
-import { Calendar } from 'primereact/calendar';
-import { Dropdown } from 'primereact/dropdown';
-import { MultiSelect } from 'primereact/multiselect';
-import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';;
 import { Message } from 'primereact/message';
 import { ProgressBar } from 'primereact/progressbar';
 import Layout from '@/Layouts/layout/layout.jsx';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function Dashboard({ 
     stats = {}, 
     activityData = [], 

@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { useForm, router, usePage,Head } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
-import { Password } from 'primereact/password';
 import { Button } from 'primereact/button';
-import { Checkbox } from 'primereact/checkbox';
 import { Dialog } from 'primereact/dialog';
 import { Divider } from 'primereact/divider';
 import { Message } from 'primereact/message';
 import Layout from '@/Layouts/layout/layout.jsx';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 const UsersEdit = () => {
   const { user, roles } = usePage().props;
   const pageProps = usePage().props;

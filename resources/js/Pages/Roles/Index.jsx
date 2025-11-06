@@ -9,7 +9,10 @@ import { InputText } from 'primereact/inputtext';
 import { Chip } from 'primereact/chip';
 import { Skeleton } from 'primereact/skeleton';
 import Layout from '@/Layouts/layout/layout.jsx';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 const RolesIndex = () => {
   const { roles } = usePage().props;
   const pageProps = usePage().props;

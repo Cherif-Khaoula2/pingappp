@@ -7,7 +7,10 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import Layout from '@/Layouts/layout/layout.jsx';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
   const [query, setQuery] = useState(search || '');
   const { processing } = useForm({});

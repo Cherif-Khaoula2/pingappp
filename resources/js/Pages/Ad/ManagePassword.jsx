@@ -10,7 +10,10 @@ import { Message } from "primereact/message";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { router } from "@inertiajs/react";
 import { Head } from '@inertiajs/react';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 // Fonction pour générer un mot de passe automatique
 const generatePassword = () => {
   const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4 chiffres

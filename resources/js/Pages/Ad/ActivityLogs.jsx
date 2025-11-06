@@ -10,7 +10,10 @@ import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { Chip } from 'primereact/chip';
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function ActivityLogs({ logs, stats, filters }) {
     const { auth } = usePage().props;
 

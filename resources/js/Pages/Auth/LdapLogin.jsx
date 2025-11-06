@@ -5,7 +5,10 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function LdapLoginPage({ status }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         username: '',

@@ -10,7 +10,10 @@ import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { Head } from '@inertiajs/react';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const toast = React.useRef(null);
   

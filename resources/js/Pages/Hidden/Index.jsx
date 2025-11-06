@@ -8,7 +8,10 @@ import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { Chip } from "primereact/chip";
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function HiddenIndex({ users, search }) {
     const [searchTerm, setSearchTerm] = useState(search || "");
     const [globalFilter, setGlobalFilter] = useState("");

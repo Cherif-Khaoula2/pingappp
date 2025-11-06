@@ -11,7 +11,10 @@ import { Dropdown } from 'primereact/dropdown';
 import { Message } from 'primereact/message';
 import { Divider } from 'primereact/divider';
 import Layout from '@/Layouts/layout/layout.jsx';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
   const [query, setQuery] = useState(search || '');
   const [selectedUser, setSelectedUser] = useState(null);

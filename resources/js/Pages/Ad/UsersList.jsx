@@ -8,7 +8,10 @@ import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { Dialog } from 'primereact/dialog';
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function UsersList() {
   const { users, meta, error } = usePage().props;
   const [search, setSearch] = useState("");

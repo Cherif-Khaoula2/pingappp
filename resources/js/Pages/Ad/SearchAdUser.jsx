@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function SearchAdUser() {
   const [username, setUsername] = useState('');
   const [userData, setUserData] = useState(null);

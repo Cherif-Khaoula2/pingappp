@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function Create() {
   const [form, setForm] = useState({
     first_name: '',

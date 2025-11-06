@@ -6,7 +6,10 @@ import { Tag } from 'primereact/tag';
 import { Divider } from 'primereact/divider';
 import { Timeline } from 'primereact/timeline';
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function ActivityLogDetail({ log }) {
     const { auth } = usePage().props;
 

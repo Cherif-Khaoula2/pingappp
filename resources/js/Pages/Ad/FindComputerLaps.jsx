@@ -10,7 +10,10 @@ import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { Head } from '@inertiajs/react';
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function FindComputerLaps() {
   const [computer, setComputer] = useState("");
   const [rows, setRows] = useState([]);

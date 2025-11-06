@@ -13,7 +13,10 @@ import { Divider } from 'primereact/divider';
 import { Tag } from 'primereact/tag';
 import { Chip } from 'primereact/chip';
 import Layout from "@/Layouts/layout/layout.jsx";
-
+import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
+import 'primereact/resources/primereact.min.css';                   // Core CSS
+import 'primeicons/primeicons.css';                                 // Icônes
+import 'primeflex/primeflex.css';  
 export default function DnIndex({ dns, users }) {
     const [nom, setNom] = useState('');
     const [path, setPath] = useState('');
