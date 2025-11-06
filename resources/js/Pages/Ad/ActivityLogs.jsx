@@ -118,84 +118,30 @@ export default function ActivityLogs({ logs, stats, filters }) {
             />
         );
     };
-// Dans ActivityLogs.jsx, modifier le template targetUserTemplate :
 
 const targetUserTemplate = (rowData) => {
-    const formatName = (name) => {
-        if (!name) return '';
-        name = name.trim().replace(/\.$/, '');
-        const parts = name.split(' ');
-        if (parts.length >= 2) {
-            const firstName = parts[0];
-            const lastName = parts.slice(1).join(' ').toUpperCase();
-            return `${firstName} ${lastName}`;
-        }
-        return name;
-    };
-
-    // 🆕 Si c'est un résultat de recherche, afficher les utilisateurs trouvés
-    if (rowData.action === 'search_user_result' && rowData.additional_details) {
-        try {
-            const details = typeof rowData.additional_details === 'string' 
-                ? JSON.parse(rowData.additional_details) 
-                : rowData.additional_details;
-
-            if (details.found_users && details.found_users.length > 0) {
-                return (
-                    <div>
-                        <div className="font-semibold text-900 mb-2">
-                            {details.results_count} résultat(s) trouvé(s)
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                            {details.found_users.slice(0, 3).map((sam, index) => (
-                                <Chip 
-                                    key={index}
-                                    label={sam}
-                                    style={{ 
-                                        backgroundColor: '#dbeafe',
-                                        color: '#1e40af',
-                                        fontSize: '0.85rem'
-                                    }}
-                                />
-                            ))}
-                            {details.found_users.length > 3 && (
-                                <Chip 
-                                    label={`+${details.found_users.length - 3}`}
-                                    style={{ 
-                                        backgroundColor: '#f3f4f6',
-                                        color: '#6b7280'
-                                    }}
-                                />
-                            )}
-                        </div>
-                    </div>
-                );
+        const formatName = (name) => {
+            if (!name) return '';
+            // Enlever le point à la fin s'il existe
+            name = name.trim().replace(/\.$/, '');
+            const parts = name.split(' ');
+            if (parts.length >= 2) {
+                const firstName = parts[0];
+                const lastName = parts.slice(1).join(' ').toUpperCase();
+                return `${firstName} ${lastName}`;
             }
-        } catch (e) {
-            console.error('Erreur parsing additional_details:', e);
-        }
-    }
+            return name;
+        };
 
-    // 🆕 Si c'est une recherche (search_user), afficher la requête
-    if (rowData.action === 'search_user') {
         return (
             <div>
-                <div className="font-semibold text-900">Recherche :</div>
-                <div className="text-sm text-600">"{rowData.target_user}"</div>
+                {rowData.target_user_name && (
+                    <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
+                )}
+                <div className="text-sm text-600">{rowData.target_user}</div>
             </div>
         );
-    }
-
-    // 🔹 Pour les autres actions, affichage normal
-    return (
-        <div>
-            {rowData.target_user_name && (
-                <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
-            )}
-            <div className="text-sm text-600">{rowData.target_user}</div>
-        </div>
-    );
-};
+    };
 const performedByTemplate = (rowData) => {
     const formatName = (name) => {
         if (!name) return '';
