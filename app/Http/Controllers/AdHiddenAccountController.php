@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\AdHiddenAccount;
+use App\Models\AdActivityLog;
 use LdapRecord\Models\ActiveDirectory\User as LdapUser;
 use Inertia\Inertia;
 
@@ -30,7 +31,7 @@ class AdHiddenAccountController extends Controller
                     ->orWhereContains('givenname', $words[0])
                     ->orWhereContains('sn', $words[0])
                     ->orWhereContains('samaccountname', $words[0])
-                    ->get(); // ✅ SUPPRESSION DE limit(200)
+                    ->get();
 
                 $ldapUsers = $allUsers->filter(function ($user) use ($words) {
                     $fullText = strtolower(
@@ -47,29 +48,29 @@ class AdHiddenAccountController extends Controller
                         }
                     }
                     return true;
-                }); // ✅ SUPPRESSION DE ->take(50)
+                });
             } else {
-                // Recherche simple (un seul mot) - SANS LIMITE
+                // Recherche simple (un seul mot)
                 $ldapUsers = LdapUser::query()
                     ->whereContains('cn', $searchTerm)
                     ->orWhereContains('givenname', $searchTerm)
                     ->orWhereContains('sn', $searchTerm)
                     ->orWhereContains('samaccountname', $searchTerm)
                     ->orWhereContains('mail', $searchTerm)
-                    ->get(); // ✅ SUPPRESSION DE limit(50)
+                    ->get();
             }
         } else {
-            // ✅ AFFICHER TOUS LES UTILISATEURS (pas seulement 50)
+            // Afficher tous les utilisateurs
             $ldapUsers = LdapUser::query()->get();
         }
 
-        // 📋 Récupérer les comptes déjà masqués
+        // Récupérer les comptes déjà masqués
         $hiddenAccounts = AdHiddenAccount::pluck('samaccountname')->toArray();
 
-        // 📋 Récupérer les utilisateurs locaux (déjà dans ta BDD)
+        // Récupérer les utilisateurs locaux
         $existingEmails = User::pluck('email')->toArray();
 
-        // 🧩 Formatage des résultats
+        // Formatage des résultats
         $users = $ldapUsers->map(function ($u) use ($existingEmails, $hiddenAccounts) {
             $email = is_array($u->mail) ? ($u->mail[0] ?? '') : ($u->mail ?? '');
             $name = is_array($u->cn) ? ($u->cn[0] ?? '') : ($u->cn ?? '');
@@ -86,7 +87,6 @@ class AdHiddenAccountController extends Controller
             return !empty($user['email']) && !empty($user['name']);
         })->values();
 
-        // 🔙 Retourner la vue Inertia
         return Inertia::render('Hidden/Index', [
             'users' => $users,
             'search' => $search,
@@ -104,19 +104,105 @@ class AdHiddenAccountController extends Controller
             'reason' => 'nullable|string|max:255',
         ]);
 
-        $account = AdHiddenAccount::create($validated);
+        try {
+            // Récupérer les infos LDAP de l'utilisateur cible
+            $ldapUser = LdapUser::where('samaccountname', $validated['samaccountname'])->first();
+            $targetName = $ldapUser ? ($ldapUser->cn[0] ?? $validated['samaccountname']) : $validated['samaccountname'];
+            $targetEmail = $ldapUser ? ($ldapUser->mail[0] ?? null) : null;
 
-        return back();
+            // Créer le compte masqué
+            $account = AdHiddenAccount::create($validated);
+
+            // 📝 Logger l'action de masquage
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'hide_account',
+                'target_user' => $validated['samaccountname'],
+                'target_user_name' => $targetName,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'additional_details' => json_encode([
+                    'email' => $targetEmail,
+                    'reason' => $validated['reason'] ?? null,
+                    'hidden_account_id' => $account->id,
+                ]),
+            ]);
+
+            return back()->with('success', 'Compte masqué avec succès');
+
+        } catch (\Exception $e) {
+            // 📝 Logger l'échec
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'hide_account',
+                'target_user' => $validated['samaccountname'],
+                'target_user_name' => null,
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'error_message' => $e->getMessage(),
+                'additional_details' => json_encode([
+                    'reason' => $validated['reason'] ?? null,
+                ]),
+            ]);
+
+            return back()->withErrors(['error' => 'Erreur lors du masquage du compte']);
+        }
     }
 
     /**
      * Supprimer un compte masqué
      */
-    public function destroy(AdHiddenAccount $adHiddenAccount)
+    public function destroy(Request $request, AdHiddenAccount $adHiddenAccount)
     {
-        $adHiddenAccount->delete();
+        try {
+            $samaccountname = $adHiddenAccount->samaccountname;
+            
+            // Récupérer les infos LDAP si disponible
+            $ldapUser = LdapUser::where('samaccountname', $samaccountname)->first();
+            $targetName = $ldapUser ? ($ldapUser->cn[0] ?? $samaccountname) : $samaccountname;
+            $targetEmail = $ldapUser ? ($ldapUser->mail[0] ?? null) : null;
 
-        return back();
+            // Supprimer le compte masqué
+            $adHiddenAccount->delete();
+
+            // 📝 Logger l'action de suppression du masquage
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'unhide_account',
+                'target_user' => $samaccountname,
+                'target_user_name' => $targetName,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'additional_details' => json_encode([
+                    'email' => $targetEmail,
+                    'previous_hidden_id' => $adHiddenAccount->id,
+                ]),
+            ]);
+
+            return back()->with('success', 'Masquage supprimé avec succès');
+
+        } catch (\Exception $e) {
+            // 📝 Logger l'échec
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'unhide_account',
+                'target_user' => $adHiddenAccount->samaccountname,
+                'target_user_name' => null,
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['error' => 'Erreur lors de la suppression du masquage']);
+        }
     }
 
     public function showHiddenList()

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use LdapRecord\Models\ActiveDirectory\User as LdapUser;
 use App\Models\User;
+use App\Models\AdActivityLog;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Validator;
@@ -15,7 +16,7 @@ class LdapUserController extends Controller
     /**
      * 📋 Afficher les utilisateurs LDAP avec recherche
      */
- public function index(Request $request)
+    public function index(Request $request)
     {
         $search = $request->input('search');
         $ldapUsers = collect();
@@ -96,7 +97,7 @@ class LdapUserController extends Controller
     }
 
     /**
-     * 🧾 Formulaire d’autorisation (choix du rôle)
+     * 🧾 Formulaire d'autorisation (choix du rôle)
      */
     public function showAuthorizeForm($username)
     {
@@ -140,41 +141,100 @@ class LdapUserController extends Controller
         $email = $request->email;
         $role = $request->role;
 
-        // 🔍 Vérification LDAP
-        $ldapUser = LdapUser::where('samaccountname', $username)->first();
-        if ($ldapUser) {
-            $email = $ldapUser->mail[0] ?? $email;
+        try {
+            // 🔍 Vérification LDAP
+            $ldapUser = LdapUser::where('samaccountname', $username)->first();
+            if ($ldapUser) {
+                $email = $ldapUser->mail[0] ?? $email;
+            }
+
+            // 🔁 Si email toujours vide → générer un fallback
+            if (empty($email)) {
+                $email = strtolower(str_replace('.', '_', $username)) . '@sarpi-dz.com';
+            }
+
+            // 🚫 Si déjà autorisé
+            if (User::where('email', $email)->exists()) {
+                // 📝 Logger l'échec
+                AdActivityLog::create([
+                    'performed_by_id' => auth()->id(),
+                    'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'action' => 'authorize_ldap_user',
+                    'target_user' => $username,
+                    'target_user_name' => $ldapUser->cn[0] ?? $username,
+                    'status' => 'failed',
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'error_message' => 'Cet utilisateur est déjà autorisé.',
+                    'additional_details' => json_encode([
+                        'email' => $email,
+                        'role' => $role,
+                    ]),
+                ]);
+
+                return back()->withErrors(['email' => 'Cet utilisateur est déjà autorisé.']);
+            }
+
+            // 🧩 Découper prénom / nom
+            [$firstName, $lastName] = explode('.', $username . '.', 2);
+            $firstName = ucfirst(strtolower($firstName));
+            $lastName = ucfirst(strtolower($lastName ?? ''));
+
+            // 🧠 Création du compte local
+            $user = User::create([
+                'first_name' => $firstName,
+                'last_name'  => $lastName,
+                'email'      => $email,
+                'password'   => bcrypt('ldap'),
+            ]);
+
+            // 🎯 Attribution du rôle
+            $user->assignRole($role);
+
+            Log::info("✅ Utilisateur LDAP autorisé : {$email} ({$role})");
+
+            // 📝 Logger le succès
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'authorize_ldap_user',
+                'target_user' => $username,
+                'target_user_name' => $ldapUser->cn[0] ?? $username,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'additional_details' => json_encode([
+                    'email' => $email,
+                    'role' => $role,
+                    'user_id' => $user->id,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                ]),
+            ]);
+
+            return redirect()->route('users')->with('success', 'Utilisateur autorisé avec succès.');
+
+        } catch (\Exception $e) {
+            // 📝 Logger l'exception
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'authorize_ldap_user',
+                'target_user' => $username,
+                'target_user_name' => null,
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'error_message' => $e->getMessage(),
+                'additional_details' => json_encode([
+                    'email' => $email ?? null,
+                    'role' => $role,
+                ]),
+            ]);
+
+            Log::error("❌ Erreur lors de l'autorisation LDAP : " . $e->getMessage());
+            return back()->withErrors(['error' => 'Une erreur est survenue lors de l\'autorisation.']);
         }
-
-        // 🔁 Si email toujours vide → générer un fallback
-        if (empty($email)) {
-            $email = strtolower(str_replace('.', '_', $username)) . '@sarpi-dz.com';
-        }
-
-        // 🚫 Si déjà autorisé
-        if (User::where('email', $email)->exists()) {
-            return back()->withErrors(['email' => 'Cet utilisateur est déjà autorisé.']);
-        }
-
-        // 🧩 Découper prénom / nom
-        [$firstName, $lastName] = explode('.', $username . '.', 2);
-        $firstName = ucfirst(strtolower($firstName));
-        $lastName = ucfirst(strtolower($lastName ?? ''));
-
-        // 🧠 Création du compte local
-        $user = User::create([
-            'first_name' => $firstName,
-            'last_name'  => $lastName,
-            'email'      => $email,
-            'password'   => bcrypt('ldap'),
-        ]);
-
-        // 🎯 Attribution du rôle
-        $user->assignRole($role);
-
-        Log::info("✅ Utilisateur LDAP autorisé : {$email} ({$role})");
-
-        return redirect()->route('users')->with('success', 'Utilisateur autorisé avec succès.');
     }
 
     /**
@@ -245,25 +305,88 @@ class LdapUserController extends Controller
             ], 500);
         }
     }
+
     /**
- * 🗑️ Supprimer un utilisateur LDAP autorisé
- */
-public function deleteAuthorizedUser(Request $request)
-{
-    $email = $request->route('email');
-    
-    // Trouver l'utilisateur local par email
-    $user = User::where('email', $email)->first();
-    
-    if (!$user) {
-        return back()->withErrors(['email' => 'Utilisateur introuvable.']);
+     * 🗑️ Supprimer un utilisateur LDAP autorisé (désautoriser)
+     */
+    public function deleteAuthorizedUser(Request $request)
+    {
+        $email = $request->route('email');
+        
+        // Trouver l'utilisateur local par email
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            // 📝 Logger l'échec (utilisateur introuvable)
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'unauthorize_ldap_user',
+                'target_user' => $email,
+                'target_user_name' => null,
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'error_message' => 'Utilisateur introuvable.',
+                'additional_details' => json_encode([
+                    'email' => $email,
+                ]),
+            ]);
+
+            return back()->withErrors(['email' => 'Utilisateur introuvable.']);
+        }
+
+        try {
+            $userName = $user->first_name . ' ' . $user->last_name;
+            $userRoles = $user->getRoleNames()->toArray();
+            $userId = $user->id;
+
+            // Supprimer définitivement l'utilisateur
+            $user->forceDelete();
+            
+            Log::info("🗑️ Utilisateur LDAP supprimé : {$email}");
+
+            // 📝 Logger le succès de la désautorisation
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'unauthorize_ldap_user',
+                'target_user' => $email,
+                'target_user_name' => $userName,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'additional_details' => json_encode([
+                    'email' => $email,
+                    'user_id' => $userId,
+                    'roles' => $userRoles,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                ]),
+            ]);
+            
+            return redirect()->route('ldap.index')->with('success', 'Utilisateur supprimé avec succès.');
+
+        } catch (\Exception $e) {
+            // 📝 Logger l'échec de la suppression
+            AdActivityLog::create([
+                'performed_by_id' => auth()->id(),
+                'performed_by_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'action' => 'unauthorize_ldap_user',
+                'target_user' => $email,
+                'target_user_name' => $user->first_name . ' ' . $user->last_name,
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'error_message' => $e->getMessage(),
+                'additional_details' => json_encode([
+                    'email' => $email,
+                    'user_id' => $user->id,
+                ]),
+            ]);
+
+            Log::error("❌ Erreur lors de la suppression : " . $e->getMessage());
+            return back()->withErrors(['error' => 'Une erreur est survenue lors de la suppression.']);
+        }
     }
-    
-    // Supprimer définitivement l'utilisateur
-    $user->forceDelete();
-    
-    Log::info("🗑️ Utilisateur LDAP supprimé : {$email}");
-    
-    return redirect()->route('ldap.index')->with('success', 'Utilisateur supprimé avec succès.');
-}
 }

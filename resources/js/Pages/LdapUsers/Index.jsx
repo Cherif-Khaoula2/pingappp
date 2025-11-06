@@ -206,8 +206,11 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
   );
 
   // Header du tableau
-  const tableHeader = (
-    <div className="flex flex-column gap-3">
+ // Header du tableau
+const tableHeader = (
+  <div className="flex flex-column gap-3">
+    <div className="flex align-items-center justify-content-between flex-wrap">
+      {/* Partie gauche : icône + titre + description */}
       <div className="flex align-items-center gap-3">
         <div 
           className="inline-flex align-items-center justify-content-center bg-blue-100 border-circle" 
@@ -225,38 +228,55 @@ const LdapUsersIndex = ({ users = [], search = '', roles = [] }) => {
         </div>
       </div>
 
-      {/* Barre de recherche */}
-      <form onSubmit={handleSearch}>
-        <div className="p-inputgroup">
-          <span className="p-inputgroup-addon">
-            <i className="pi pi-search"></i>
-          </span>
-          <InputText
-            placeholder="Rechercher un utilisateur dans LDAP (nom, login, email)..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ height: '48px' }}
-          />
-          <Button
-            type="submit"
-            label="Rechercher"
-            icon="pi pi-search"
-            loading={processing}
-            style={{
-              background: 'linear-gradient(135deg, #155ecc, #6366f1)',
-              border: 'none',
-              minWidth: '140px'
-            }}
-          />
-        </div>
-      </form>
+      {/* Partie droite : bouton */}
+      <div className="flex gap-2">
+        <Button
+          label="Utilisateurs"
+          icon="pi pi-user"
+          outlined
+          onClick={() => router.visit(route('users'))}
+          style={{
+            borderColor: '#6b7280',
+            color: '#374151'
+          }}
+        />
+      </div>
     </div>
-  );
+
+    {/* Barre de recherche */}
+    <form onSubmit={handleSearch}>
+      <div className="p-inputgroup">
+        <span className="p-inputgroup-addon">
+          <i className="pi pi-search"></i>
+        </span>
+        <InputText
+          placeholder="Rechercher un utilisateur dans LDAP (nom, login, email)..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{ height: '48px' }}
+        />
+        <Button
+          type="submit"
+          label="Rechercher"
+          icon="pi pi-search"
+          loading={processing}
+          style={{
+            background: 'linear-gradient(135deg, #155ecc, #6366f1)',
+            border: 'none',
+            minWidth: '140px'
+          }}
+        />
+      </div>
+    </form>
+  </div>
+);
+
 
   return (
     <Layout>
       <Head title="Gestion des utilisateurs LDAP" />
       <div className="grid">
+        
         <div className="col-12">
           <Card className="shadow-2">
             <DataTable

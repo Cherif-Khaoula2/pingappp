@@ -45,13 +45,26 @@ export default function Dashboard({
 
     // Options pour les filtres - Actions complètes
     const actionOptions = [
-        { label: 'Connexion', value: 'login' },
-        { label: 'Déconnexion', value: 'logout' },
-        { label: 'Blocage', value: 'block_user' },
-        { label: 'Déblocage', value: 'unblock_user' },
-        { label: 'Création', value: 'create_user' },
-        { label: 'Réinitialisation MDP', value: 'reset_password' },
-        { label: 'Changement MDP', value: 'change_password' }
+        { label: 'Toutes les actions', value: '' },
+        { label: ' Connexion', value: 'login' },
+        { label: ' Déconnexion', value: 'logout' },
+        { label: ' Blocage utilisateur', value: 'block_user' },
+        { label: ' Déblocage utilisateur', value: 'unblock_user' },
+        { label: ' Reset mot de passe', value: 'reset_password' },
+        { label: ' Création compte AD', value: 'create_user' },
+        { label: ' Recherche', value: 'search_user' },
+        { label: ' Résultats recherche', value: 'search_user_result' },
+        { label: ' Création DN', value: 'create_dn' },
+        { label: ' Modification DN', value: 'update_dn' },
+        { label: ' Suppression DN', value: 'delete_dn' },
+        { label: ' Affectation DNs', value: 'assign_dns_to_user' },
+        { label: ' Ajout utilisateurs DN', value: 'assign_dn_to_users' },
+        { label: ' Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
+        { label: ' Masquage des utilisateurs', value: 'hide_account' },
+        { label: ' Démasquage des utilisateurs ', value: 'unhide_account' },        
+        { label: ' Autorisation des utilisateurs ', value: 'authorize_ldap_user' },
+        { label: ' Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
+        
     ];
 
     const periodOptions = [
