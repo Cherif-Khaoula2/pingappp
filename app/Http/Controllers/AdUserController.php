@@ -173,200 +173,95 @@ class AdUserController extends Controller
         }
     }
 
-    use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
-use Illuminate\Http\Request;
-use App\Models\User;
+    public function toggleUserStatus(Request $request)
+    { 
+        $this->authorize('blockaduser'); 
+        $sam = $request->input('sam');
+        $action = $request->input('action');
+        $userName = $request->input('user_name');
+        $userEmail = $request->input('user_email');
+        $userDn = $request->input('user_dn');
 
-public function toggleUserStatus(Request $request)
-{
-    $this->authorize('blockaduser');
 
-    $request->validate([
-        'sam' => 'required|string',
-        'action' => 'required|in:block,unblock',
-    ]);
+        $request->validate([
+            'sam' => 'required|string',
+            'action' => 'required|in:block,unblock',
+            
+        ]);
 
-    $sam = $request->input('sam');
-    $action = $request->input('action');
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
 
-    // Sanitize samAccountName
-    if (!preg_match('/^[A-Za-z0-9._-]{1,256}$/', $sam)) {
-        return response()->json(['success' => false, 'message' => 'Identifiant (sam) invalide.'], 422);
-    }
-
-    // Récupère l'enregistrement serveur-side (source de vérité)
-    $target = User::where('sam', $sam)->first();
-
-    if (!$target) {
-        return response()->json(['success' => false, 'message' => 'Utilisateur cible introuvable.'], 404);
-    }
-
-    // Empêcher de bloquer soi-même
-    if (strtolower(auth()->user()->sam ?? '') === strtolower($sam)) {
-        return response()->json(['success' => false, 'message' => 'Impossible de bloquer votre propre compte.'], 403);
-    }
-
-    // Vérifier la config SSH
-    $host = env('SSH_HOST');
-    $user = env('SSH_USER');
-    $password = env('SSH_PASSWORD');
-    $keyPath = env('SSH_KEY_PATH');
-
-    if (!$host || !$user) {
-        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
-    }
-
-    // 1) Interroger AD pour récupérer l'état actuel et le DistinguishedName
-    // Préparer la commande PowerShell pour obtenir Enabled + DistinguishedName en JSON
-    $psQuery = "Get-ADUser -Identity '$sam' -Properties Enabled,DistinguishedName | Select-Object Enabled,DistinguishedName | ConvertTo-Json -Compress";
-    $psQueryEncoded = base64_encode(mb_convert_encoding($psQuery, 'UTF-16LE'));
-    $remoteQueryCmd = "powershell -NoProfile -NonInteractive -EncodedCommand {$psQueryEncoded}";
-
-    $queryCommand = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteQueryCmd]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteQueryCmd];
-
-    try {
-        $processQuery = new Process($queryCommand);
-        $processQuery->setTimeout(15);
-        $processQuery->run();
-
-        if (!$processQuery->isSuccessful()) {
-            throw new ProcessFailedException($processQuery);
+        if (!$host || !$user) {
+            return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
         }
 
-        $output = trim($processQuery->getOutput());
-        if (empty($output)) {
-            // Parfois PowerShell écrit sur stderr -> essayer stderr
-            $output = trim($processQuery->getErrorOutput());
-        }
+        $sam = $request->input('sam');
+        $action = $request->input('action');
+        $userName = $request->input('user_name'); // Optionnel depuis le frontend
 
-        // Tenter de décoder le JSON retourné par ConvertTo-Json
-        $adInfo = json_decode($output, true);
+        $adCommand = $action === 'block'
+            ? "powershell -Command \"Disable-ADAccount -Identity '$sam'\""
+            : "powershell -Command \"Enable-ADAccount -Identity '$sam'\"";
 
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($adInfo)) {
-            \Log::warning('AD query returned invalid JSON', ['sam' => $sam, 'raw' => $output]);
-            return response()->json(['success' => false, 'message' => 'Impossible de récupérer l\'état AD du compte.'], 500);
-        }
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
 
-        // Normaliser : $adInfo peut être soit un tableau simple, soit un tableau indexé
-        if (isset($adInfo[0])) {
-            $adItem = $adInfo[0];
-        } else {
-            $adItem = $adInfo;
-        }
+        try {
+            $process = new Process($command);
+            $process->setTimeout(30);
+            $process->run();
 
-        $isEnabled = isset($adItem['Enabled']) ? (bool)$adItem['Enabled'] : null;
-        $distinguishedName = $adItem['DistinguishedName'] ?? null;
-
-        if ($isEnabled === null) {
-            \Log::warning('AD reply missing Enabled field', ['sam' => $sam, 'raw' => $output]);
-            return response()->json(['success' => false, 'message' => 'Données AD incomplètes.'], 500);
-        }
-
-        // 2) Vérifications serveur-side avant action
-        // a) Vérifier que l'état courant n'est pas déjà celui demandé
-        if ($action === 'block' && $isEnabled === false) {
-            return response()->json(['success' => false, 'message' => 'Compte déjà bloqué.'], 409);
-        }
-        if ($action === 'unblock' && $isEnabled === true) {
-            return response()->json(['success' => false, 'message' => 'Compte déjà activé.'], 409);
-        }
-
-        // b) Vérifier autorisation via flag serveur-side ou via OU dans DistinguishedName
-        $isAuthorizedFlag = (bool)($target->is_authorized_dn ?? false);
-
-        $allowedViaDn = false;
-        if ($distinguishedName) {
-            // Exemple : vérifier si DN contient une OU autorisée (adapter la chaîne selon ton usage)
-            // Tu peux stocker allowed OU dans la DB ou config('ad.allowed_ous')
-            $allowedOUs = config('ad.allowed_ous', []); // ex: ['OU=Employees,DC=company,DC=local']
-            foreach ($allowedOUs as $ou) {
-                if (stripos($distinguishedName, $ou) !== false) {
-                    $allowedViaDn = true;
-                    break;
-                }
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
             }
-        }
 
-        if (!$isAuthorizedFlag && !$allowedViaDn) {
-            \Log::warning('Tentative sur compte non autorisé', [
-                'actor_id' => auth()->id(),
-                'sam' => $sam,
-                'dn' => $distinguishedName,
-                'is_authorized_flag' => $isAuthorizedFlag,
-            ]);
-            return response()->json(['success' => false, 'message' => 'Action interdite : compte non autorisé.'], 403);
-        }
-
-        // 3) Tout est ok -> exécuter la commande de blocage/déblocage
-        $psAction = $action === 'block'
-            ? "Disable-ADAccount -Identity '$sam'"
-            : "Enable-ADAccount -Identity '$sam'";
-
-        $psActionEncoded = base64_encode(mb_convert_encoding($psAction, 'UTF-16LE'));
-        $remoteActionCmd = "powershell -NoProfile -NonInteractive -EncodedCommand {$psActionEncoded}";
-
-        $actionCommand = $keyPath && file_exists($keyPath)
-            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteActionCmd]
-            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteActionCmd];
-
-        $processAction = new Process($actionCommand);
-        $processAction->setTimeout(30);
-        $processAction->run();
-
-        if (!$processAction->isSuccessful()) {
-            throw new ProcessFailedException($processAction);
-        }
-
-        // Log success
-        $this->logAdActivity(
+            // ✅ Log de l'action réussie
+            $this->logAdActivity(
             action: $action === 'block' ? 'block_user' : 'unblock_user',
             targetUser: $sam,
-            targetUserName: $target->name ?? $sam,
+            targetUserName: $userName,
             success: true,
             additionalDetails: [
-                'email' => $target->email ?? null,
-                'dn' => $distinguishedName,
-                'method' => 'AD Command (ssh + EncodedCommand)',
+                'email' => $userEmail,
+                'dn' => $userDn,
+                'method' => 'AD Command',
                 'action_type' => $action,
-                'previous_status' => $isEnabled ? 'enabled' : 'disabled'
+                'previous_status' => $action === 'block' ? 'enabled' : 'disabled'  // 🆕
             ]
         );
 
-        // Notification mail (utiliser uniquement données côté serveur)
+        // 📧 Envoyer la notification email
         $userData = [
             'sam' => $sam,
-            'name' => $target->name ?? $sam,
-            'email' => $target->email ?? null,
+            'name' => $userName ?? $sam,
+            'email' => $userEmail ?? null,
+            'ouPath' => $ouPath ?? null,
         ];
+        
         $this->sendBlockNotification(auth()->user(), $userData, $action);
+            
+        } catch (\Throwable $e) {
+            \Log::error('toggleUserStatus error: ' . $e->getMessage());
 
-        return response()->json(['success' => true, 'message' => 'Action exécutée avec succès.']);
+            // ❌ Log de l'échec
+            $this->logAdActivity(
+                action: $action === 'block' ? 'block_user' : 'unblock_user',
+                targetUser: $sam,
+                targetUserName: $userName,
+                success: false,
+                errorMessage: $e->getMessage()
+            );
 
-    } catch (\Throwable $e) {
-        \Log::error('toggleUserStatus error: ' . $e->getMessage(), [
-            'actor_id' => auth()->id(),
-            'target_sam' => $sam,
-            'ip' => $request->ip(),
-            'ua' => $request->userAgent(),
-        ]);
-
-        $this->logAdActivity(
-            action: $action === 'block' ? 'block_user' : 'unblock_user',
-            targetUser: $sam,
-            targetUserName: $target->name ?? $sam,
-            success: false,
-            errorMessage: $e->getMessage()
-        );
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur AD : ' . $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur AD : ' . $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     public function resetPassword(Request $request)
     {
@@ -499,6 +394,7 @@ public function findUser(Request $request)
     $keyPath = env('SSH_KEY_PATH');
 
     if (!$host || !$user) {
+        // ❌ LOG : Configuration manquante
         $this->logAdActivity(
             action: 'search_user',
             targetUser: $search,
@@ -516,7 +412,7 @@ public function findUser(Request $request)
         ? 'Name -like "*"'
         : "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
 
-    // ⚡ Requête AD
+    // ⚡ Ajout de DistinguishedName à la requête AD
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
         "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
@@ -549,6 +445,7 @@ public function findUser(Request $request)
                 'filter' => $filter
             ]);
             
+            // ❌ LOG : Erreur SSH
             $this->logAdActivity(
                 action: 'search_user',
                 targetUser: $search,
@@ -561,38 +458,36 @@ public function findUser(Request $request)
         }
 
         $output = trim($process->getOutput());
-        
-        // ✅ VÉRIFICATION : Si output vide ou null -> aucun résultat
-        if (empty($output) || $output === 'null') {
-            \Log::info("Aucun utilisateur trouvé dans AD pour la recherche : $search");
+        if (empty($output)) {
+            // ⚠️ LOG : Aucun résultat
+            $this->logAdActivity(
+                action: 'search_user_result',
+                targetUser: $search,
+                targetUserName: null,
+                success: true,
+                additionalDetails: [
+                    'results_count' => 0,
+                    'message' => 'Aucun utilisateur trouvé'
+                ]
+            );
             
-            // ⚠️ PAS de log "search_user_result" ici
-            return response()->json([
-                'success' => false, 
-                'message' => 'Aucun utilisateur trouvé', 
-                'users' => [],
-                'count' => 0
-            ]);
+            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé', 'users' => []]);
         }
 
         $adUsers = json_decode($output, true);
-        
-        // ✅ VÉRIFICATION : Si JSON invalide ou vide
-        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
-            \Log::warning("Données AD invalides ou vides pour : $search", [
-                'output' => $output,
-                'json_error' => json_last_error_msg()
-            ]);
+        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
+            // ❌ LOG : Erreur décodage JSON
+            $this->logAdActivity(
+                action: 'search_user',
+                targetUser: $search,
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Erreur de décodage JSON : ' . json_last_error_msg()
+            );
             
-            return response()->json([
-                'success' => false, 
-                'message' => 'Aucun utilisateur trouvé', 
-                'users' => [],
-                'count' => 0
-            ]);
+            return response()->json(['success' => false, 'message' => 'Erreur de décodage JSON', 'users' => []]);
         }
 
-        // Si un seul utilisateur, le mettre dans un tableau
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
@@ -642,35 +537,33 @@ public function findUser(Request $request)
         $authorizedUsers = $users->where('is_authorized_dn', true)->values();
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
+        // ✅ LOG 2 : Résultats trouvés
+        $this->logAdActivity(
+            action: 'search_user_result',
+            targetUser: $search,
+            targetUserName: null,
+            success: true,
+            additionalDetails: [
+                'results_count' => $authorizedUsers->count(),
+                'unauthorized_count' => $unauthorizedUsers->count(),
+                'found_users' => $authorizedUsers->pluck('sam')->toArray(),
+                'found_names' => $authorizedUsers->pluck('name')->toArray(),
+                'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
+                'search_filter' => $filter,
+                'total_before_filter' => count($adUsers)
+            ]
+        );
 
-
-        // Dans la méthode findUser(), remplacer la partie du log "search_user_result" :
-
-// ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
-if ($authorizedUsers->count() > 0) {
-    // 🆕 Concaténer tous les noms trouvés pour la colonne target_user_name
-    $allFoundNames = $authorizedUsers->pluck('name')->join(', ');
-    $allFoundSams = $authorizedUsers->pluck('sam')->join(', ');
-    
-    $this->logAdActivity(
-        action: 'search_user_result',
-        targetUser: $search,  // Garde la requête de recherche originale
-        targetUserName: $allFoundNames,  // 🔥 Tous les noms trouvés ici !
-        success: true,
-        additionalDetails: [
-                    'results_count' => $authorizedUsers->count(),
-                    'unauthorized_count' => $unauthorizedUsers->count(),
-                    'found_users' => $authorizedUsers->pluck('sam')->toArray(),
-                    'found_names' => $authorizedUsers->pluck('name')->toArray(),
-                    'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-                    'search_filter' => $filter,
-                    'total_before_filter' => count($adUsers)
-        ]
-    );
-}
         return response()->json([
-            'success' => $authorizedUsers->count() > 0,
-         
+            'success' => true,
+            'users' => $authorizedUsers,
+            'unauthorized' => $unauthorizedUsers->map(fn($u) => [
+                'name' => $u['name'],
+                'dn' => $u['dn'],
+                'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
+            ]),
+            'count' => $authorizedUsers->count(),
+            'unauthorized_count' => $unauthorizedUsers->count(),
         ]);
 
     } catch (\Throwable $e) {
@@ -680,6 +573,7 @@ if ($authorizedUsers->count() > 0) {
             'line' => $e->getLine()
         ]);
 
+        // ❌ LOG : Erreur générale
         $this->logAdActivity(
             action: 'search_user',
             targetUser: $search,
@@ -699,6 +593,7 @@ if ($authorizedUsers->count() > 0) {
         ], 500);
     }
 }
+
 public function managePassword()
 {
     return inertia('Ad/ManagePassword');
@@ -732,7 +627,7 @@ public function createAdUser(Request $request)
             'string',
             'min:8',
             'max:128',
-            'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+            'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
         ],
         'direction_id' => 'required|exists:dns,id', // ✅ Validation de la direction
     ], [
