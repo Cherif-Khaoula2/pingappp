@@ -120,28 +120,61 @@ export default function ActivityLogs({ logs, stats, filters }) {
     };
 
 const targetUserTemplate = (rowData) => {
-        const formatName = (name) => {
-            if (!name) return '';
-            // Enlever le point à la fin s'il existe
-            name = name.trim().replace(/\.$/, '');
-            const parts = name.split(' ');
-            if (parts.length >= 2) {
-                const firstName = parts[0];
-                const lastName = parts.slice(1).join(' ').toUpperCase();
-                return `${firstName} ${lastName}`;
-            }
-            return name;
-        };
+    const formatName = (name) => {
+        if (!name) return '';
+        // Enlever le point à la fin s'il existe
+        name = name.trim().replace(/\.$/, '');
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            const firstName = parts[0];
+            const lastName = parts.slice(1).join(' ').toUpperCase();
+            return `${firstName} ${lastName}`;
+        }
+        return name;
+    };
 
+    // 🔍 Pour l'action "Recherche" (search_user) - Afficher ce qui a été tapé
+    if (rowData.action === 'search_user') {
         return (
             <div>
-                {rowData.target_user_name && (
-                    <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
-                )}
-                <div className="text-sm text-600">{rowData.target_user}</div>
+                <div className="font-medium text-700">
+                 Recherche : <span className="text-900">"{rowData.target_user}"</span>
+                </div>
             </div>
         );
-    };
+    }
+
+    if (rowData.action === 'search_user_result' && rowData.target_user_name) {
+        const names = rowData.target_user_name.split(', ');
+        return (
+            <div>
+                <div className="font-semibold text-900 mb-2">
+                     {names.length} résultat{names.length > 1 ? 's' : ''} trouvé{names.length > 1 ? 's' : ''}
+                </div>
+                {names.slice(0, 3).map((name, idx) => (
+                    <div key={idx} className="text-sm text-700">
+                        • {formatName(name)}
+                    </div>
+                ))}
+                {names.length > 3 && (
+                    <div className="text-xs text-500 mt-1 font-medium">
+                        +{names.length - 3} autre(s)
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // 👤 Gestion normale pour les autres actions
+    return (
+        <div>
+            {rowData.target_user_name && (
+                <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
+            )}
+            <div className="text-sm text-600">{rowData.target_user}</div>
+        </div>
+    );
+};
 const performedByTemplate = (rowData) => {
     const formatName = (name) => {
         if (!name) return '';
