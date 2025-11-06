@@ -86,6 +86,13 @@ export default function FindAllComputersLaps() {
       <span className="font-semibold text-900">{rowData.name}</span>
     </div>
   );
+  
+  const ouBodyTemplate = (rowData) => (
+    <div className="flex align-items-center gap-2">
+      <i className="pi pi-desktop text-primary text-xl"></i>
+      <span className="font-semibold text-900">{rowData.distinguished_name}</span>
+    </div>
+  );
 
   const lapsPasswordTemplate = (rowData) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -244,6 +251,13 @@ export default function FindAllComputersLaps() {
               header="Mot de passe LAPS" 
               body={lapsPasswordTemplate}
               style={{ minWidth: '350px' }}
+            />
+            <Column 
+              header="Emplacement" 
+              body={ouBodyTemplate} 
+              sortable={!loading}
+              style={{ minWidth: '120px' }}
+              align="center"
             />
           </DataTable>
         </Card>

@@ -121,7 +121,7 @@ public function getAllLapsComputers(Request $request)
     $psScript = <<<'PS'
 try {
     # Récupérer tous les ordinateurs (ajuster le filtre si besoin)
-    $computers = Get-ADComputer -Filter * -Properties Enabled | Sort-Object -Property Name
+    $computers = Get-ADComputer -Filter * -Properties Enabled ,DistinguishedName  | Sort-Object -Property Name
 
     $result = foreach ($c in $computers) {
         $pwd = $null
@@ -214,6 +214,7 @@ PS;
                 'name' => $item['Name'] ?? ($item['name'] ?? null),
                 'enabled' => array_key_exists('Enabled', $item) ? (bool)$item['Enabled'] : (isset($item['enabled']) ? (bool)$item['enabled'] : null),
                 'laps_password' => $item['LapsPassword'] ?? ($item['lapsPassword'] ?? null),
+                'distinguished_name' => $item['DistinguishedName'] ?? ($item['distinguishedName'] ?? null),
             ];
         }, $computers);
 
