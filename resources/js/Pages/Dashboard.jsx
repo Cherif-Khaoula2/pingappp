@@ -145,8 +145,8 @@ export default function Dashboard({
         datasets: [{
             data: safeActionBreakdown.map(a => a.count),
             backgroundColor: [
-                '#10b981', '#f59e0b', '#ef4444', '#3b82f6', 
-                '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6'
+                '#14b343ff', '#f5de10ff', '#f97316', '#ef4444', 
+                '#06b6d4', '#14b8a6'
             ],
             borderWidth: 2,
             borderColor: '#fff'
