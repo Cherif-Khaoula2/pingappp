@@ -17,7 +17,7 @@ use App\Models\Dn;
 use App\Traits\ValidatesAdUsers;
 class AdUserController extends Controller
 {
-    use LogsAdActivity;
+    use LogsAdActivity, ValidatesAdUsers;
 
     public function index()
     {
