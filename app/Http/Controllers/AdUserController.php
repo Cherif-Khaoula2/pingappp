@@ -106,6 +106,7 @@ class AdUserController extends Controller
         $page = max(1, (int) $request->input('page', 1));
         $perPage = max(10, min(100, (int) $request->input('per_page', 50)));
         $search = trim($request->input('search', ''));
+        
 
         if ($search !== '') {
             $psCommand = "powershell -NoProfile -NonInteractive -Command \"" .
@@ -175,9 +176,17 @@ class AdUserController extends Controller
     public function toggleUserStatus(Request $request)
     { 
         $this->authorize('blockaduser'); 
+        $sam = $request->input('sam');
+        $action = $request->input('action');
+        $userName = $request->input('user_name');
+        $userEmail = $request->input('user_email');
+        $userDn = $request->input('user_dn');
+
+
         $request->validate([
             'sam' => 'required|string',
             'action' => 'required|in:block,unblock',
+            
         ]);
 
         $host = env('SSH_HOST');
@@ -212,15 +221,18 @@ class AdUserController extends Controller
 
             // ✅ Log de l'action réussie
             $this->logAdActivity(
-                action: $action === 'block' ? 'block_user' : 'unblock_user',
-                targetUser: $sam,
-                targetUserName: $userName,
-                success: true,
-                additionalDetails: [
-                    'method' => 'AD Command',
-                    'action_type' => $action
-                ]
-            );
+            action: $action === 'block' ? 'block_user' : 'unblock_user',
+            targetUser: $sam,
+            targetUserName: $userName,
+            success: true,
+            additionalDetails: [
+                'email' => $userEmail,
+                'dn' => $userDn,
+                'method' => 'AD Command',
+                'action_type' => $action,
+                'previous_status' => $action === 'block' ? 'enabled' : 'disabled'  // 🆕
+            ]
+        );
 
         // 📧 Envoyer la notification email
         $userData = [
@@ -254,6 +266,13 @@ class AdUserController extends Controller
     public function resetPassword(Request $request)
     {
         $this->authorize('resetpswaduser'); 
+        $sam = $request->input('sam');
+        $newPassword = $request->input('new_password');
+        $userName = $request->input('user_name');
+    
+    // 🆕 Récupérer infos utilisateur
+    $userEmail = $request->input('user_email');
+    $userDn = $request->input('user_dn');
        $request->validate([
     'sam' => 'required|string|max:100',
     'new_password' => [
@@ -303,16 +322,19 @@ class AdUserController extends Controller
             }
 
             // ✅ Log de réinitialisation réussie
-            $this->logAdActivity(
-                action: 'reset_password',
-                targetUser: $sam,
-                targetUserName: $userName,
-                success: true,
-                additionalDetails: [
-                    'unlocked' => true,
-                    'method' => 'PowerShell AD'
-                ]
-            );
+        $this->logAdActivity(
+            action: 'reset_password',
+            targetUser: $sam,
+            targetUserName: $userName,
+            success: true,
+            additionalDetails: [
+                'email' => $userEmail,
+                'dn' => $userDn,
+                'unlocked' => true,
+                'method' => 'PowerShell AD',
+                'password_strength' => 'strong'  // 🆕
+            ]
+        );
 
            // 📧 Envoyer la notification email
         $userData = [
@@ -352,6 +374,19 @@ public function findUser(Request $request)
     ]);
 
     $search = trim($request->input('search', ''));
+    
+    // 🆕 LOG 1 : Recherche initiée
+    $this->logAdActivity(
+        action: 'search_user',
+        targetUser: $search,
+        targetUserName: null,
+        success: true,
+        additionalDetails: [
+            'search_query' => $search,
+            'search_type' => 'active_directory',
+            'timestamp' => now()->toDateTimeString()
+        ]
+    );
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
@@ -359,6 +394,15 @@ public function findUser(Request $request)
     $keyPath = env('SSH_KEY_PATH');
 
     if (!$host || !$user) {
+        // ❌ LOG : Configuration manquante
+        $this->logAdActivity(
+            action: 'search_user',
+            targetUser: $search,
+            targetUserName: null,
+            success: false,
+            errorMessage: 'Configuration SSH manquante'
+        );
+        
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
@@ -400,16 +444,47 @@ public function findUser(Request $request)
                 'output' => $process->getOutput(),
                 'filter' => $filter
             ]);
+            
+            // ❌ LOG : Erreur SSH
+            $this->logAdActivity(
+                action: 'search_user',
+                targetUser: $search,
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Erreur SSH lors de la recherche : ' . $process->getErrorOutput()
+            );
+            
             throw new ProcessFailedException($process);
         }
 
         $output = trim($process->getOutput());
         if (empty($output)) {
+            // ⚠️ LOG : Aucun résultat
+            $this->logAdActivity(
+                action: 'search_user_result',
+                targetUser: $search,
+                targetUserName: null,
+                success: true,
+                additionalDetails: [
+                    'results_count' => 0,
+                    'message' => 'Aucun utilisateur trouvé'
+                ]
+            );
+            
             return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé', 'users' => []]);
         }
 
         $adUsers = json_decode($output, true);
         if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
+            // ❌ LOG : Erreur décodage JSON
+            $this->logAdActivity(
+                action: 'search_user',
+                targetUser: $search,
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Erreur de décodage JSON : ' . json_last_error_msg()
+            );
+            
             return response()->json(['success' => false, 'message' => 'Erreur de décodage JSON', 'users' => []]);
         }
 
@@ -431,7 +506,7 @@ public function findUser(Request $request)
             $enabled = (bool)($adUser['Enabled'] ?? false);
             $isLocal = in_array($email, $existingEmails);
 
-            // 🔹 Vérification de l’autorisation du DN
+            // 🔹 Vérification de l'autorisation du DN
             $isAuthorizedDn = false;
             foreach ($userAuthDns as $allowedDn) {
                 if (stripos($dn, $allowedDn) !== false) {
@@ -462,13 +537,30 @@ public function findUser(Request $request)
         $authorizedUsers = $users->where('is_authorized_dn', true)->values();
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
+        // ✅ LOG 2 : Résultats trouvés
+        $this->logAdActivity(
+            action: 'search_user_result',
+            targetUser: $search,
+            targetUserName: null,
+            success: true,
+            additionalDetails: [
+                'results_count' => $authorizedUsers->count(),
+                'unauthorized_count' => $unauthorizedUsers->count(),
+                'found_users' => $authorizedUsers->pluck('sam')->toArray(),
+                'found_names' => $authorizedUsers->pluck('name')->toArray(),
+                'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
+                'search_filter' => $filter,
+                'total_before_filter' => count($adUsers)
+            ]
+        );
+
         return response()->json([
             'success' => true,
             'users' => $authorizedUsers,
             'unauthorized' => $unauthorizedUsers->map(fn($u) => [
                 'name' => $u['name'],
                 'dn' => $u['dn'],
-                'message' => "Cet utilisateur appartient à un DN auquel vous n’êtes pas autorisé à accéder."
+                'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
             ]),
             'count' => $authorizedUsers->count(),
             'unauthorized_count' => $unauthorizedUsers->count(),
@@ -481,6 +573,19 @@ public function findUser(Request $request)
             'line' => $e->getLine()
         ]);
 
+        // ❌ LOG : Erreur générale
+        $this->logAdActivity(
+            action: 'search_user',
+            targetUser: $search,
+            targetUserName: null,
+            success: false,
+            errorMessage: 'Erreur serveur : ' . $e->getMessage(),
+            additionalDetails: [
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine()
+            ]
+        );
+
         return response()->json([
             'success' => false,
             'message' => 'Erreur serveur : ' . $e->getMessage(),
@@ -488,7 +593,6 @@ public function findUser(Request $request)
         ], 500);
     }
 }
-
 
 public function managePassword()
 {
@@ -629,7 +733,7 @@ public function createAdUser(Request $request)
                 'sam' => $sam,
                 'email' => $email,
                 'ouPath' => $ouPath,
-                'directionName' => $direction->name, // ✅ Passer le nom
+                'directionName' => $direction->nom, // ✅ Passer le nom
                 'accountType' => $accountType
             ]
         );
@@ -646,7 +750,7 @@ public function createAdUser(Request $request)
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
-            targetUserName: $name,
+            targetUserName: $nom,
             success: false,
             errorMessage: $e->getMessage()
         );
@@ -823,11 +927,12 @@ protected function sendBlockNotification($creator, $userData, $action)
                         </tr>
                        
                         <tr style='background-color: #f8f9fa;'>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Action :</strong></td>
-                            <td style='padding: 10px; border: 1px solid #dee2e6; color: {$actionColor}; font-weight: bold;'>
-                                " . strtoupper($actionText) . "
-                            </td>
-                        </tr>
+                        <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Action :</strong></td>
+                       <td style='padding: 10px; border: 1px solid #dee2e6; color: {$actionColor}; font-weight: bold;'>
+        " . mb_strtoupper($actionText, 'UTF-8') . "
+                       </td>
+</tr>
+
                         <tr>
                             <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
                             <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>

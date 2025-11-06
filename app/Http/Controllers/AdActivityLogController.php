@@ -41,19 +41,22 @@ class AdActivityLogController extends Controller
         $logs = $query->paginate(50)->withQueryString();
 
         // 📈 Statistiques rapides
-        $stats = [
-            'total_today' => AdActivityLog::whereDate('created_at', today())->count(),
-            'logins_today' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'login')
-                ->where('status', 'success')
-                ->count(),
-            'failed_today' => AdActivityLog::whereDate('created_at', today())
-                ->where('status', 'failed')
-                ->count(),
-            'blocks_today' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'block_user')
-                ->count(),
-        ];
+            $stats = [
+        'total_today' => AdActivityLog::whereDate('created_at', today())->count(),
+        'logins_today' => AdActivityLog::whereDate('created_at', today())
+            ->where('action', 'login')
+            ->where('status', 'success')
+            ->count(),
+        'failed_today' => AdActivityLog::whereDate('created_at', today())
+            ->where('status', 'failed')
+            ->count(),
+        'blocks_today' => AdActivityLog::whereDate('created_at', today())
+            ->whereIn('action', ['block_user', 'unblock_user'])  // 🆕
+            ->count(),
+        'searches_today' => AdActivityLog::whereDate('created_at', today())  // 🆕
+            ->where('action', 'search_user')
+            ->count(),
+    ];
 
         return Inertia::render('Ad/ActivityLogs', [
             'logs' => $logs,

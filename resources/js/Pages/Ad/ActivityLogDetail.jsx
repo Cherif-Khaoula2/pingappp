@@ -5,11 +5,13 @@ import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import { Divider } from 'primereact/divider';
 import { Timeline } from 'primereact/timeline';
+import { Chip } from 'primereact/chip';
 import Layout from "@/Layouts/layout/layout.jsx";
-import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
-import 'primereact/resources/primereact.min.css';                   // Core CSS
-import 'primeicons/primeicons.css';                                 // Icônes
-import 'primeflex/primeflex.css';  
+import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
+
 export default function ActivityLogDetail({ log }) {
     const { auth } = usePage().props;
 
@@ -21,11 +23,28 @@ export default function ActivityLogDetail({ log }) {
             unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage utilisateur', color: '#10b981' },
             reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Réinitialisation mot de passe', color: '#f59e0b' },
             create_user: { icon: 'pi-user-plus', severity: 'help', label: 'Création utilisateur', color: '#8b5cf6' },
+            search_user: { icon: 'pi-search', severity: 'info', label: 'Recherche utilisateur', color: '#06b6d4' },
+            search_user_result: { icon: 'pi-list', severity: 'info', label: 'Résultats de recherche', color: '#0ea5e9' },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
 
     const actionConfig = log ? getActionConfig(log.action) : null;
+
+    // Parse additional_details si c'est une chaîne JSON
+    const parseDetails = (details) => {
+        if (!details) return null;
+        if (typeof details === 'string') {
+            try {
+                return JSON.parse(details);
+            } catch (e) {
+                return null;
+            }
+        }
+        return details;
+    };
+
+    const additionalDetails = log ? parseDetails(log.additional_details) : null;
 
     // Timeline events
     const timelineEvents = log ? [
@@ -112,9 +131,7 @@ export default function ActivityLogDetail({ log }) {
                 </div>
             </Layout>
         );
-    }<div className="text-900 font-bold text-xl mb-1">
-                                        {log.target_user || 'N/A'}
-                                    </div>
+    }
 
     return (
         <Layout>
@@ -136,7 +153,6 @@ export default function ActivityLogDetail({ log }) {
                 {/* En-tête avec informations principales */}
                 <div className="col-12">
                     <Card className="shadow-2 mb-4">
-                        {/* Header */}
                         <div className="flex align-items-start justify-content-between flex-wrap gap-4 mb-4">
                             <div className="flex align-items-center gap-4">
                                 <div 
@@ -152,7 +168,7 @@ export default function ActivityLogDetail({ log }) {
                                 <div>
                                     <div className="flex align-items-center gap-2 mb-2">
                                         <h1 className="text-900 text-3xl font-bold m-0">
-                                            Log : {log.target_user }
+                                            Log : {log.target_user}
                                         </h1>
                                         <Tag 
                                             icon={log.status === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'}
@@ -181,9 +197,8 @@ export default function ActivityLogDetail({ log }) {
 
                         <Divider />
 
-                        {/* Grille d'informations */}
+                        {/* Grille d'informations principales */}
                         <div className="grid mt-4">
-                            {/* Date et heure */}
                             <div className="col-12 md:col-6 lg:col-4">
                                 <div className="surface-50 border-round-lg p-4 h-full">
                                     <div className="flex align-items-center gap-3 mb-3">
@@ -212,7 +227,6 @@ export default function ActivityLogDetail({ log }) {
                                 </div>
                             </div>
 
-                            {/* Utilisateur ciblé */}
                             <div className="col-12 md:col-6 lg:col-4">
                                 <div className="surface-50 border-round-lg p-4 h-full">
                                     <div className="flex align-items-center gap-3 mb-3">
@@ -233,7 +247,6 @@ export default function ActivityLogDetail({ log }) {
                                 </div>
                             </div>
 
-                            {/* Effectué par */}
                             <div className="col-12 md:col-6 lg:col-4">
                                 <div className="surface-50 border-round-lg p-4 h-full">
                                     <div className="flex align-items-center gap-3 mb-3">
@@ -254,7 +267,6 @@ export default function ActivityLogDetail({ log }) {
                                 </div>
                             </div>
 
-                            {/* Adresse IP */}
                             <div className="col-12 md:col-6 lg:col-4">
                                 <div className="surface-50 border-round-lg p-4 h-full">
                                     <div className="flex align-items-center gap-3 mb-3">
@@ -272,7 +284,6 @@ export default function ActivityLogDetail({ log }) {
                                 </div>
                             </div>
 
-                            {/* User Agent */}
                             <div className="col-12 md:col-6 lg:col-8">
                                 <div className="surface-50 border-round-lg p-4 h-full">
                                     <div className="flex align-items-center gap-3 mb-3">
@@ -292,6 +303,152 @@ export default function ActivityLogDetail({ log }) {
                         </div>
                     </Card>
                 </div>
+
+                {/* 🆕 Section Détails supplémentaires */}
+                {additionalDetails && Object.keys(additionalDetails).length > 0 && (
+                    <div className="col-12">
+                        <Card className="shadow-2 mb-4">
+                            <h2 className="text-900 text-2xl font-bold mb-4 flex align-items-center gap-3">
+                                <div 
+                                    className="inline-flex align-items-center justify-content-center border-circle" 
+                                    style={{ 
+                                        width: '48px', 
+                                        height: '48px',
+                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+                                    }}
+                                >
+                                    <i className="pi pi-info-circle text-2xl text-white"></i>
+                                </div>
+                                Détails supplémentaires
+                            </h2>
+                            <Divider />
+                            <div className="grid">
+                                {/* Email */}
+                                {additionalDetails.email && (
+                                    <div className="col-12 md:col-6">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-envelope text-blue-600"></i>
+                                                <span className="text-600 font-semibold">Email</span>
+                                            </div>
+                                            <div className="text-900 font-bold">{additionalDetails.email}</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* DN (Distinguished Name) */}
+                                {additionalDetails.dn && (
+                                    <div className="col-12">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-sitemap text-purple-600"></i>
+                                                <span className="text-600 font-semibold">Distinguished Name</span>
+                                            </div>
+                                            <div className="text-900 font-mono text-sm" style={{ wordBreak: 'break-all' }}>
+                                                {additionalDetails.dn}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Résultats de recherche */}
+                                {additionalDetails.found_users && additionalDetails.found_users.length > 0 && (
+                                    <div className="col-12">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-3">
+                                                <i className="pi pi-users text-cyan-600"></i>
+                                                <span className="text-600 font-semibold">
+                                                    Utilisateurs trouvés ({additionalDetails.results_count || 0})
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {additionalDetails.found_users.map((sam, index) => (
+                                                    <Chip 
+                                                        key={index}
+                                                        label={sam}
+                                                        icon="pi pi-user"
+                                                        style={{ 
+                                                            backgroundColor: '#dbeafe',
+                                                            color: '#1e40af'
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Requête de recherche */}
+                                {additionalDetails.search_query && (
+                                    <div className="col-12 md:col-6">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-search text-orange-600"></i>
+                                                <span className="text-600 font-semibold">Requête de recherche</span>
+                                            </div>
+                                            <div className="text-900 font-bold">{additionalDetails.search_query}</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Nombre de résultats */}
+                                {additionalDetails.results_count !== undefined && (
+                                    <div className="col-12 md:col-6">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-hashtag text-green-600"></i>
+                                                <span className="text-600 font-semibold">Nombre de résultats</span>
+                                            </div>
+                                            <div className="text-900 font-bold text-2xl">{additionalDetails.results_count}</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Statut précédent */}
+                                {additionalDetails.previous_status && (
+                                    <div className="col-12 md:col-6">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-history text-indigo-600"></i>
+                                                <span className="text-600 font-semibold">Statut précédent</span>
+                                            </div>
+                                            <Tag 
+                                                value={additionalDetails.previous_status === 'enabled' ? 'Actif' : 'Bloqué'}
+                                                severity={additionalDetails.previous_status === 'enabled' ? 'success' : 'danger'}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Méthode */}
+                                {additionalDetails.method && (
+                                    <div className="col-12 md:col-6">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-cog text-gray-600"></i>
+                                                <span className="text-600 font-semibold">Méthode</span>
+                                            </div>
+                                            <div className="text-900 font-bold">{additionalDetails.method}</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Direction */}
+                                {additionalDetails.direction && (
+                                    <div className="col-12 md:col-6">
+                                        <div className="surface-100 border-round-lg p-3">
+                                            <div className="flex align-items-center gap-2 mb-2">
+                                                <i className="pi pi-building text-teal-600"></i>
+                                                <span className="text-600 font-semibold">Direction</span>
+                                            </div>
+                                            <div className="text-900 font-bold">{additionalDetails.direction}</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                )}
 
                 {/* Message d'erreur */}
                 {log.status === 'failed' && log.error_message && (
@@ -347,8 +504,6 @@ export default function ActivityLogDetail({ log }) {
                     </Card>
                 </div>
 
-           
-
                 {/* Statistiques rapides */}
                 <div className="col-12">
                     <Card className="shadow-2">
@@ -382,7 +537,6 @@ export default function ActivityLogDetail({ log }) {
                                     <div className="text-900 font-bold">{log.status === 'success' ? 'Succès' : 'Échec'}</div>
                                 </div>
                             </div>
-                           
                         </div>
                     </Card>
                 </div>
@@ -442,6 +596,11 @@ export default function ActivityLogDetail({ log }) {
 
                 :global(.shadow-2) {
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+                }
+
+                /* Chip styling */
+                :global(.p-chip) {
+                    font-weight: 600;
                 }
 
                 /* Scrollbar styling */

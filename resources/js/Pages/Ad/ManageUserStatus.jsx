@@ -37,80 +37,87 @@ export default function ManageUserStatus() {
   });
 
   // 🔹 Recherche d'un utilisateur
-  const handleSearch = async () => {
-    if (!search.trim()) {
-      setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await axios.post("/ad/users/find", { search });
-      if (response.data.success && Array.isArray(response.data.users)) {
-        const mappedUsers = response.data.users.map((user) => ({
-          name: user.name || user.sam,
-          sam: user.sam,
-          email: user.email,
-          enabled: user.enabled,
-          lastLogon: user.last_logon,
-        }));
-        setUsers(mappedUsers);
-        setError(null);
-      } else {
-        setUsers([]);
-        setError("Aucun utilisateur trouvé pour cette recherche.");
-      }
-    } catch (err) {
-      console.error("Erreur lors de la recherche :", err);
-      setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
+// 🔹 Recherche d'un utilisateur
+const handleSearch = async () => {
+  if (!search.trim()) {
+    setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
+    return;
+  }
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const response = await axios.post("/ad/users/find", { search });
+    if (response.data.success && Array.isArray(response.data.users)) {
+      const mappedUsers = response.data.users.map((user) => ({
+        name: user.name || user.sam,
+        sam: user.sam,
+        email: user.email,
+        enabled: user.enabled,
+        lastLogon: user.last_logon,
+        dn: user.dn,  // 🆕 AJOUTER
+      }));
+      setUsers(mappedUsers);
+      setError(null);
+    } else {
       setUsers([]);
-    } finally {
-      setLoading(false);
+      setError("Aucun utilisateur trouvé pour cette recherche.");
     }
-  };
+  } catch (err) {
+    console.error("Erreur lors de la recherche :", err);
+    setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
+    setUsers([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // 🔹 Ouverture du dialog de confirmation
-  const handleToggleClick = (user, action) => {
+const handleToggleClick = (user, action) => {
     setConfirmDialog({
       visible: true,
       sam: user.sam,
       action,
       userName: user.name,
+      userEmail: user.email,  // 🆕
+      userDn: user.dn,        // 🆕
     });
-  };
+};
 
   // 🔹 Confirmer blocage/déblocage
-  const confirmToggle = () => {
-    setIsToggling(true);
-    
-    router.post(
-      "/ad/users/toggle",
-      { 
-        sam: confirmDialog.sam, 
-        action: confirmDialog.action, 
-        user_name: confirmDialog.userName 
+// 🔹 Confirmer blocage/déblocage
+const confirmToggle = () => {
+  setIsToggling(true);
+  
+  router.post(
+    "/ad/users/toggle",
+    { 
+      sam: confirmDialog.sam, 
+      action: confirmDialog.action, 
+      user_name: confirmDialog.userName,
+      user_email: confirmDialog.userEmail,  // 🆕 AJOUTER
+      user_dn: confirmDialog.userDn,        // 🆕 AJOUTER
+    },
+    {
+      onSuccess: () => {
+        setSuccessDialog({
+          visible: true,
+          action: confirmDialog.action,
+          userName: confirmDialog.userName,
+          sam: confirmDialog.sam,
+        });
+        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+        setIsToggling(false);
+        handleSearch();
       },
-      {
-        onSuccess: () => {
-          setSuccessDialog({
-            visible: true,
-            action: confirmDialog.action,
-            userName: confirmDialog.userName,
-            sam: confirmDialog.sam,
-          });
-          setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
-          setIsToggling(false);
-          handleSearch(); // rafraîchir la table
-        },
-        onError: () => {
-          setError("Erreur lors du changement de statut");
-          setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
-          setIsToggling(false);
-        },
-      }
-    );
-  };
+      onError: () => {
+        setError("Erreur lors du changement de statut");
+        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+        setIsToggling(false);
+      },
+    }
+  );
+};
 
   // 🔹 Templates pour la table
   const nameTemplate = (rowData) => {

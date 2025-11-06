@@ -47,88 +47,102 @@ export default function ResetUserPassword() {
     }
   };
 
-  // 🔹 Recherche d'un utilisateur
-  const handleSearch = async () => {
-    if (!search.trim()) {
-      setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
-      return;
-    }
+// 🔹 Recherche d'un utilisateur
+const handleSearch = async () => {
+  if (!search.trim()) {
+    setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
+    return;
+  }
 
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await axios.post("/ad/users/find", { search });
-      if (response.data.success && Array.isArray(response.data.users)) {
-        const mappedUsers = response.data.users.map((user) => ({
-          name: user.name || user.sam,
-          sam: user.sam,
-          email: user.email,
-          enabled: user.enabled,
-          lastLogon: user.last_logon,
-        }));
-        setUsers(mappedUsers);
-        setError(null);
-      } else {
-        setUsers([]);
-        setError("Aucun utilisateur trouvé pour cette recherche.");
-      }
-    } catch (err) {
-      console.error("Erreur lors de la recherche :", err);
-      setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🔹 Ouvrir le dialog de réinitialisation
-  const handleResetClick = (user) => {
-    setResetDialog({ visible: true, sam: user.sam, userName: user.name });
-    setResetError(null);
-    if (passwordMode === "auto") {
-      setNewPassword(generatePassword());
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const response = await axios.post("/ad/users/find", { search });
+    if (response.data.success && Array.isArray(response.data.users)) {
+      const mappedUsers = response.data.users.map((user) => ({
+        name: user.name || user.sam,
+        sam: user.sam,
+        email: user.email,
+        enabled: user.enabled,
+        lastLogon: user.last_logon,
+        dn: user.dn,  // 🆕 AJOUTER
+      }));
+      setUsers(mappedUsers);
+      setError(null);
     } else {
-      setNewPassword("");
-      setShowManualPassword(false);
+      setUsers([]);
+      setError("Aucun utilisateur trouvé pour cette recherche.");
     }
-  };
+  } catch (err) {
+    console.error("Erreur lors de la recherche :", err);
+    setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
+    setUsers([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// 🔹 Ouvrir le dialog de réinitialisation
+const handleResetClick = (user) => {
+  setResetDialog({ 
+    visible: true, 
+    sam: user.sam, 
+    userName: user.name,
+    userEmail: user.email,  // 🆕 AJOUTER
+    userDn: user.dn,        // 🆕 AJOUTER
+  });
+  setResetError(null);
+  if (passwordMode === "auto") {
+    setNewPassword(generatePassword());
+  } else {
+    setNewPassword("");
+    setShowManualPassword(false);
+  }
+};
 
   // 🔹 Confirmer la réinitialisation
-  const confirmResetPassword = () => {
-    if (!newPassword.trim()) {
-      setResetError("Veuillez saisir un mot de passe.");
-      return;
+// 🔹 Confirmer la réinitialisation
+const confirmResetPassword = () => {
+  if (!newPassword.trim()) {
+    setResetError("Veuillez saisir un mot de passe.");
+    return;
+  }
+
+  setIsResetting(true);
+  setResetError(null);
+
+  router.post(
+    "/ad/users/reset-password",
+    { 
+      sam: resetDialog.sam, 
+      new_password: newPassword, 
+      user_name: resetDialog.userName,
+      user_email: resetDialog.userEmail,  // 🆕 AJOUTER
+      user_dn: resetDialog.userDn,        // 🆕 AJOUTER
+    },
+    {
+      onSuccess: () => {
+        setResetSuccessDetails({
+          name: resetDialog.userName,
+          sam: resetDialog.sam,
+          password: passwordMode === "auto" ? newPassword : null,
+        });
+        setShowSuccessDialog(true);
+        setResetDialog({ visible: false, sam: null, userName: null });
+        setNewPassword("");
+        setIsResetting(false);
+      },
+      onError: (errors) => {
+        const errorMsg =
+          errors?.message ||
+          "Erreur lors de la réinitialisation du mot de passe. Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).";
+        setResetError(errorMsg);
+        setIsResetting(false);
+      },
     }
-
-    setIsResetting(true);
-    setResetError(null);
-
-    router.post(
-      "/ad/users/reset-password",
-      { sam: resetDialog.sam, new_password: newPassword, user_name: resetDialog.userName },
-      {
-        onSuccess: () => {
-          setResetSuccessDetails({
-            name: resetDialog.userName,
-            sam: resetDialog.sam,
-            password: passwordMode === "auto" ? newPassword : null,
-          });
-          setShowSuccessDialog(true);
-          setResetDialog({ visible: false, sam: null, userName: null });
-          setNewPassword("");
-          setIsResetting(false);
-        },
-        onError: (errors) => {
-          const errorMsg =
-            errors?.message ||
-            "Erreur lors de la réinitialisation du mot de passe. Le mot de passe doit contenir au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&).";
-          setResetError(errorMsg);
-          setIsResetting(false);
-        },
-      }
-    );
-  };
+  );
+};
 
   // 🔹 Copier le mot de passe dans le presse-papiers
   const copyPasswordToClipboard = () => {
