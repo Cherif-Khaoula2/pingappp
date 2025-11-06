@@ -538,6 +538,10 @@ public function findUser(Request $request)
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
         // ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
+// Dans AdUserController.php, méthode findUser()
+// Remplacer la partie du log "search_user_result" par ceci :
+
+// ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
 if ($authorizedUsers->count() > 0) {
     // 🆕 Concaténer tous les noms trouvés pour la colonne target_user_name
     $allFoundNames = $authorizedUsers->pluck('name')->join(', ');
