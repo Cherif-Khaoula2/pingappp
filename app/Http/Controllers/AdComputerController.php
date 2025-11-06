@@ -141,6 +141,7 @@ try {
             Name = $c.Name
             Enabled = $c.Enabled
             LapsPassword = $pwd
+            DistinguishedName = $DistinguishedName
         }
     }
 
