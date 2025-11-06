@@ -534,37 +534,46 @@ public function findUser(Request $request)
         ->values();
 
         // 🔹 Séparation des utilisateurs selon autorisation
-        $authorizedUsers = $users->where('is_authorized_dn', true)->values();
-        $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
+// Dans la méthode findUser(), remplacez la section après le filtrage des utilisateurs :
 
-        // ✅ LOG 2 : Résultats trouvés
-        $this->logAdActivity(
-            action: 'search_user_result',
-            targetUser: $search,
-            targetUserName: null,
-            success: true,
-            additionalDetails: [
-                'results_count' => $authorizedUsers->count(),
-                'unauthorized_count' => $unauthorizedUsers->count(),
-                'found_users' => $authorizedUsers->pluck('sam')->toArray(),
-                'found_names' => $authorizedUsers->pluck('name')->toArray(),
-                'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-                'search_filter' => $filter,
-                'total_before_filter' => count($adUsers)
-            ]
-        );
+// 🔹 Séparation des utilisateurs selon autorisation
+$authorizedUsers = $users->where('is_authorized_dn', true)->values();
+$unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
-        return response()->json([
-            'success' => true,
-            'users' => $authorizedUsers,
-            'unauthorized' => $unauthorizedUsers->map(fn($u) => [
-                'name' => $u['name'],
-                'dn' => $u['dn'],
-                'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
-            ]),
-            'count' => $authorizedUsers->count(),
+// ✅ LOG 2 : Résultats trouvés - UNIQUEMENT si des utilisateurs sont trouvés
+if ($authorizedUsers->count() > 0) {
+    $this->logAdActivity(
+        action: 'search_user_result',
+        targetUser: $search,
+        targetUserName: null,
+        success: true,
+        additionalDetails: [
+            'results_count' => $authorizedUsers->count(),
             'unauthorized_count' => $unauthorizedUsers->count(),
-        ]);
+            'found_users' => $authorizedUsers->pluck('sam')->toArray(),
+            'found_names' => $authorizedUsers->pluck('name')->toArray(),
+            'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
+            'search_filter' => $filter,
+            'total_before_filter' => count($adUsers)
+        ]
+    );
+} else {
+    // ⚠️ Aucun résultat autorisé trouvé - pas de log "search_user_result"
+    \Log::info("Aucun utilisateur trouvé pour la recherche : $search");
+}
+
+return response()->json([
+    'success' => $authorizedUsers->count() > 0, // ✅ false si aucun résultat
+    'users' => $authorizedUsers,
+    'unauthorized' => $unauthorizedUsers->map(fn($u) => [
+        'name' => $u['name'],
+        'dn' => $u['dn'],
+        'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
+    ]),
+    'count' => $authorizedUsers->count(),
+    'unauthorized_count' => $unauthorizedUsers->count(),
+    'message' => $authorizedUsers->count() === 0 ? 'Aucun utilisateur trouvé pour cette recherche' : null // ✅ Message d'erreur
+]);
 
     } catch (\Throwable $e) {
         \Log::error('findUser error', [
