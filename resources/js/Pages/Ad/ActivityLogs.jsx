@@ -23,15 +23,22 @@ export default function ActivityLogs({ logs, stats, filters }) {
 
     const actionOptions = [
         { label: 'Toutes les actions', value: '' },
-        { label: 'Connexion', value: 'login' },
-        { label: 'Déconnexion', value: 'logout' },
-        { label: 'Blocage', value: 'block_user' },
-        { label: 'Déblocage', value: 'unblock_user' },
-        { label: 'Reset mot de passe', value: 'reset_password' },
-        { label: 'Création AD', value: 'create_user' },
-        { label: 'Recherche', value: 'search_user' },
-        { label: 'Résultats', value: 'search_user_result' },
+        { label: ' Connexion', value: 'login' },
+        { label: ' Déconnexion', value: 'logout' },
+        { label: ' Blocage utilisateur', value: 'block_user' },
+        { label: ' Déblocage utilisateur', value: 'unblock_user' },
+        { label: ' Reset mot de passe', value: 'reset_password' },
+        { label: ' Création compte AD', value: 'create_user' },
+        { label: ' Recherche', value: 'search_user' },
+        { label: ' Résultats recherche', value: 'search_user_result' },
+        { label: ' Création DN', value: 'create_dn' },
+        { label: ' Modification DN', value: 'update_dn' },
+        { label: ' Suppression DN', value: 'delete_dn' },
+        { label: ' Affectation DNs', value: 'assign_dns_to_user' },
+        { label: ' Ajout utilisateurs DN', value: 'assign_dn_to_users' },
+        { label: ' Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
     ];
+
 
     const handleFilterChange = (key, value) => {
         const newFilters = { ...localFilters, [key]: value };
@@ -78,18 +85,23 @@ export default function ActivityLogs({ logs, stats, filters }) {
 
     const getActionConfig = (action) => {
         const configs = {
-            login: { icon: 'pi-sign-in', severity: 'info', label: 'Connexion' },
-            logout: { icon: 'pi-sign-out', severity: null, label: 'Déconnexion' },
-            block_user: { icon: 'pi-lock', severity: 'danger', label: 'Blocage' },
-            unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage' },
-            reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset MDP' },
-            create_user: { icon: 'pi-user-plus', severity: 'secondary', label: 'Création' },
-            search_user: { icon: 'pi-search', severity: 'info', label: 'Recherche', color: '#d406b2ff' },
-            search_user_result: { icon: 'pi-list', severity: 'info', label: 'Résultats', color: '#317797ff' },
+            login: { icon: 'pi-sign-in', severity: 'info', label: 'Connexion', color: '#3b82f6' },
+            logout: { icon: 'pi-sign-out', severity: null, label: 'Déconnexion', color: '#6b7280' },
+            block_user: { icon: 'pi-lock', severity: 'danger', label: 'Blocage', color: '#ef4444' },
+            unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage', color: '#10b981' },
+            reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset MDP', color: '#f59e0b' },
+            create_user: { icon: 'pi-user-plus', severity: 'secondary', label: 'Création', color: '#8b5cf6' },
+            search_user: { icon: 'pi-search', severity: 'info', label: 'Recherche', color: '#d406b2' },
+            search_user_result: { icon: 'pi-list', severity: 'info', label: 'Résultats', color: '#317797' },
+            create_dn: { icon: 'pi-folder-plus', severity: 'success', label: 'Création DN', color: '#10b981' },
+            update_dn: { icon: 'pi-pencil', severity: 'warning', label: 'Modif DN', color: '#f59e0b' },
+            delete_dn: { icon: 'pi-trash', severity: 'danger', label: 'Suppr DN', color: '#ef4444' },
+            assign_dns_to_user: { icon: 'pi-link', severity: 'info', label: 'Affectation DN', color: '#3b82f6' },
+            assign_dn_to_users: { icon: 'pi-user-plus', severity: 'success', label: 'Ajout user DN', color: '#10b981' },
+            unassign_dn_from_users: { icon: 'pi-user-minus', severity: 'danger', label: 'Retrait user DN', color: '#ef4444' },
         };
-        return configs[action] || { icon: 'pi-question', severity: null, label: action };
+        return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
-
     // Templates
     const dateTemplate = (rowData) => {
         return (

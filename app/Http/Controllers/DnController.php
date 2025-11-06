@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Dn;
 use App\Models\User;
+use App\Models\AdActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class DnController extends Controller
@@ -50,9 +52,43 @@ class DnController extends Controller
             'path.unique' => 'Ce chemin existe déjà',
         ]);
 
-        Dn::create($validated);
+        try {
+            $dn = Dn::create($validated);
 
-        return redirect()->back()->with('success', 'DN créé avec succès');
+            // 📝 LOG : Création de DN
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'create_dn',
+                'target_user' => $dn->path,
+                'target_user_name' => $dn->nom,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'details' => json_encode([
+                    'dn_id' => $dn->id,
+                    'nom' => $dn->nom,
+                    'path' => $dn->path,
+                ]),
+            ]);
+
+            return redirect()->back()->with('success', 'DN créé avec succès');
+        } catch (\Exception $e) {
+            // 📝 LOG : Échec création
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'create_dn',
+                'target_user' => $validated['path'],
+                'target_user_name' => $validated['nom'],
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'details' => json_encode([
+                    'error' => $e->getMessage(),
+                ]),
+            ]);
+
+            return redirect()->back()->with('error', 'Erreur lors de la création du DN');
+        }
     }
 
     /**
@@ -72,21 +108,115 @@ class DnController extends Controller
             'user_ids.*.exists' => 'Un ou plusieurs utilisateurs sont invalides',
         ]);
 
-        // Mise à jour des informations du DN
-        $dn->update([
-            'nom' => $validated['nom'],
-            'path' => $validated['path'],
-        ]);
+        try {
+            // Sauvegarde de l'état précédent
+            $oldNom = $dn->nom;
+            $oldPath = $dn->path;
+            $oldUserIds = $dn->users->pluck('id')->toArray();
 
-        // Synchronisation des utilisateurs (affecte/désaffecte automatiquement)
-        if (isset($validated['user_ids'])) {
-            $dn->users()->sync($validated['user_ids']);
-        } else {
-            // Si aucun utilisateur sélectionné, on désaffecte tous
-            $dn->users()->sync([]);
+            // Mise à jour des informations du DN
+            $dn->update([
+                'nom' => $validated['nom'],
+                'path' => $validated['path'],
+            ]);
+
+            // Nouveaux utilisateurs
+            $newUserIds = $validated['user_ids'] ?? [];
+
+            // Synchronisation des utilisateurs
+            $dn->users()->sync($newUserIds);
+
+            // Calcul des changements
+            $addedUsers = array_diff($newUserIds, $oldUserIds);
+            $removedUsers = array_diff($oldUserIds, $newUserIds);
+
+            // 📝 LOG : Mise à jour du DN
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'update_dn',
+                'target_user' => $dn->path,
+                'target_user_name' => $dn->nom,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'details' => json_encode([
+                    'dn_id' => $dn->id,
+                    'changes' => [
+                        'nom' => ['old' => $oldNom, 'new' => $dn->nom],
+                        'path' => ['old' => $oldPath, 'new' => $dn->path],
+                    ],
+                    'users_added' => $addedUsers,
+                    'users_removed' => $removedUsers,
+                    'total_users' => count($newUserIds),
+                ]),
+            ]);
+
+            // 📝 LOG : Utilisateurs ajoutés
+            if (!empty($addedUsers)) {
+                $addedUserNames = User::whereIn('id', $addedUsers)
+                    ->get()
+                    ->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))
+                    ->implode(', ');
+
+                AdActivityLog::create([
+                    'performed_by_id' => Auth::id(),
+                    'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                    'action' => 'assign_dn_to_users',
+                    'target_user' => $dn->path,
+                    'target_user_name' => $addedUserNames,
+                    'status' => 'success',
+                    'ip_address' => $request->ip(),
+                    'details' => json_encode([
+                        'dn_id' => $dn->id,
+                        'dn_nom' => $dn->nom,
+                        'user_ids' => $addedUsers,
+                        'count' => count($addedUsers),
+                    ]),
+                ]);
+            }
+
+            // 📝 LOG : Utilisateurs retirés
+            if (!empty($removedUsers)) {
+                $removedUserNames = User::whereIn('id', $removedUsers)
+                    ->get()
+                    ->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))
+                    ->implode(', ');
+
+                AdActivityLog::create([
+                    'performed_by_id' => Auth::id(),
+                    'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                    'action' => 'unassign_dn_from_users',
+                    'target_user' => $dn->path,
+                    'target_user_name' => $removedUserNames,
+                    'status' => 'success',
+                    'ip_address' => $request->ip(),
+                    'details' => json_encode([
+                        'dn_id' => $dn->id,
+                        'dn_nom' => $dn->nom,
+                        'user_ids' => $removedUsers,
+                        'count' => count($removedUsers),
+                    ]),
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'DN mis à jour avec succès');
+        } catch (\Exception $e) {
+            // 📝 LOG : Échec mise à jour
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'update_dn',
+                'target_user' => $dn->path,
+                'target_user_name' => $dn->nom,
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'details' => json_encode([
+                    'error' => $e->getMessage(),
+                ]),
+            ]);
+
+            return redirect()->back()->with('error', 'Erreur lors de la mise à jour du DN');
         }
-
-        return redirect()->back()->with('success', 'DN mis à jour avec succès');
     }
 
     /**
@@ -95,14 +225,52 @@ class DnController extends Controller
     public function destroy(Dn $dn)
     {
         try {
+            // Sauvegarde des infos avant suppression
+            $dnId = $dn->id;
+            $dnNom = $dn->nom;
+            $dnPath = $dn->path;
+            $affectedUsers = $dn->users->pluck('id')->toArray();
+            $affectedUserNames = $dn->users->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))->implode(', ');
+
             // Détache d'abord tous les utilisateurs
             $dn->users()->detach();
             
             // Supprime le DN
             $dn->delete();
 
+            // 📝 LOG : Suppression réussie
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'delete_dn',
+                'target_user' => $dnPath,
+                'target_user_name' => $dnNom,
+                'status' => 'success',
+                'ip_address' => request()->ip(),
+                'details' => json_encode([
+                    'dn_id' => $dnId,
+                    'affected_users' => $affectedUsers,
+                    'affected_user_names' => $affectedUserNames,
+                    'users_count' => count($affectedUsers),
+                ]),
+            ]);
+
             return redirect()->back()->with('success', 'DN supprimé avec succès');
         } catch (\Exception $e) {
+            // 📝 LOG : Échec suppression
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'delete_dn',
+                'target_user' => $dn->path,
+                'target_user_name' => $dn->nom,
+                'status' => 'failed',
+                'ip_address' => request()->ip(),
+                'details' => json_encode([
+                    'error' => $e->getMessage(),
+                ]),
+            ]);
+
             return redirect()->back()->with('error', 'Erreur lors de la suppression du DN');
         }
     }
@@ -124,12 +292,55 @@ class DnController extends Controller
             'dn_ids.*.exists' => 'Un ou plusieurs DNs sont invalides',
         ]);
 
-        $user = User::findOrFail($validated['user_id']);
-        
-        // sync() remplace les DNs existants par les nouveaux
-        $user->dns()->sync($validated['dn_ids']);
+        try {
+            $user = User::findOrFail($validated['user_id']);
+            $userName = trim($user->first_name . ' ' . $user->last_name);
+            
+            // sync() remplace les DNs existants par les nouveaux
+            $user->dns()->sync($validated['dn_ids']);
 
-        return redirect()->back()->with('success', 'DN(s) affecté(s) à l\'utilisateur avec succès');
+            $dnsAssigned = Dn::whereIn('id', $validated['dn_ids'])->get();
+            $dnNames = $dnsAssigned->pluck('nom')->implode(', ');
+            $dnPaths = $dnsAssigned->pluck('path')->implode(', ');
+
+            // 📝 LOG : Affectation rapide
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'assign_dns_to_user',
+                'target_user' => $user->email ?? $userName,
+                'target_user_name' => $userName,
+                'status' => 'success',
+                'ip_address' => $request->ip(),
+                'details' => json_encode([
+                    'user_id' => $user->id,
+                    'dn_ids' => $validated['dn_ids'],
+                    'dn_names' => $dnNames,
+                    'dn_paths' => $dnPaths,
+                    'count' => count($validated['dn_ids']),
+                ]),
+            ]);
+
+            return redirect()->back()->with('success', 'DN(s) affecté(s) à l\'utilisateur avec succès');
+        } catch (\Exception $e) {
+            // 📝 LOG : Échec affectation
+            AdActivityLog::create([
+                'performed_by_id' => Auth::id(),
+                'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'action' => 'assign_dns_to_user',
+                'target_user' => User::find($validated['user_id'])?->email ?? 'Unknown',
+                'target_user_name' => User::find($validated['user_id']) 
+                    ? trim(User::find($validated['user_id'])->first_name . ' ' . User::find($validated['user_id'])->last_name)
+                    : 'Unknown',
+                'status' => 'failed',
+                'ip_address' => $request->ip(),
+                'details' => json_encode([
+                    'error' => $e->getMessage(),
+                ]),
+            ]);
+
+            return redirect()->back()->with('error', 'Erreur lors de l\'affectation des DNs');
+        }
     }
 
     /**
