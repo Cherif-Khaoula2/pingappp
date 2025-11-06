@@ -89,7 +89,7 @@ export default function FindAllComputersLaps() {
   
   const ouBodyTemplate = (rowData) => (
     <div className="flex align-items-center gap-2">
-      <i className="pi pi-desktop text-primary text-xl"></i>
+      <i className="pi pi-map-marker text-primary text-xl"></i>
       <span className="font-semibold text-900">{rowData.distinguished_name}</span>
     </div>
   );
