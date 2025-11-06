@@ -537,27 +537,24 @@ public function findUser(Request $request)
         $authorizedUsers = $users->where('is_authorized_dn', true)->values();
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
-if ($authorizedUsers->count() > 0) {
-    // 🆕 Concaténer tous les noms trouvés pour la colonne target_user_name
-    $allFoundNames = $authorizedUsers->pluck('name')->join(', ');
-    $allFoundSams = $authorizedUsers->pluck('sam')->join(', ');
-    
-    $this->logAdActivity(
-        action: 'search_user_result',
-        targetUser: $search,  // Garde la requête de recherche originale
-        targetUserName: $allFoundNames,  // 🔥 Tous les noms trouvés ici !
-        success: true,
-        additionalDetails: [
-            'results_count' => $authorizedUsers->count(),
-            'unauthorized_count' => $unauthorizedUsers->count(),
-            'found_sams' => $allFoundSams,  // Tous les SAMs en détails supplémentaires
-            'found_names' => $authorizedUsers->pluck('name')->toArray(),
-            'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-            'search_filter' => $filter,
-            'total_before_filter' => count($adUsers)
-        ]
-    );
-}
+        // ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
+        if ($authorizedUsers->count() > 0) {
+            $this->logAdActivity(
+                action: 'search_user_result',
+                targetUser: $search,
+                targetUserName: null,
+                success: true,
+                additionalDetails: [
+                    'results_count' => $authorizedUsers->count(),
+                    'unauthorized_count' => $unauthorizedUsers->count(),
+                    'found_users' => $authorizedUsers->pluck('sam')->toArray(),
+                    'found_names' => $authorizedUsers->pluck('name')->toArray(),
+                    'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
+                    'search_filter' => $filter,
+                    'total_before_filter' => count($adUsers)
+                ]
+            );
+        }
 
         return response()->json([
             'success' => $authorizedUsers->count() > 0,
