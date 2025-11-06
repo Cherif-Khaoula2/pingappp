@@ -374,22 +374,47 @@ const confirmResetPassword = () => {
                 />
               </div>
             ) : (
+              <div>
               <div className="p-inputgroup">
-                <InputText
-                  type={showManualPassword ? "text" : "password"}
-                  placeholder="Saisissez le mot de passe..."
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ height: "50px", fontSize: "1.05rem" }}
-                />
-                <Button
-                  icon={showManualPassword ? "pi pi-eye-slash" : "pi pi-eye"}
-                  className="p-button-secondary"
-                  onClick={() => setShowManualPassword((s) => !s)}
-                  tooltip={showManualPassword ? "Masquer" : "Afficher"}
-                  style={{ height: "50px" }}
-                />
-              </div>
+  <InputText
+    type={showManualPassword ? "text" : "password"}
+    placeholder="Saisissez le mot de passe..."
+    value={newPassword}
+    onChange={(e) => {
+      const rawValue = e.target.value;
+
+      // ✅ Supprime les caractères non autorisés
+      const filteredValue = rawValue.replace(/[^A-Za-z0-9@$!%*?&]/g, "");
+
+      setNewPassword(filteredValue);
+
+      // ✅ Vérification : min 8 + maj + min + chiffre + spécial
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+      if (!passwordRegex.test(filteredValue)) {
+        setError(
+          "⚠️ 8 caractères min + Maj + Min + Chiffre + Spécial parmi @$!%*?&"
+        );
+      } else {
+        setError("");
+      }
+    }}
+    style={{ height: "50px", fontSize: "1.05rem" }}
+  />
+
+  <Button
+    icon={showManualPassword ? "pi pi-eye-slash" : "pi pi-eye"}
+    className="p-button-secondary"
+    onClick={() => setShowManualPassword((s) => !s)}
+    tooltip={showManualPassword ? "Masquer" : "Afficher"}
+    style={{ height: "50px" }}
+  />
+</div>
+
+{/* 🔔 Message d'erreur */}
+{error && <small className="p-error">{error}</small>}
+</div>
             )}
 
             <small className="text-600 block mt-2">

@@ -37,6 +37,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserDetails, setCreatedUserDetails] = useState(null);
  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("")
   // Charger les directions au montage du composant
   useEffect(() => {
     if (initialDirections.length === 0) {
@@ -612,25 +613,51 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                         disabled
                       />
                     ) : (
-                   <div className="p-inputgroup">
-      <InputText
-        id="password"
-        name="password"
-        value={form.password}
-        onChange={handleChange}
-        type={showPassword ? "text" : "password"}  // 👁️ bascule texte/mot de passe
-        required
-        className="w-full"
-        placeholder="Entrez le mot de passe"
-      />
-      <Button
-        icon={showPassword ? "pi pi-eye-slash" : "pi pi-eye"}
-        className="p-button-secondary"
-        type="button"
-        onClick={() => setShowPassword((prev) => !prev)}
-        tooltip={showPassword ? "Masquer" : "Afficher"}
-      />
-    </div>
+            <div className="p-inputgroup flex flex-column gap-2">
+  <div className="flex align-items-center gap-2">
+   <InputText
+  id="password"
+  name="password"
+  value={form.password}
+  onChange={(e) => {
+    const rawValue = e.target.value;
+
+    // ⚠️ Supprimer tout caractère non autorisé
+    const filteredValue = rawValue.replace(/[^A-Za-z0-9@$!%*?&]/g, '');
+
+    // Mettre à jour le formulaire
+    handleChange({ target: { name: "password", value: filteredValue } });
+
+    // Validation stricte
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+    if (!passwordRegex.test(filteredValue)) {
+      setError("⚠️ Le mot de passe doit contenir au moins 8 caractères dont : une majuscule, une minuscule, un chiffre et un caractère spécial parmi @$!%*?&");
+    } else {
+      setError("");
+    }
+  }}
+  type={showPassword ? "text" : "password"}
+  required
+  className="w-full"
+  placeholder="Entrez le mot de passe"
+/>
+
+
+    <Button
+      icon={showPassword ? "pi pi-eye-slash" : "pi pi-eye"}
+      className="p-button-secondary"
+      type="button"
+      onClick={() => setShowPassword((prev) => !prev)}
+      tooltip={showPassword ? "Masquer" : "Afficher"}
+    />
+  </div>
+
+  {/* 🔔 Message d'erreur */}
+  {error && <small className="p-error">{error}</small>}
+</div>
+
  
                     )}
                   </div>
