@@ -138,7 +138,7 @@ export default function FindAllComputersLaps() {
     <div className="flex flex-column md:flex-row justify-content-between align-items-center gap-3">
       <div>
         <h2 className="text-900 text-2xl font-bold m-0 mb-1">
-          <i className="pi pi-shield text-primary mr-2"></i>
+          <i className="pi pi-desktop text-primary mr-2"></i>
           Liste des ordinateurs AD
         </h2>
         <p className="text-600 text-sm m-0">
