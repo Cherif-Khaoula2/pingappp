@@ -394,7 +394,6 @@ public function findUser(Request $request)
     $keyPath = env('SSH_KEY_PATH');
 
     if (!$host || !$user) {
-        // ❌ LOG : Configuration manquante
         $this->logAdActivity(
             action: 'search_user',
             targetUser: $search,
@@ -412,7 +411,7 @@ public function findUser(Request $request)
         ? 'Name -like "*"'
         : "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
 
-    // ⚡ Ajout de DistinguishedName à la requête AD
+    // ⚡ Requête AD
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
         "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
@@ -445,7 +444,6 @@ public function findUser(Request $request)
                 'filter' => $filter
             ]);
             
-            // ❌ LOG : Erreur SSH
             $this->logAdActivity(
                 action: 'search_user',
                 targetUser: $search,
@@ -458,36 +456,38 @@ public function findUser(Request $request)
         }
 
         $output = trim($process->getOutput());
-        if (empty($output)) {
-            // ⚠️ LOG : Aucun résultat
-            $this->logAdActivity(
-                action: 'search_user_result',
-                targetUser: $search,
-                targetUserName: null,
-                success: true,
-                additionalDetails: [
-                    'results_count' => 0,
-                    'message' => 'Aucun utilisateur trouvé'
-                ]
-            );
+        
+        // ✅ VÉRIFICATION : Si output vide ou null -> aucun résultat
+        if (empty($output) || $output === 'null') {
+            \Log::info("Aucun utilisateur trouvé dans AD pour la recherche : $search");
             
-            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé', 'users' => []]);
+            // ⚠️ PAS de log "search_user_result" ici
+            return response()->json([
+                'success' => false, 
+                'message' => 'Aucun utilisateur trouvé', 
+                'users' => [],
+                'count' => 0
+            ]);
         }
 
         $adUsers = json_decode($output, true);
-        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
-            // ❌ LOG : Erreur décodage JSON
-            $this->logAdActivity(
-                action: 'search_user',
-                targetUser: $search,
-                targetUserName: null,
-                success: false,
-                errorMessage: 'Erreur de décodage JSON : ' . json_last_error_msg()
-            );
+        
+        // ✅ VÉRIFICATION : Si JSON invalide ou vide
+        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
+            \Log::warning("Données AD invalides ou vides pour : $search", [
+                'output' => $output,
+                'json_error' => json_last_error_msg()
+            ]);
             
-            return response()->json(['success' => false, 'message' => 'Erreur de décodage JSON', 'users' => []]);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Aucun utilisateur trouvé', 
+                'users' => [],
+                'count' => 0
+            ]);
         }
 
+        // Si un seul utilisateur, le mettre dans un tableau
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
@@ -534,46 +534,40 @@ public function findUser(Request $request)
         ->values();
 
         // 🔹 Séparation des utilisateurs selon autorisation
-// Dans la méthode findUser(), remplacez la section après le filtrage des utilisateurs :
+        $authorizedUsers = $users->where('is_authorized_dn', true)->values();
+        $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
-// 🔹 Séparation des utilisateurs selon autorisation
-$authorizedUsers = $users->where('is_authorized_dn', true)->values();
-$unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
+        // ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
+        if ($authorizedUsers->count() > 0) {
+            $this->logAdActivity(
+                action: 'search_user_result',
+                targetUser: $search,
+                targetUserName: null,
+                success: true,
+                additionalDetails: [
+                    'results_count' => $authorizedUsers->count(),
+                    'unauthorized_count' => $unauthorizedUsers->count(),
+                    'found_users' => $authorizedUsers->pluck('sam')->toArray(),
+                    'found_names' => $authorizedUsers->pluck('name')->toArray(),
+                    'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
+                    'search_filter' => $filter,
+                    'total_before_filter' => count($adUsers)
+                ]
+            );
+        }
 
-// ✅ LOG 2 : Résultats trouvés - UNIQUEMENT si des utilisateurs sont trouvés
-if ($authorizedUsers->count() > 0) {
-    $this->logAdActivity(
-        action: 'search_user_result',
-        targetUser: $search,
-        targetUserName: null,
-        success: true,
-        additionalDetails: [
-            'results_count' => $authorizedUsers->count(),
+        return response()->json([
+            'success' => $authorizedUsers->count() > 0,
+            'users' => $authorizedUsers,
+            'unauthorized' => $unauthorizedUsers->map(fn($u) => [
+                'name' => $u['name'],
+                'dn' => $u['dn'],
+                'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
+            ]),
+            'count' => $authorizedUsers->count(),
             'unauthorized_count' => $unauthorizedUsers->count(),
-            'found_users' => $authorizedUsers->pluck('sam')->toArray(),
-            'found_names' => $authorizedUsers->pluck('name')->toArray(),
-            'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-            'search_filter' => $filter,
-            'total_before_filter' => count($adUsers)
-        ]
-    );
-} else {
-    // ⚠️ Aucun résultat autorisé trouvé - pas de log "search_user_result"
-    \Log::info("Aucun utilisateur trouvé pour la recherche : $search");
-}
-
-return response()->json([
-    'success' => $authorizedUsers->count() > 0, // ✅ false si aucun résultat
-    'users' => $authorizedUsers,
-    'unauthorized' => $unauthorizedUsers->map(fn($u) => [
-        'name' => $u['name'],
-        'dn' => $u['dn'],
-        'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
-    ]),
-    'count' => $authorizedUsers->count(),
-    'unauthorized_count' => $unauthorizedUsers->count(),
-    'message' => $authorizedUsers->count() === 0 ? 'Aucun utilisateur trouvé pour cette recherche' : null // ✅ Message d'erreur
-]);
+            'message' => $authorizedUsers->count() === 0 ? 'Aucun utilisateur trouvé pour cette recherche' : null
+        ]);
 
     } catch (\Throwable $e) {
         \Log::error('findUser error', [
@@ -582,7 +576,6 @@ return response()->json([
             'line' => $e->getLine()
         ]);
 
-        // ❌ LOG : Erreur générale
         $this->logAdActivity(
             action: 'search_user',
             targetUser: $search,
@@ -602,7 +595,6 @@ return response()->json([
         ], 500);
     }
 }
-
 public function managePassword()
 {
     return inertia('Ad/ManagePassword');
