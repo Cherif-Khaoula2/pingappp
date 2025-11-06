@@ -82,6 +82,8 @@ export default function ActivityLogs({ logs, stats, filters }) {
             unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage' },
             reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset MDP' },
             create_user: { icon: 'pi-user-plus', severity: 'secondary', label: 'Création' },
+            search_user: { icon: 'pi-search', severity: 'info', label: 'Recherche utilisateur', color: '#06b6d4' },
+            search_user_result: { icon: 'pi-list', severity: 'info', label: 'Résultats de recherche', color: '#0ea5e9' },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action };
     };
