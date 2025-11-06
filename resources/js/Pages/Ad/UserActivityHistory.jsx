@@ -37,22 +37,137 @@ export default function UserActivityHistory({ user, logs }) {
 
     const actionOptions = [
         { label: 'Toutes les actions', value: '' },
-        { label: 'Connexion', value: 'login' },
-        { label: 'Déconnexion', value: 'logout' },
-        { label: 'Blocage', value: 'block_user' },
-        { label: 'Déblocage', value: 'unblock_user' },
-        { label: 'Reset mot de passe', value: 'reset_password' },
-        { label: 'Création AD', value: 'create_user' },
+        { label: ' Connexion', value: 'login' },
+        { label: ' Déconnexion', value: 'logout' },
+        { label: ' Blocage utilisateur', value: 'block_user' },
+        { label: ' Déblocage utilisateur', value: 'unblock_user' },
+        { label: ' Reset mot de passe', value: 'reset_password' },
+        { label: ' Création compte AD', value: 'create_user' },
+        { label: ' Recherche', value: 'search_user' },
+        { label: ' Résultats recherche', value: 'search_user_result' },
+        { label: ' Création DN', value: 'create_dn' },
+        { label: ' Modification DN', value: 'update_dn' },
+        { label: ' Suppression DN', value: 'delete_dn' },
+        { label: ' Affectation DNs', value: 'assign_dns_to_user' },
+        { label: ' Ajout utilisateurs DN', value: 'assign_dn_to_users' },
+        { label: ' Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
+        { label: ' Masquage des utilisateurs', value: 'hide_account' },
+        { label: ' Démasquage des utilisateurs ', value: 'unhide_account' },        
+        { label: ' Autorisation des utilisateurs ', value: 'authorize_ldap_user' },
+        { label: ' Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
+        
     ];
 
     const getActionConfig = (action) => {
-        const configs = {
-            login: { icon: 'pi-sign-in', severity: 'info', label: 'Connexion', color: '#3b82f6' },
-            logout: { icon: 'pi-sign-out', severity: null, label: 'Déconnexion', color: '#6b7280' },
-            block_user: { icon: 'pi-lock', severity: 'danger', label: 'Blocage utilisateur', color: '#ef4444' },
-            unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage utilisateur', color: '#10b981' },
-            reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset mot de passe', color: '#f59e0b' },
-            create_user: { icon: 'pi-user-plus', severity: 'secondary', label: 'Création utilisateur', color: '#8b5cf6' },
+const configs = {
+    login: { 
+        icon: 'pi-sign-in', 
+        severity: 'info', 
+        label: 'Connexion', 
+        color: '#2563eb' // Bleu royal vif
+    },
+    logout: { 
+        icon: 'pi-sign-out', 
+        severity: null, 
+        label: 'Déconnexion', 
+        color: '#64748b' // Gris bleuté neutre
+    },
+    block_user: { 
+        icon: 'pi-lock', 
+        severity: 'danger', 
+        label: 'Blocage ', 
+        color: '#dc2626' // Rouge foncé élégant
+    },
+    unblock_user: { 
+        icon: 'pi-unlock', 
+        severity: 'success', 
+        label: 'Déblocage ', 
+        color: '#16a34a' // Vert moyen naturel
+    },
+    reset_password: { 
+        icon: 'pi-refresh', 
+        severity: 'warning', 
+        label: 'Réinitialisation mdp', 
+        color: '#d97706' // Orange doré
+    },
+    create_user: { 
+        icon: 'pi-user-plus', 
+        severity: 'help', 
+        label: 'Création ', 
+        color: '#7c3aed' // Violet professionnel
+    },
+    search_user: { 
+        icon: 'pi-search', 
+        severity: 'info', 
+        label: 'Recherche ', 
+        color: '#0284c7' // Bleu ciel profond
+    },
+    search_user_result: { 
+        icon: 'pi-list', 
+        severity: 'info', 
+        label: 'Résultats', 
+        color: '#0ea5e9' // Bleu clair
+    },
+    create_dn: { 
+        icon: 'pi-folder-plus', 
+        severity: 'success', 
+        label: 'Création DN', 
+        color: '#059669' // Vert émeraude
+    },
+    update_dn: { 
+        icon: 'pi-pencil', 
+        severity: 'warning', 
+        label: 'Modification DN', 
+        color: '#f59e0b' // Jaune doré
+    },
+    delete_dn: { 
+        icon: 'pi-trash', 
+        severity: 'danger', 
+        label: 'Suppression DN', 
+        color: '#b91c1c' // Rouge profond
+    },
+    assign_dns_to_user: { 
+        icon: 'pi-link', 
+        severity: 'info', 
+        label: 'Affectation', 
+        color: '#2563eb' // Bleu royal
+    },
+    assign_dn_to_users: { 
+        icon: 'pi-user-plus', 
+        severity: 'success', 
+        label: 'Ajout DN', 
+        color: '#10b981' // Vert menthe
+    },
+    unassign_dn_from_users: { 
+        icon: 'pi-user-minus', 
+        severity: 'danger', 
+        label: 'Retrait DN', 
+        color: '#dc2626' // Rouge standard
+    },
+    hide_account: { 
+        icon: 'pi-eye-slash', 
+        severity: 'warning', 
+        label: 'Masquage', 
+        color: '#fbbf24' // Jaune chaud
+    },
+    unhide_account: { 
+        icon: 'pi-eye', 
+        severity: 'success', 
+        label: 'Démasquage', 
+        color: '#22c55e' // Vert vif
+    },
+    authorize_ldap_user: { 
+        icon: 'pi-user-plus', 
+        severity: 'success', 
+        label: 'Autorisation', 
+        color: '#0d9488' // Vert sarcelle
+    },
+    unauthorize_ldap_user: { 
+        icon: 'pi-user-minus', 
+        severity: 'danger', 
+        label: 'Désautorisation', 
+        color: '#2a1de1ff' // Rouge rosé
+    },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
@@ -374,7 +489,7 @@ export default function UserActivityHistory({ user, logs }) {
                                 header="Cible"
                                 body={targetUserTemplate}
                                 sortable
-                                style={{ minWidth: '220px' }}
+                                 style={{ width: '260px', minWidth: '260px', maxWidth: '260px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                             />
                             <Column
                                 field="ip_address"
