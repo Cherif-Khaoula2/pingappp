@@ -96,9 +96,9 @@ export default function ActivityLogs({ logs, stats, filters }) {
             create_dn: { icon: 'pi-folder-plus', severity: 'success', label: 'Création DN', color: '#10b981' },
             update_dn: { icon: 'pi-pencil', severity: 'warning', label: 'Modif DN', color: '#f59e0b' },
             delete_dn: { icon: 'pi-trash', severity: 'danger', label: 'Suppr DN', color: '#ef4444' },
-            assign_dns_to_user: { icon: 'pi-link', severity: 'info', label: 'Affectation DN', color: '#3b82f6' },
+            assign_dns_to_user: { icon: 'pi-link', severity: 'info', label: 'Affectation', color: '#3b82f6' },
             assign_dn_to_users: { icon: 'pi-user-plus', severity: 'success', label: 'Ajout user DN', color: '#10b981' },
-            unassign_dn_from_users: { icon: 'pi-user-minus', severity: 'danger', label: 'Retrait user DN', color: '#ef4444' },
+            unassign_dn_from_users: { icon: 'pi-user-minus', severity: 'danger', label: 'Retrait DN', color: '#ef4444' },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
