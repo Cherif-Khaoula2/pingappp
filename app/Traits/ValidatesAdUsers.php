@@ -199,7 +199,7 @@ trait ValidatesAdUsers
             ];
         }
 
-        $userAuthDns = auth()->user()->dns()->pluck('id')->toArray();
+        $userAuthDns = auth()->user()->dns()->pluck('dns.id')->toArray();
         
         if (!in_array($directionId, $userAuthDns)) {
             Log::warning("Tentative d'accès à une direction non autorisée", [
