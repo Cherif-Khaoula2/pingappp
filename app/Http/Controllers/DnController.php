@@ -12,13 +12,31 @@ use Inertia\Inertia;
 class DnController extends Controller
 {
     /**
+     * ✅ SÉCURITÉ : Nettoie les données avant JSON encoding
+     */
+    private function sanitizeForJson($data): string
+    {
+        return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * ✅ SÉCURITÉ : Limite la longueur des messages d'erreur
+     */
+    private function sanitizeErrorMessage(string $message): string
+    {
+        // Retire les chemins de fichiers qui peuvent contenir des infos sensibles
+        $message = preg_replace('/\/[^\s]+\.php/', '[FICHIER]', $message);
+        // Limite à 500 caractères
+        return substr($message, 0, 500);
+    }
+
+    /**
      * Afficher la liste des DNs avec leurs utilisateurs
      */
     public function index()
     {
         $dns = Dn::with(['users:id,first_name,last_name'])->get();
 
-        // Ajoute le champ "name" pour chaque user
         $dns->each(function ($dn) {
             $dn->users->each(function ($user) {
                 $user->name = trim($user->first_name . ' ' . $user->last_name);
@@ -55,7 +73,7 @@ class DnController extends Controller
         try {
             $dn = Dn::create($validated);
 
-            // 📝 LOG : Création de DN
+            // ✅ SÉCURISÉ : Utilise la méthode de sanitization
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -64,7 +82,7 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'success',
                 'ip_address' => $request->ip(),
-                'details' => json_encode([
+                'details' => $this->sanitizeForJson([
                     'dn_id' => $dn->id,
                     'nom' => $dn->nom,
                     'path' => $dn->path,
@@ -73,7 +91,6 @@ class DnController extends Controller
 
             return redirect()->back()->with('success', 'DN créé avec succès');
         } catch (\Exception $e) {
-            // 📝 LOG : Échec création
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -82,8 +99,8 @@ class DnController extends Controller
                 'target_user_name' => $validated['nom'],
                 'status' => 'failed',
                 'ip_address' => $request->ip(),
-                'details' => json_encode([
-                    'error' => $e->getMessage(),
+                'details' => $this->sanitizeForJson([
+                    'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
             ]);
 
@@ -109,28 +126,22 @@ class DnController extends Controller
         ]);
 
         try {
-            // Sauvegarde de l'état précédent
             $oldNom = $dn->nom;
             $oldPath = $dn->path;
             $oldUserIds = $dn->users->pluck('id')->toArray();
 
-            // Mise à jour des informations du DN
             $dn->update([
                 'nom' => $validated['nom'],
                 'path' => $validated['path'],
             ]);
 
-            // Nouveaux utilisateurs
             $newUserIds = $validated['user_ids'] ?? [];
-
-            // Synchronisation des utilisateurs
             $dn->users()->sync($newUserIds);
 
-            // Calcul des changements
             $addedUsers = array_diff($newUserIds, $oldUserIds);
             $removedUsers = array_diff($oldUserIds, $newUserIds);
 
-            // 📝 LOG : Mise à jour du DN
+            // ✅ SÉCURISÉ
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -139,7 +150,7 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'success',
                 'ip_address' => $request->ip(),
-                'details' => json_encode([
+                'details' => $this->sanitizeForJson([
                     'dn_id' => $dn->id,
                     'changes' => [
                         'nom' => ['old' => $oldNom, 'new' => $dn->nom],
@@ -151,7 +162,6 @@ class DnController extends Controller
                 ]),
             ]);
 
-            // 📝 LOG : Utilisateurs ajoutés
             if (!empty($addedUsers)) {
                 $addedUserNames = User::whereIn('id', $addedUsers)
                     ->get()
@@ -166,7 +176,7 @@ class DnController extends Controller
                     'target_user_name' => $addedUserNames,
                     'status' => 'success',
                     'ip_address' => $request->ip(),
-                    'details' => json_encode([
+                    'details' => $this->sanitizeForJson([
                         'dn_id' => $dn->id,
                         'dn_nom' => $dn->nom,
                         'user_ids' => $addedUsers,
@@ -175,7 +185,6 @@ class DnController extends Controller
                 ]);
             }
 
-            // 📝 LOG : Utilisateurs retirés
             if (!empty($removedUsers)) {
                 $removedUserNames = User::whereIn('id', $removedUsers)
                     ->get()
@@ -190,7 +199,7 @@ class DnController extends Controller
                     'target_user_name' => $removedUserNames,
                     'status' => 'success',
                     'ip_address' => $request->ip(),
-                    'details' => json_encode([
+                    'details' => $this->sanitizeForJson([
                         'dn_id' => $dn->id,
                         'dn_nom' => $dn->nom,
                         'user_ids' => $removedUsers,
@@ -201,7 +210,6 @@ class DnController extends Controller
 
             return redirect()->back()->with('success', 'DN mis à jour avec succès');
         } catch (\Exception $e) {
-            // 📝 LOG : Échec mise à jour
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -210,8 +218,8 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'failed',
                 'ip_address' => $request->ip(),
-                'details' => json_encode([
-                    'error' => $e->getMessage(),
+                'details' => $this->sanitizeForJson([
+                    'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
             ]);
 
@@ -225,20 +233,16 @@ class DnController extends Controller
     public function destroy(Dn $dn)
     {
         try {
-            // Sauvegarde des infos avant suppression
             $dnId = $dn->id;
             $dnNom = $dn->nom;
             $dnPath = $dn->path;
             $affectedUsers = $dn->users->pluck('id')->toArray();
             $affectedUserNames = $dn->users->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))->implode(', ');
 
-            // Détache d'abord tous les utilisateurs
             $dn->users()->detach();
-            
-            // Supprime le DN
             $dn->delete();
 
-            // 📝 LOG : Suppression réussie
+            // ✅ SÉCURISÉ
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -247,7 +251,7 @@ class DnController extends Controller
                 'target_user_name' => $dnNom,
                 'status' => 'success',
                 'ip_address' => request()->ip(),
-                'details' => json_encode([
+                'details' => $this->sanitizeForJson([
                     'dn_id' => $dnId,
                     'affected_users' => $affectedUsers,
                     'affected_user_names' => $affectedUserNames,
@@ -257,7 +261,6 @@ class DnController extends Controller
 
             return redirect()->back()->with('success', 'DN supprimé avec succès');
         } catch (\Exception $e) {
-            // 📝 LOG : Échec suppression
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -266,8 +269,8 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'failed',
                 'ip_address' => request()->ip(),
-                'details' => json_encode([
-                    'error' => $e->getMessage(),
+                'details' => $this->sanitizeForJson([
+                    'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
             ]);
 
@@ -296,14 +299,13 @@ class DnController extends Controller
             $user = User::findOrFail($validated['user_id']);
             $userName = trim($user->first_name . ' ' . $user->last_name);
             
-            // sync() remplace les DNs existants par les nouveaux
             $user->dns()->sync($validated['dn_ids']);
 
             $dnsAssigned = Dn::whereIn('id', $validated['dn_ids'])->get();
             $dnNames = $dnsAssigned->pluck('nom')->implode(', ');
             $dnPaths = $dnsAssigned->pluck('path')->implode(', ');
 
-            // 📝 LOG : Affectation rapide
+            // ✅ SÉCURISÉ
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -312,7 +314,7 @@ class DnController extends Controller
                 'target_user_name' => $userName,
                 'status' => 'success',
                 'ip_address' => $request->ip(),
-                'details' => json_encode([
+                'details' => $this->sanitizeForJson([
                     'user_id' => $user->id,
                     'dn_ids' => $validated['dn_ids'],
                     'dn_names' => $dnNames,
@@ -323,7 +325,6 @@ class DnController extends Controller
 
             return redirect()->back()->with('success', 'DN(s) affecté(s) à l\'utilisateur avec succès');
         } catch (\Exception $e) {
-            // 📝 LOG : Échec affectation
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -334,8 +335,8 @@ class DnController extends Controller
                     : 'Unknown',
                 'status' => 'failed',
                 'ip_address' => $request->ip(),
-                'details' => json_encode([
-                    'error' => $e->getMessage(),
+                'details' => $this->sanitizeForJson([
+                    'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
             ]);
 
@@ -344,7 +345,7 @@ class DnController extends Controller
     }
 
     /**
-     * Obtenir les utilisateurs affectés à un DN spécifique (optionnel)
+     * Obtenir les utilisateurs affectés à un DN spécifique
      */
     public function getUsersForDn(Dn $dn)
     {
@@ -360,7 +361,7 @@ class DnController extends Controller
     }
 
     /**
-     * Obtenir les DNs affectés à un utilisateur spécifique (optionnel)
+     * Obtenir les DNs affectés à un utilisateur spécifique
      */
     public function getDnsForUser(User $user)
     {
