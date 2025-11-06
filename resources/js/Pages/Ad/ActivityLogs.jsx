@@ -29,6 +29,8 @@ export default function ActivityLogs({ logs, stats, filters }) {
         { label: 'Déblocage', value: 'unblock_user' },
         { label: 'Reset mot de passe', value: 'reset_password' },
         { label: 'Création AD', value: 'create_user' },
+        { label: 'Recherche', value: 'search_user' },
+        { label: 'Résultats', value: 'search_user_result' },
     ];
 
     const handleFilterChange = (key, value) => {
@@ -82,6 +84,8 @@ export default function ActivityLogs({ logs, stats, filters }) {
             unblock_user: { icon: 'pi-unlock', severity: 'success', label: 'Déblocage' },
             reset_password: { icon: 'pi-refresh', severity: 'warning', label: 'Reset MDP' },
             create_user: { icon: 'pi-user-plus', severity: 'secondary', label: 'Création' },
+            search_user: { icon: 'pi-search', severity: 'info', label: 'Recherche', color: '#d406b2ff' },
+            search_user_result: { icon: 'pi-list', severity: 'info', label: 'Résultats', color: '#317797ff' },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action };
     };
