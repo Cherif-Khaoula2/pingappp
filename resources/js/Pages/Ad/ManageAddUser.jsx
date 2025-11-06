@@ -40,6 +40,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("")
   const [mailboxes, setMailboxes] = useState([]);
+const [samError, setSamError] = useState("");
 
 const loadMailboxes = async () => {
   try {
@@ -192,10 +193,19 @@ useEffect(() => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
+if (name === "sam") {
+    // Limiter à 25 caractères
+    newValue = newValue.slice(0, 25);
 
-    if (name === "sam") {
-      newValue = value.slice(0, 25);
+    // Regex autorisée
+    const regex = /^[A-Za-z0-9._-]*$/;
+    if (!regex.test(newValue)) {
+      setSamError("⚠️ Seules les lettres, chiffres , ' . ' , ' _ ' et ' - ' sont autorisés");
+      return; // Ne pas mettre à jour le state si invalide
+    } else {
+      setSamError(""); // Réinitialiser l'erreur si valide
     }
+  }
 
     setForm((prev) => ({
       ...prev,
@@ -506,7 +516,7 @@ const confirmCreate = async () => {
                 <div className="col-12 md:col-6">
                   <div className="field">
                     <label htmlFor="sam" className="block text-900 font-medium mb-2">
-                      Nom d'utilisateur (SamAccountName) <span className="text-red-500">*</span>
+                      Nom d'utilisateur  <span className="text-red-500">*</span>
                     </label>
                     <InputText
                       id="sam"
@@ -518,8 +528,10 @@ const confirmCreate = async () => {
                       placeholder="Ex: m.benali"
                       required
                     />
+                     {samError && <small className="p-error">{samError}</small>}
                   </div>
                 </div>
+                
 
                 {accountType === "AD+Exchange" && (
                   <div className="col-12 md:col-6">
