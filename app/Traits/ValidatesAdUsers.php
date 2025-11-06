@@ -173,7 +173,7 @@ trait ValidatesAdUsers
     }
 
     /**
-     * Échappe les caractères dangereux pour PowerShell
+     * Échappe les caractères dangereux pour PowerShell (pour -Identity)
      */
     protected function escapePowerShellString(string $input): string
     {
@@ -182,6 +182,48 @@ trait ValidatesAdUsers
         
         // Limiter la longueur
         return substr($input, 0, 100);
+    }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE : Échappe les caractères pour les filtres PowerShell (recherche)
+     * Cette méthode est moins restrictive car elle doit permettre les wildcards
+     */
+    protected function escapePowerShellStringForFilter(string $string): string
+    {
+        if (empty($string)) {
+            return '';
+        }
+        
+        // Échapper uniquement les caractères vraiment dangereux pour l'injection
+        // Mais garder les wildcards fonctionnels
+        $escaped = str_replace([
+            '`',      // Backtick (escape char PowerShell)
+            '"',      // Guillemets
+            "'",      // Apostrophes
+            '$',      // Variables
+            ';',      // Séparateur de commandes
+            '|',      // Pipe
+            '&',      // Opérateur
+            '<',      // Redirection
+            '>',      // Redirection
+            "\n",     // Newline
+            "\r",     // Carriage return
+        ], [
+            '``',
+            '`"',
+            "`'",
+            '`$',
+            '`;',
+            '`|',
+            '`&',
+            '`<',
+            '`>',
+            '',
+            '',
+        ], $string);
+        
+        // Limiter la longueur
+        return substr($escaped, 0, 100);
     }
 
     /**
