@@ -187,7 +187,7 @@ Route::middleware('auth')->group(function () {
    // ->middleware('permission:getalladuser')
     //    ->name('ad.users');
 
-
+Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
      // 🔎 Recherche d’un utilisateur via SamAccountName
     Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
     ->middleware('permission:getaduser')

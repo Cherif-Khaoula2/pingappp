@@ -26,6 +26,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
     logmail: "",
     password: "",
     direction_id: "",
+    mailbox: "",
   });
 
   const [directions, setDirections] = useState(initialDirections);
@@ -38,6 +39,26 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const [createdUserDetails, setCreatedUserDetails] = useState(null);
  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("")
+  const [mailboxes, setMailboxes] = useState([]);
+
+const loadMailboxes = async () => {
+  try {
+    const response = await axios.get("/ad/mailboxes");
+    if (response.data.success) {
+      setMailboxes(response.data.mailboxes); // [{id:1, name:'mailbox.a@sarpi-dz.com'}, ...]
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+// Charger les mailboxes quand le composant monte ou quand le type de compte change
+useEffect(() => {
+  if (accountType === "AD+Exchange") {
+    loadMailboxes();
+  }
+}, [accountType]); // ⚠️ dépendance sur accountType
+
   // Charger les directions au montage du composant
   useEffect(() => {
     if (initialDirections.length === 0) {
@@ -232,58 +253,69 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
     
     setShowConfirmDialog(true);
   };
+const confirmCreate = async () => {
+  setLoading(true);
+  try {
+    // Récupérer la mailbox sélectionnée
+    const selectedMailbox = mailboxes.find(m => m.id === form.mailbox);
 
-  const confirmCreate = async () => {
-    setLoading(true);
-    try {
-      const payload = { ...form, accountType };
-      const res = await axios.post("/ad/create-user", payload);
-      
-      setCreatedUserDetails({
-        name: form.name,
-        sam: form.sam,
-        email: form.email,
-        password: form.password,
-        direction: selectedDirection?.nom || '',
-        accountType: accountType
+    // Préparer le payload
+    const payload = { 
+      ...form, 
+      accountType,
+      mailbox: selectedMailbox ? selectedMailbox.name : null // <- nom complet envoyé
+    };
+
+    const res = await axios.post("/ad/create-user", payload);
+
+    setCreatedUserDetails({
+      name: form.name,
+      sam: form.sam,
+      email: form.email,
+      password: form.password,
+      direction: selectedDirection?.nom || '',
+      accountType: accountType,
+      mailbox: selectedMailbox ? selectedMailbox.name : ''
+    });
+
+    setShowConfirmDialog(false);
+    setShowSuccessDialog(true);
+
+    setForm({
+      firstName: "",
+      lastName: "",
+      name: "",
+      sam: "",
+      email: "",
+      logmail: "",
+      password: "",
+      direction_id: "",
+      mailbox: "", // reset
+    });
+    setSelectedDirection(null);
+    setPasswordMode("auto");
+  } catch (err) {
+    console.error("Erreur lors de la création :", err);
+
+    const errorMsg = err.response?.data?.message || "";
+
+    if (errorMsg.includes("SamAccountName") || errorMsg.includes("mot de passe")) {
+      showBackendError(errorMsg);
+    } else {
+      toast.current.show({
+        severity: "error",
+        summary: "Erreur de création",
+        detail: errorMsg || "Une erreur inconnue est survenue.",
+        life: 6000,
       });
-      
-      setShowConfirmDialog(false);
-      setShowSuccessDialog(true);
-      
-      setForm({
-        firstName: "",
-        lastName: "",
-        name: "",
-        sam: "",
-        email: "",
-        logmail: "",
-        password: "",
-        direction_id: "",
-      });
-      setSelectedDirection(null);
-      setPasswordMode("auto");
-    } catch (err) {
-      console.error("Erreur lors de la création :", err);
-
-      const errorMsg = err.response?.data?.message || "";
-
-      if (errorMsg.includes("SamAccountName") || errorMsg.includes("mot de passe")) {
-        showBackendError(errorMsg);
-      } else {
-        toast.current.show({
-          severity: "error",
-          summary: "Erreur de création",
-          detail: errorMsg || "Une erreur inconnue est survenue.",
-          life: 6000,
-        });
-      }
-
-      setShowConfirmDialog(false);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    setShowConfirmDialog(false);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const dialogFooter = (
     <div className="flex justify-content-end gap-2">
@@ -506,7 +538,26 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                       />
                     </div>
                   </div>
+                  
                 )}
+                {accountType === "AD+Exchange" && (
+  <div className="col-12 md:col-6">
+    <div className="field">
+      <label htmlFor="mailbox" className="block text-900 font-medium mb-2">
+        Mailbox <span className="text-red-500">*</span>
+      </label>
+      <Dropdown
+  value={form.mailbox}
+  options={mailboxes.map(m => ({ label: m.name, value: m.id }))}
+  onChange={(e) => setForm(prev => ({ ...prev, mailbox: e.value }))}
+  placeholder="Sélectionner une mailbox"
+/>
+
+      <small className="text-500">Nom de la boîte mail Exchange</small>
+    </div>
+  </div>
+)}
+
 
                 {/* Section Sécurité */}
                 <div className="col-12 mt-3">

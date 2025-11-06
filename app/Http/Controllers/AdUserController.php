@@ -178,7 +178,7 @@ class AdUserController extends Controller
         $this->authorize('blockaduser'); 
         
         $request->validate([
-            'sam' => 'required|string|max:100|regex:/^[a-zA-Z0-9._-]+$/',
+            'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
             'action' => 'required|in:block,unblock',
         ]);
 
@@ -280,7 +280,7 @@ class AdUserController extends Controller
         $this->authorize('resetpswaduser'); 
         
         $request->validate([
-            'sam' => 'required|string|max:100|regex:/^[a-zA-Z0-9._-]+$/',
+            'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
             'new_password' => [
                 'required',
                 'string',
@@ -1062,5 +1062,18 @@ protected function extractOuName($ouPath)
     }
     return $ouPath;
 }
+  public function listMailboxes()
+    {
+        // Exemple statique, tu peux remplacer par une requête DB si nécessaire
+        $mailboxes = [
+            ['id' => 1, 'name' => 'mailbox.A'],
+            ['id' => 2, 'name' => 'mailbox.B'],
+            ['id' => 3, 'name' => 'mailbox.C'],
+        ];
 
+        return response()->json([
+            'success' => true,
+            'mailboxes' => $mailboxes
+        ]);
+    }
 }
