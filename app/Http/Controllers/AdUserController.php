@@ -280,7 +280,7 @@ class AdUserController extends Controller
         'string',
         'min:8',
         'max:128',
-        'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
+       'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
     ],
 ], [
     'new_password.required' => 'Le mot de passe est obligatoire',
@@ -627,7 +627,7 @@ public function createAdUser(Request $request)
             'string',
             'min:8',
             'max:128',
-            'regex:/^(?=.*[a-zà-ÿ])(?=.*[A-ZÀ-Ý])(?=.*\d)(?=.*[@$!%*?&]).+$/u'
+            'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
         ],
         'direction_id' => 'required|exists:dns,id', // ✅ Validation de la direction
     ], [
