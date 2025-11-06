@@ -173,21 +173,37 @@ class AdUserController extends Controller
         }
     }
 
-    public function toggleUserStatus(Request $request)
+     public function toggleUserStatus(Request $request)
     { 
         $this->authorize('blockaduser'); 
+        
+        $request->validate([
+            'sam' => 'required|string|max:100|regex:/^[a-zA-Z0-9._-]+$/',
+            'action' => 'required|in:block,unblock',
+        ]);
+
         $sam = $request->input('sam');
         $action = $request->input('action');
-        $userName = $request->input('user_name');
-        $userEmail = $request->input('user_email');
-        $userDn = $request->input('user_dn');
 
+        // 🔒 VALIDATION CRITIQUE : Vérifier l'accès
+        $validation = $this->validateAdUserAccess($sam);
+        
+        if (!$validation['authorized']) {
+            Log::warning('Tentative de modification non autorisée', [
+                'sam' => $sam,
+                'action' => $action,
+                'user_id' => auth()->id(),
+                'ip' => request()->ip(),
+                'error' => $validation['error']
+            ]);
 
-        $request->validate([
-            'sam' => 'required|string',
-            'action' => 'required|in:block,unblock',
-            
-        ]);
+            return response()->json([
+                'success' => false,
+                'message' => $validation['error']
+            ], 403);
+        }
+
+        $adUser = $validation['user'];
 
         $host = env('SSH_HOST');
         $user = env('SSH_USER');
@@ -198,13 +214,12 @@ class AdUserController extends Controller
             return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
         }
 
-        $sam = $request->input('sam');
-        $action = $request->input('action');
-        $userName = $request->input('user_name'); // Optionnel depuis le frontend
+        // ✅ Échapper le SamAccountName
+        $escapedSam = $this->escapePowerShellString($sam);
 
         $adCommand = $action === 'block'
-            ? "powershell -Command \"Disable-ADAccount -Identity '$sam'\""
-            : "powershell -Command \"Enable-ADAccount -Identity '$sam'\"";
+            ? "powershell -Command \"Disable-ADAccount -Identity '$escapedSam'\""
+            : "powershell -Command \"Enable-ADAccount -Identity '$escapedSam'\"";
 
         $command = $keyPath && file_exists($keyPath)
             ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
@@ -219,39 +234,38 @@ class AdUserController extends Controller
                 throw new ProcessFailedException($process);
             }
 
-            // ✅ Log de l'action réussie
-            $this->logAdActivity(
-            action: $action === 'block' ? 'block_user' : 'unblock_user',
-            targetUser: $sam,
-            targetUserName: $userName,
-            success: true,
-            additionalDetails: [
-                'email' => $userEmail,
-                'dn' => $userDn,
-                'method' => 'AD Command',
-                'action_type' => $action,
-                'previous_status' => $action === 'block' ? 'enabled' : 'disabled'  // 🆕
-            ]
-        );
-
-        // 📧 Envoyer la notification email
-        $userData = [
-            'sam' => $sam,
-            'name' => $userName ?? $sam,
-            'email' => $userEmail ?? null,
-            'ouPath' => $ouPath ?? null,
-        ];
-        
-        $this->sendBlockNotification(auth()->user(), $userData, $action);
-            
-        } catch (\Throwable $e) {
-            \Log::error('toggleUserStatus error: ' . $e->getMessage());
-
-            // ❌ Log de l'échec
             $this->logAdActivity(
                 action: $action === 'block' ? 'block_user' : 'unblock_user',
                 targetUser: $sam,
-                targetUserName: $userName,
+                targetUserName: $adUser['name'],
+                success: true,
+                additionalDetails: [
+                    'email' => $adUser['email'],
+                    'dn' => $adUser['dn'],
+                    'method' => 'AD Command',
+                    'action_type' => $action,
+                    'previous_status' => $action === 'block' ? 'enabled' : 'disabled'
+                ]
+            );
+
+            $this->sendBlockNotification(auth()->user(), [
+                'sam' => $sam,
+                'name' => $adUser['name'],
+                'email' => $adUser['email'],
+            ], $action);
+
+            return response()->json([
+                'success' => true,
+                'message' => $action === 'block' ? 'Utilisateur bloqué avec succès' : 'Utilisateur débloqué avec succès'
+            ]);
+            
+        } catch (\Throwable $e) {
+            Log::error('toggleUserStatus error: ' . $e->getMessage());
+
+            $this->logAdActivity(
+                action: $action === 'block' ? 'block_user' : 'unblock_user',
+                targetUser: $sam,
+                targetUserName: $adUser['name'],
                 success: false,
                 errorMessage: $e->getMessage()
             );
@@ -263,30 +277,43 @@ class AdUserController extends Controller
         }
     }
 
+    // ✅ FONCTION SÉCURISÉE : resetPassword
     public function resetPassword(Request $request)
     {
         $this->authorize('resetpswaduser'); 
+        
+        $request->validate([
+            'sam' => 'required|string|max:100|regex:/^[a-zA-Z0-9._-]+$/',
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'max:128',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+            ],
+        ]);
+
         $sam = $request->input('sam');
+
+        // 🔒 VALIDATION CRITIQUE : Vérifier l'accès
+        $validation = $this->validateAdUserAccess($sam);
+        
+        if (!$validation['authorized']) {
+            Log::warning('Tentative de reset password non autorisée', [
+                'sam' => $sam,
+                'user_id' => auth()->id(),
+                'ip' => request()->ip(),
+                'error' => $validation['error']
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $validation['error']
+            ], 403);
+        }
+
+        $adUser = $validation['user'];
         $newPassword = $request->input('new_password');
-        $userName = $request->input('user_name');
-    
-    // 🆕 Récupérer infos utilisateur
-    $userEmail = $request->input('user_email');
-    $userDn = $request->input('user_dn');
-       $request->validate([
-    'sam' => 'required|string|max:100',
-    'new_password' => [
-        'required',
-        'string',
-        'min:8',
-        'max:128',
-       'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
-    ],
-], [
-    'new_password.required' => 'Le mot de passe est obligatoire',
-    'new_password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
-    'new_password.regex' => 'Le mot de passe doit contenir au moins : une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)',
-]);
 
         $host = env('SSH_HOST');
         $user = env('SSH_USER');
@@ -297,15 +324,15 @@ class AdUserController extends Controller
             return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
         }
 
-        $sam = $request->input('sam');
-        $newPassword = $request->input('new_password');
-        $userName = $request->input('user_name');
+        // ✅ Échapper le mot de passe et le sam
+        $escapedSam = $this->escapePowerShellString($sam);
+        $escapedPassword = str_replace("'", "''", $newPassword);
 
         $psCommand = "powershell -NoProfile -NonInteractive -Command \""
             . "Import-Module ActiveDirectory; "
-            . "Set-ADAccountPassword -Identity '$sam' -Reset -NewPassword (ConvertTo-SecureString '$newPassword' -AsPlainText -Force); "
-            . "Enable-ADAccount -Identity '$sam'; "
-            . "Unlock-ADAccount -Identity '$sam'; "
+            . "Set-ADAccountPassword -Identity '$escapedSam' -Reset -NewPassword (ConvertTo-SecureString '$escapedPassword' -AsPlainText -Force); "
+            . "Enable-ADAccount -Identity '$escapedSam'; "
+            . "Unlock-ADAccount -Identity '$escapedSam'; "
             . "Write-Output 'Password reset successfully'\"";
 
         $command = $keyPath && file_exists($keyPath)
@@ -321,46 +348,48 @@ class AdUserController extends Controller
                 throw new ProcessFailedException($process);
             }
 
-            // ✅ Log de réinitialisation réussie
-        $this->logAdActivity(
-            action: 'reset_password',
-            targetUser: $sam,
-            targetUserName: $userName,
-            success: true,
-            additionalDetails: [
-                'email' => $userEmail,
-                'dn' => $userDn,
-                'unlocked' => true,
-                'method' => 'PowerShell AD',
-                'password_strength' => 'strong'  // 🆕
-            ]
-        );
-
-           // 📧 Envoyer la notification email
-        $userData = [
-            'sam' => $sam,
-            'name' => $userName ?? null,
-        ];
-        
-        $this->sendPasswordResetNotification(auth()->user(), $userData);
-        } catch (\Throwable $e) {
-            \Log::error('resetPassword error: ' . $e->getMessage());
-
-            // ❌ Log de l'échec
             $this->logAdActivity(
                 action: 'reset_password',
                 targetUser: $sam,
-                targetUserName: $userName,
+                targetUserName: $adUser['name'],
+                success: true,
+                additionalDetails: [
+                    'email' => $adUser['email'],
+                    'dn' => $adUser['dn'],
+                    'unlocked' => true,
+                    'method' => 'PowerShell AD',
+                    'password_strength' => 'strong'
+                ]
+            );
+
+            $this->sendPasswordResetNotification(auth()->user(), [
+                'sam' => $sam,
+                'name' => $adUser['name'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mot de passe réinitialisé avec succès'
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('resetPassword error: ' . $e->getMessage());
+
+            $this->logAdActivity(
+                action: 'reset_password',
+                targetUser: $sam,
+                targetUserName: $adUser['name'],
                 success: false,
                 errorMessage: $e->getMessage()
             );
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur lors de la réinitialisation du mot de passe : ' . $e->getMessage(),
-        ], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la réinitialisation du mot de passe : ' . $e->getMessage(),
+            ], 500);
+        }
     }
-}
+
 public function manageLock()
 {
     return inertia('Ad/ManageUserStatus'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
@@ -558,11 +587,7 @@ public function findUser(Request $request)
 
 
         return response()->json([
-            'success' => $authorizedUsers->count() > 0,
             'users' => $authorizedUsers,
-            'count' => $authorizedUsers->count(),
-            'unauthorized_count' => $unauthorizedUsers->count(),
-            'message' => $authorizedUsers->count() === 0 ? 'Aucun utilisateur trouvé pour cette recherche' : null
         ]);
 
     } catch (\Throwable $e) {
@@ -607,157 +632,167 @@ public function manageAddUser()
     ]);
 }
 public function createAdUser(Request $request)
-{ 
-    $this->authorize('addaduser'); 
-    
-    $request->validate([
-        'name' => 'required|string',
-        'sam' => [
-            'required',
-            'max:25',
-            'regex:/^[A-Za-z\.]+$/',
-        ],
-        'email' => 'nullable|email',
-        'logmail' => 'required|string',
-        'password' => [
-            'required',
-            'string',
-            'min:8',
-            'max:128',
-            'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
-        ],
-        'direction_id' => 'required|exists:dns,id', // ✅ Validation de la direction
-    ], [
-        'password.required' => 'Le mot de passe est obligatoire',
-        'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
-        'password.regex' => 'Le mot de passe doit contenir au moins : une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)',
-        'direction_id.required' => 'La direction est obligatoire',
-        'direction_id.exists' => 'La direction sélectionnée n\'existe pas',
-    ]);
-
-    $host = env('SSH_HOST');
-    $user = env('SSH_USER');
-    $password = env('SSH_PASSWORD');
-    $keyPath = env('SSH_KEY_PATH');
-
-    if (!$host || !$user) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Configuration SSH manquante'
-        ], 500);
-    }
-
-    $name = $request->input('name');
-    $sam = $request->input('sam');
-    $email = $request->input('email');
-    $logmail = $request->input('logmail');
-    $userPassword = $request->input('password');
-    $directionId = $request->input('direction_id');
-    $accountType = $request->input('accountType');
-    
-    // ✅ Récupérer le path depuis la base de données
-     $direction = Dn::findOrFail($directionId);
-    $ouPath = $direction->path;
-    
-    $userPrincipalName = $accountType === "AD+Exchange" ? $email : "$sam@sarpi-dz.sg";
-    $emailAddress = $accountType === "AD+Exchange" ? $email : null;
-
-    // ✅ Vérification si SamAccountName existe déjà
-    $checkCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; Get-ADUser -Filter {SamAccountName -eq '$sam'} | Select-Object SamAccountName\"";
-
-    $sshOptions = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'LogLevel=ERROR'];
-    $checkProcess = new Process(
-        $keyPath && file_exists($keyPath)
-            ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $checkCommand])
-            : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $checkCommand])
-    );
-
-    $checkProcess->setTimeout(30);
-    $checkProcess->run();
-
-    if ($checkProcess->isSuccessful() && trim($checkProcess->getOutput()) !== '') {
-        return response()->json([
-            'success' => false,
-            'message' => "Un utilisateur avec le SamAccountName '$sam' existe déjà dans Active Directory."
-        ], 409);
-    }
-
-    // ✅ Commande AD exécutée directement
-    $adCommand = "
-        New-ADUser -Name '$name' `
-            -SamAccountName '$sam' `
-            -UserPrincipalName '$userPrincipalName' `
-            -EmailAddress '$emailAddress' `
-            -Path '$ouPath' `
-            -AccountPassword (ConvertTo-SecureString '$userPassword' -AsPlainText -Force) `
-            -Enabled \$true;
-        Write-Output 'User created successfully';
-    ";
-
-    $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
-
-    try {
-        $process = new Process($command);
-        $process->setTimeout(60);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
-        }
-
-        $output = trim($process->getOutput());
-
-        // ✅ Log de succès avec le nom de la direction
-        $this->logAdActivity(
-            action: 'create_user',
-            targetUser: $sam,
-            targetUserName: $name,
-            success: true,
-            additionalDetails: [
-                'email' => $email,
-                'direction' => $direction->name,
-                'method' => 'Direct AD over SSH'
-            ]
-        );
+    { 
+        $this->authorize('addaduser'); 
         
-        // ✉️ Envoi de notification
-        $this->sendAdUserCreationNotification(
-            $request->user(),
-            [
-                'name' => $name,
-                'sam' => $sam,
-                'email' => $email,
-                'ouPath' => $ouPath,
-                'directionName' => $direction->nom, // ✅ Passer le nom
-                'accountType' => $accountType
-            ]
-        );
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur créé avec succès.',
-            'output' => $output
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'sam' => [
+                'required',
+                'max:25',
+                'regex:/^[A-Za-z0-9._-]+$/',
+            ],
+            'email' => 'nullable|email',
+            'logmail' => 'required|string',
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'max:128',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+            ],
+            'direction_id' => 'required|exists:dns,id',
         ]);
 
-    } catch (\Throwable $e) {
-        \Log::error('createUserAd error: ' . $e->getMessage());
+        $directionId = $request->input('direction_id');
 
-        $this->logAdActivity(
-            action: 'create_user',
-            targetUser: $sam,
-            targetUserName: $nom,
-            success: false,
-            errorMessage: $e->getMessage()
+        // 🔒 VALIDATION CRITIQUE : Vérifier l'accès à la direction
+        $validation = $this->validateDirectionAccess($directionId);
+        
+        if (!$validation['authorized']) {
+            Log::warning('Tentative de création dans une direction non autorisée', [
+                'direction_id' => $directionId,
+                'user_id' => auth()->id(),
+                'ip' => request()->ip()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $validation['error']
+            ], 403);
+        }
+
+        $direction = $validation['direction'];
+
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
+
+        if (!$host || !$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Configuration SSH manquante'
+            ], 500);
+        }
+
+        $name = $request->input('name');
+        $sam = $request->input('sam');
+        $email = $request->input('email');
+        $userPassword = $request->input('password');
+        $accountType = $request->input('accountType');
+        $ouPath = $direction->path;
+
+        // ✅ Échapper toutes les entrées
+        $escapedName = $this->escapePowerShellString($name);
+        $escapedSam = $this->escapePowerShellString($sam);
+        $escapedEmail = $this->escapePowerShellString($email ?? '');
+        $escapedPassword = str_replace("'", "''", $userPassword);
+        $escapedOuPath = $this->escapePowerShellString($ouPath);
+
+        $userPrincipalName = $accountType === "AD+Exchange" ? $escapedEmail : "$escapedSam@sarpi-dz.sg";
+        $emailAddress = $accountType === "AD+Exchange" ? $escapedEmail : 'null';
+
+        // ✅ Vérification existence
+        $checkCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; Get-ADUser -Filter {SamAccountName -eq '$escapedSam'} | Select-Object SamAccountName\"";
+
+        $sshOptions = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'LogLevel=ERROR'];
+        $checkProcess = new Process(
+            $keyPath && file_exists($keyPath)
+                ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $checkCommand])
+                : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $checkCommand])
         );
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur lors de la création de l\'utilisateur : ' . $e->getMessage(),
-        ], 500);
+        $checkProcess->setTimeout(30);
+        $checkProcess->run();
+
+        if ($checkProcess->isSuccessful() && trim($checkProcess->getOutput()) !== '') {
+            return response()->json([
+                'success' => false,
+                'message' => "Un utilisateur avec le SamAccountName '$sam' existe déjà."
+            ], 409);
+        }
+
+        $adCommand = "
+            New-ADUser -Name '$escapedName' `
+                -SamAccountName '$escapedSam' `
+                -UserPrincipalName '$userPrincipalName' `
+                -EmailAddress $emailAddress `
+                -Path '$escapedOuPath' `
+                -AccountPassword (ConvertTo-SecureString '$escapedPassword' -AsPlainText -Force) `
+                -Enabled \$true;
+            Write-Output 'User created successfully';
+        ";
+
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+
+        try {
+            $process = new Process($command);
+            $process->setTimeout(60);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+
+            $this->logAdActivity(
+                action: 'create_user',
+                targetUser: $sam,
+                targetUserName: $name,
+                success: true,
+                additionalDetails: [
+                    'email' => $email,
+                    'direction' => $direction->nom,
+                    'method' => 'Direct AD over SSH'
+                ]
+            );
+            
+            $this->sendAdUserCreationNotification(
+                $request->user(),
+                [
+                    'name' => $name,
+                    'sam' => $sam,
+                    'email' => $email,
+                    'ouPath' => $ouPath,
+                    'directionName' => $direction->nom,
+                    'accountType' => $accountType
+                ]
+            );
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Utilisateur créé avec succès.'
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('createUserAd error: ' . $e->getMessage());
+
+            $this->logAdActivity(
+                action: 'create_user',
+                targetUser: $sam,
+                targetUserName: $name,
+                success: false,
+                errorMessage: $e->getMessage()
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création de l\'utilisateur : ' . $e->getMessage(),
+            ], 500);
+        }
     }
-}
 public function getDirections()
 {
     try {
