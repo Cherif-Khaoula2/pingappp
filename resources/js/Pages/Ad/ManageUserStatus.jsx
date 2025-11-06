@@ -99,9 +99,6 @@ const confirmToggle = () => {
     { 
       sam: confirmDialog.sam, 
       action: confirmDialog.action, 
-      user_name: confirmDialog.userName,
-      user_email: confirmDialog.userEmail,  // 🆕 AJOUTER
-      user_dn: confirmDialog.userDn,        // 🆕 AJOUTER
     },
     {
       onSuccess: () => {
