@@ -606,8 +606,6 @@ public function findUser(Request $request)
     }
 }
 
-// ✅ Cette méthode doit être ajoutée dans le trait ValidatesAdUsers
-
 
 
 
