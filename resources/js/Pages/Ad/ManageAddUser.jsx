@@ -613,15 +613,17 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                       />
                     ) : (
                       <Password
-                        id="password"
-                        name="password"
-                        value={form.password}
-                        onChange={handleChange}
-                        className="w-full"
-                        toggleMask
-                        feedback={true}
-                        required
-                      />
+  id="password"
+  name="password"
+  value={form.password}
+  onChange={handleChange}
+  toggleMask
+  feedback={true}
+  required
+  inputClassName="w-full"   // ✅ pour l’input interne
+  className="w-full"        // ✅ pour le conteneur externe
+/>
+
                     )}
                   </div>
                 </div>
