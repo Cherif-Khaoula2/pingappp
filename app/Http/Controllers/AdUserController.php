@@ -586,8 +586,11 @@ public function findUser(Request $request)
         }
 
 
-        return response()->json([
+       return response()->json([
+            'success' => $authorizedUsers->count() > 0,
             'users' => $authorizedUsers,
+            'count' => $authorizedUsers->count(),
+            'message' => $authorizedUsers->count() === 0 ? 'Aucun utilisateur trouvé pour cette recherche' : null
         ]);
 
     } catch (\Throwable $e) {
