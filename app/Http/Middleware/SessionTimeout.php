@@ -4,9 +4,9 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Support\Facades\Auth;
-
+use App\Traits\LogsAdActivity;
 class SessionTimeout
-{
+{use LogsAdActivity;
     // Durée maximale d'inactivité (en secondes)
     protected $timeout = 1800; // 30 minutes
 
@@ -21,7 +21,7 @@ class SessionTimeout
 
                 if ($user) {
                     // 🔹 Log de déconnexion automatique
-                    app(\App\Http\Controllers\Ad\AdActivityLogController::class)->logAdActivity(
+                     $this->logAdActivity(
                         action: 'logout',
                         targetUser: strtolower(strstr($user->email, '@', true)),
                         targetUserName: $user->name,
