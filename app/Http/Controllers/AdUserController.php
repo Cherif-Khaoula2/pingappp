@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\AdHiddenAccount;
 use App\Models\Dn;
-
+use App\Traits\ValidatesAdUsers;
 class AdUserController extends Controller
 {
     use LogsAdActivity;
