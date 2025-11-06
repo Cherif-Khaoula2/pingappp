@@ -375,18 +375,20 @@ public function findUser(Request $request)
 
     $search = trim($request->input('search', ''));
     
-    // 🆕 LOG 1 : Recherche initiée
-    $this->logAdActivity(
-        action: 'search_user',
-        targetUser: $search,
-        targetUserName: null,
-        success: true,
-        additionalDetails: [
-            'search_query' => $search,
-            'search_type' => 'active_directory',
-            'timestamp' => now()->toDateTimeString()
-        ]
-    );
+    // 🆕 LOG 1 : Recherche initiée (SEULEMENT si recherche non vide)
+    if (!empty($search)) {
+        $this->logAdActivity(
+            action: 'search_user',
+            targetUser: $search,
+            targetUserName: null,
+            success: true,
+            additionalDetails: [
+                'search_query' => $search,
+                'search_type' => 'active_directory',
+                'timestamp' => now()->toDateTimeString()
+            ]
+        );
+    }
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
@@ -405,13 +407,24 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // 🔍 Filtre PowerShell
+    // 🔍 Filtre PowerShell - Recherche partielle dès les premiers caractères
     $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
+    
+    // ✅ Si moins de 2 caractères, ne pas rechercher (optionnel)
+    if (!empty($search) && strlen($search) < 2) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Veuillez entrer au moins 2 caractères',
+            'users' => [],
+            'count' => 0
+        ]);
+    }
+    
     $filter = empty($search)
         ? 'Name -like "*"'
         : "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
 
-    // ⚡ Requête AD
+    // ⚡ Requête AD (reste identique)
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
         "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
@@ -444,13 +457,15 @@ public function findUser(Request $request)
                 'filter' => $filter
             ]);
             
-            $this->logAdActivity(
-                action: 'search_user',
-                targetUser: $search,
-                targetUserName: null,
-                success: false,
-                errorMessage: 'Erreur SSH lors de la recherche : ' . $process->getErrorOutput()
-            );
+            if (!empty($search)) {
+                $this->logAdActivity(
+                    action: 'search_user',
+                    targetUser: $search,
+                    targetUserName: null,
+                    success: false,
+                    errorMessage: 'Erreur SSH lors de la recherche : ' . $process->getErrorOutput()
+                );
+            }
             
             throw new ProcessFailedException($process);
         }
@@ -461,7 +476,6 @@ public function findUser(Request $request)
         if (empty($output) || $output === 'null') {
             \Log::info("Aucun utilisateur trouvé dans AD pour la recherche : $search");
             
-            // ⚠️ PAS de log "search_user_result" ici
             return response()->json([
                 'success' => false, 
                 'message' => 'Aucun utilisateur trouvé', 
@@ -538,31 +552,27 @@ public function findUser(Request $request)
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
         // ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
-// Dans AdUserController.php, méthode findUser()
-// Remplacer la partie du log "search_user_result" par ceci :
-
-// ✅ LOG "search_user_result" UNIQUEMENT si des résultats autorisés existent
-if ($authorizedUsers->count() > 0) {
-    // 🆕 Concaténer tous les noms trouvés pour la colonne target_user_name
-    $allFoundNames = $authorizedUsers->pluck('name')->join(', ');
-    $allFoundSams = $authorizedUsers->pluck('sam')->join(', ');
-    
-    $this->logAdActivity(
-        action: 'search_user_result',
-        targetUser: $search,  // Garde la requête de recherche originale
-        targetUserName: $allFoundNames,  // 🔥 Tous les noms trouvés ici !
-        success: true,
-        additionalDetails: [
-            'results_count' => $authorizedUsers->count(),
-            'unauthorized_count' => $unauthorizedUsers->count(),
-            'found_sams' => $allFoundSams,  // Tous les SAMs en détails supplémentaires
-            'found_names' => $authorizedUsers->pluck('name')->toArray(),
-            'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-            'search_filter' => $filter,
-            'total_before_filter' => count($adUsers)
-        ]
-    );
-}
+        if ($authorizedUsers->count() > 0 && !empty($search)) {
+            // 🆕 Concaténer tous les noms trouvés pour la colonne target_user_name
+            $allFoundNames = $authorizedUsers->pluck('name')->join(', ');
+            $allFoundSams = $authorizedUsers->pluck('sam')->join(', ');
+            
+            $this->logAdActivity(
+                action: 'search_user_result',
+                targetUser: $search,
+                targetUserName: $allFoundNames,
+                success: true,
+                additionalDetails: [
+                    'results_count' => $authorizedUsers->count(),
+                    'unauthorized_count' => $unauthorizedUsers->count(),
+                    'found_sams' => $allFoundSams,
+                    'found_names' => $authorizedUsers->pluck('name')->toArray(),
+                    'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
+                    'search_filter' => $filter,
+                    'total_before_filter' => count($adUsers)
+                ]
+            );
+        }
 
         return response()->json([
             'success' => $authorizedUsers->count() > 0,
@@ -584,17 +594,19 @@ if ($authorizedUsers->count() > 0) {
             'line' => $e->getLine()
         ]);
 
-        $this->logAdActivity(
-            action: 'search_user',
-            targetUser: $search,
-            targetUserName: null,
-            success: false,
-            errorMessage: 'Erreur serveur : ' . $e->getMessage(),
-            additionalDetails: [
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine()
-            ]
-        );
+        if (!empty($search)) {
+            $this->logAdActivity(
+                action: 'search_user',
+                targetUser: $search,
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Erreur serveur : ' . $e->getMessage(),
+                additionalDetails: [
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine()
+                ]
+            );
+        }
 
         return response()->json([
             'success' => false,
