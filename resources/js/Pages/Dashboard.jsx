@@ -423,54 +423,58 @@ export default function Dashboard({
                     <div className="col-12 lg:col-4">
                         <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
                             <div className="flex flex-column gap-2 md:gap-3">
-                                {safeTopPerformers.length > 0 ? (
-                                    safeTopPerformers.slice(0, 5).map((user, idx) => {
-                                        const content = (
-                                            <div className={`flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 transition-colors transition-duration-200 ${
-                                                canViewLogs ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'
-                                            }`}>
-                                                <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
-                                                    <div className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
-                                                        idx === 0 ? 'bg-yellow-500' :
-                                                        idx === 1 ? 'bg-gray-400' :
-                                                        idx === 2 ? 'bg-orange-600' : 'bg-indigo-500'
-                                                    }`}>
-                                                        {idx + 1}
-                                                    </div>
-                                                    <div className="flex-1 overflow-hidden">
-                                                        <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
-                                                            {user.name}
-                                                        </p>
-                                                        <p className="text-xs md:text-sm text-600 m-0">
-                                                            {user.count} activités
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {canViewLogs && (
-                                                    <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
-                                                )}
-                                            </div>
-                                        );
+                  {safeTopPerformers.length > 0 ? (
+    safeTopPerformers
+        .filter(user => user.name && user.name.trim() !== "") // 🔹 filtre les utilisateurs sans nom
+        .slice(0, 5)
+        .map((user, idx) => {
+            const content = (
+                <div className={`flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-gray-50 transition-colors transition-duration-200 ${
+                    canViewLogs ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'
+                }`}>
+                    <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
+                        <div className={`w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle font-bold text-white text-sm md:text-base flex-shrink-0 ${
+                            idx === 0 ? 'bg-yellow-500' :
+                            idx === 1 ? 'bg-gray-400' :
+                            idx === 2 ? 'bg-orange-600' : 'bg-indigo-500'
+                        }`}>
+                            {idx + 1}
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
+                                {user.name}
+                            </p>
+                            <p className="text-xs md:text-sm text-600 m-0">
+                                {user.count} activités
+                            </p>
+                        </div>
+                    </div>
+                    {canViewLogs && (
+                        <i className="pi pi-chevron-right text-600 text-sm flex-shrink-0"></i>
+                    )}
+                </div>
+            );
 
-                                        return canViewLogs ? (
-                                            <Link 
-                                                key={user.id} 
-                                                href={`/ad/activity-logs/user/${user.id}`} 
-                                                className="no-underline text-inherit"
-                                            >
-                                                {content}
-                                            </Link>
-                                        ) : (
-                                            <div key={user.id}>
-                                                {content}
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-center p-4">
-                                        <i className="pi pi-users text-4xl text-300 mb-2"></i>
-                                        <p className="text-600 text-sm">Aucun utilisateur actif</p>
-                                    </div>
+            return canViewLogs ? (
+                <Link 
+                    key={user.id} 
+                    href={`/ad/activity-logs/user/${user.id}`} 
+                    className="no-underline text-inherit"
+                >
+                    {content}
+                </Link>
+            ) : (
+                <div key={user.id}>
+                    {content}
+                </div>
+            );
+        })
+) : (
+    <div className="text-center p-4">
+        <i className="pi pi-users text-4xl text-300 mb-2"></i>
+        <p className="text-600 text-sm">Aucun utilisateur actif</p>
+    </div>
+
                                 )}
                             </div>
                         </Card>
