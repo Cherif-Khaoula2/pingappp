@@ -670,15 +670,7 @@ if ($authorizedUsers->count() > 0) {
 }
         return response()->json([
             'success' => $authorizedUsers->count() > 0,
-            'users' => $authorizedUsers,
-            'unauthorized' => $unauthorizedUsers->map(fn($u) => [
-                'name' => $u['name'],
-                'dn' => $u['dn'],
-                'message' => "Cet utilisateur appartient à un DN auquel vous n'êtes pas autorisé à accéder."
-            ]),
-            'count' => $authorizedUsers->count(),
-            'unauthorized_count' => $unauthorizedUsers->count(),
-            'message' => $authorizedUsers->count() === 0 ? 'Aucun utilisateur trouvé pour cette recherche' : null
+         
         ]);
 
     } catch (\Throwable $e) {
