@@ -173,95 +173,200 @@ class AdUserController extends Controller
         }
     }
 
-    public function toggleUserStatus(Request $request)
-    { 
-        $this->authorize('blockaduser'); 
-        $sam = $request->input('sam');
-        $action = $request->input('action');
-        $userName = $request->input('user_name');
-        $userEmail = $request->input('user_email');
-        $userDn = $request->input('user_dn');
+    use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
+use Illuminate\Http\Request;
+use App\Models\User;
 
+public function toggleUserStatus(Request $request)
+{
+    $this->authorize('blockaduser');
 
-        $request->validate([
-            'sam' => 'required|string',
-            'action' => 'required|in:block,unblock',
-            
-        ]);
+    $request->validate([
+        'sam' => 'required|string',
+        'action' => 'required|in:block,unblock',
+    ]);
 
-        $host = env('SSH_HOST');
-        $user = env('SSH_USER');
-        $password = env('SSH_PASSWORD');
-        $keyPath = env('SSH_KEY_PATH');
+    $sam = $request->input('sam');
+    $action = $request->input('action');
 
-        if (!$host || !$user) {
-            return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+    // Sanitize samAccountName
+    if (!preg_match('/^[A-Za-z0-9._-]{1,256}$/', $sam)) {
+        return response()->json(['success' => false, 'message' => 'Identifiant (sam) invalide.'], 422);
+    }
+
+    // Récupère l'enregistrement serveur-side (source de vérité)
+    $target = User::where('sam', $sam)->first();
+
+    if (!$target) {
+        return response()->json(['success' => false, 'message' => 'Utilisateur cible introuvable.'], 404);
+    }
+
+    // Empêcher de bloquer soi-même
+    if (strtolower(auth()->user()->sam ?? '') === strtolower($sam)) {
+        return response()->json(['success' => false, 'message' => 'Impossible de bloquer votre propre compte.'], 403);
+    }
+
+    // Vérifier la config SSH
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    if (!$host || !$user) {
+        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+    }
+
+    // 1) Interroger AD pour récupérer l'état actuel et le DistinguishedName
+    // Préparer la commande PowerShell pour obtenir Enabled + DistinguishedName en JSON
+    $psQuery = "Get-ADUser -Identity '$sam' -Properties Enabled,DistinguishedName | Select-Object Enabled,DistinguishedName | ConvertTo-Json -Compress";
+    $psQueryEncoded = base64_encode(mb_convert_encoding($psQuery, 'UTF-16LE'));
+    $remoteQueryCmd = "powershell -NoProfile -NonInteractive -EncodedCommand {$psQueryEncoded}";
+
+    $queryCommand = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteQueryCmd]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteQueryCmd];
+
+    try {
+        $processQuery = new Process($queryCommand);
+        $processQuery->setTimeout(15);
+        $processQuery->run();
+
+        if (!$processQuery->isSuccessful()) {
+            throw new ProcessFailedException($processQuery);
         }
 
-        $sam = $request->input('sam');
-        $action = $request->input('action');
-        $userName = $request->input('user_name'); // Optionnel depuis le frontend
+        $output = trim($processQuery->getOutput());
+        if (empty($output)) {
+            // Parfois PowerShell écrit sur stderr -> essayer stderr
+            $output = trim($processQuery->getErrorOutput());
+        }
 
-        $adCommand = $action === 'block'
-            ? "powershell -Command \"Disable-ADAccount -Identity '$sam'\""
-            : "powershell -Command \"Enable-ADAccount -Identity '$sam'\"";
+        // Tenter de décoder le JSON retourné par ConvertTo-Json
+        $adInfo = json_decode($output, true);
 
-        $command = $keyPath && file_exists($keyPath)
-            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
-            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($adInfo)) {
+            \Log::warning('AD query returned invalid JSON', ['sam' => $sam, 'raw' => $output]);
+            return response()->json(['success' => false, 'message' => 'Impossible de récupérer l\'état AD du compte.'], 500);
+        }
 
-        try {
-            $process = new Process($command);
-            $process->setTimeout(30);
-            $process->run();
+        // Normaliser : $adInfo peut être soit un tableau simple, soit un tableau indexé
+        if (isset($adInfo[0])) {
+            $adItem = $adInfo[0];
+        } else {
+            $adItem = $adInfo;
+        }
 
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
+        $isEnabled = isset($adItem['Enabled']) ? (bool)$adItem['Enabled'] : null;
+        $distinguishedName = $adItem['DistinguishedName'] ?? null;
+
+        if ($isEnabled === null) {
+            \Log::warning('AD reply missing Enabled field', ['sam' => $sam, 'raw' => $output]);
+            return response()->json(['success' => false, 'message' => 'Données AD incomplètes.'], 500);
+        }
+
+        // 2) Vérifications serveur-side avant action
+        // a) Vérifier que l'état courant n'est pas déjà celui demandé
+        if ($action === 'block' && $isEnabled === false) {
+            return response()->json(['success' => false, 'message' => 'Compte déjà bloqué.'], 409);
+        }
+        if ($action === 'unblock' && $isEnabled === true) {
+            return response()->json(['success' => false, 'message' => 'Compte déjà activé.'], 409);
+        }
+
+        // b) Vérifier autorisation via flag serveur-side ou via OU dans DistinguishedName
+        $isAuthorizedFlag = (bool)($target->is_authorized_dn ?? false);
+
+        $allowedViaDn = false;
+        if ($distinguishedName) {
+            // Exemple : vérifier si DN contient une OU autorisée (adapter la chaîne selon ton usage)
+            // Tu peux stocker allowed OU dans la DB ou config('ad.allowed_ous')
+            $allowedOUs = config('ad.allowed_ous', []); // ex: ['OU=Employees,DC=company,DC=local']
+            foreach ($allowedOUs as $ou) {
+                if (stripos($distinguishedName, $ou) !== false) {
+                    $allowedViaDn = true;
+                    break;
+                }
             }
+        }
 
-            // ✅ Log de l'action réussie
-            $this->logAdActivity(
+        if (!$isAuthorizedFlag && !$allowedViaDn) {
+            \Log::warning('Tentative sur compte non autorisé', [
+                'actor_id' => auth()->id(),
+                'sam' => $sam,
+                'dn' => $distinguishedName,
+                'is_authorized_flag' => $isAuthorizedFlag,
+            ]);
+            return response()->json(['success' => false, 'message' => 'Action interdite : compte non autorisé.'], 403);
+        }
+
+        // 3) Tout est ok -> exécuter la commande de blocage/déblocage
+        $psAction = $action === 'block'
+            ? "Disable-ADAccount -Identity '$sam'"
+            : "Enable-ADAccount -Identity '$sam'";
+
+        $psActionEncoded = base64_encode(mb_convert_encoding($psAction, 'UTF-16LE'));
+        $remoteActionCmd = "powershell -NoProfile -NonInteractive -EncodedCommand {$psActionEncoded}";
+
+        $actionCommand = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteActionCmd]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $remoteActionCmd];
+
+        $processAction = new Process($actionCommand);
+        $processAction->setTimeout(30);
+        $processAction->run();
+
+        if (!$processAction->isSuccessful()) {
+            throw new ProcessFailedException($processAction);
+        }
+
+        // Log success
+        $this->logAdActivity(
             action: $action === 'block' ? 'block_user' : 'unblock_user',
             targetUser: $sam,
-            targetUserName: $userName,
+            targetUserName: $target->name ?? $sam,
             success: true,
             additionalDetails: [
-                'email' => $userEmail,
-                'dn' => $userDn,
-                'method' => 'AD Command',
+                'email' => $target->email ?? null,
+                'dn' => $distinguishedName,
+                'method' => 'AD Command (ssh + EncodedCommand)',
                 'action_type' => $action,
-                'previous_status' => $action === 'block' ? 'enabled' : 'disabled'  // 🆕
+                'previous_status' => $isEnabled ? 'enabled' : 'disabled'
             ]
         );
 
-        // 📧 Envoyer la notification email
+        // Notification mail (utiliser uniquement données côté serveur)
         $userData = [
             'sam' => $sam,
-            'name' => $userName ?? $sam,
-            'email' => $userEmail ?? null,
-            'ouPath' => $ouPath ?? null,
+            'name' => $target->name ?? $sam,
+            'email' => $target->email ?? null,
         ];
-        
         $this->sendBlockNotification(auth()->user(), $userData, $action);
-            
-        } catch (\Throwable $e) {
-            \Log::error('toggleUserStatus error: ' . $e->getMessage());
 
-            // ❌ Log de l'échec
-            $this->logAdActivity(
-                action: $action === 'block' ? 'block_user' : 'unblock_user',
-                targetUser: $sam,
-                targetUserName: $userName,
-                success: false,
-                errorMessage: $e->getMessage()
-            );
+        return response()->json(['success' => true, 'message' => 'Action exécutée avec succès.']);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur AD : ' . $e->getMessage(),
-            ], 500);
-        }
+    } catch (\Throwable $e) {
+        \Log::error('toggleUserStatus error: ' . $e->getMessage(), [
+            'actor_id' => auth()->id(),
+            'target_sam' => $sam,
+            'ip' => $request->ip(),
+            'ua' => $request->userAgent(),
+        ]);
+
+        $this->logAdActivity(
+            action: $action === 'block' ? 'block_user' : 'unblock_user',
+            targetUser: $sam,
+            targetUserName: $target->name ?? $sam,
+            success: false,
+            errorMessage: $e->getMessage()
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur AD : ' . $e->getMessage(),
+        ], 500);
     }
+}
 
     public function resetPassword(Request $request)
     {
