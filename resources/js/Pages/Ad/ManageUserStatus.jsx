@@ -215,7 +215,7 @@ const confirmToggle = () => {
                   <div className="p-inputgroup" style={{ height: "52px" }}>
                    
                     <InputText
-                      placeholder="Nom d'utilisateur ou SamAccountName..."
+                      placeholder="Rechercher un utilisateur dans AD (nom, samaccountname , email)..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSearch()}

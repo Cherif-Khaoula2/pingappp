@@ -36,7 +36,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdUserDetails, setCreatedUserDetails] = useState(null);
-
+ const [showPassword, setShowPassword] = useState(false);
   // Charger les directions au montage du composant
   useEffect(() => {
     if (initialDirections.length === 0) {
@@ -612,16 +612,26 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                         disabled
                       />
                     ) : (
-                      <Password
-                        id="password"
-                        name="password"
-                        value={form.password}
-                        onChange={handleChange}
-                        className="w-full"
-                        toggleMask
-                        feedback={true}
-                        required
-                      />
+                   <div className="p-inputgroup">
+      <InputText
+        id="password"
+        name="password"
+        value={form.password}
+        onChange={handleChange}
+        type={showPassword ? "text" : "password"}  // 👁️ bascule texte/mot de passe
+        required
+        className="w-full"
+        placeholder="Entrez le mot de passe"
+      />
+      <Button
+        icon={showPassword ? "pi pi-eye-slash" : "pi pi-eye"}
+        className="p-button-secondary"
+        type="button"
+        onClick={() => setShowPassword((prev) => !prev)}
+        tooltip={showPassword ? "Masquer" : "Afficher"}
+      />
+    </div>
+ 
                     )}
                   </div>
                 </div>
