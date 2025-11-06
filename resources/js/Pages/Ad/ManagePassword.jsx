@@ -48,25 +48,29 @@ export default function ResetUserPassword() {
   };
 
 // 🔹 Recherche d'un utilisateur
+
 const handleSearch = async () => {
-  if (!search.trim()) {
+  // ✅ Autoriser "." ou vide (on laisse le backend gérer)
+  if (!search.trim() && search.trim() !== ".") {
     setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
     return;
   }
 
   setLoading(true);
   setError(null);
-  
+
   try {
     const response = await axios.post("/ad/users/find", { search });
-    if (response.data.success && Array.isArray(response.data.users)) {
+
+    // ✅ Afficher les utilisateurs même si success = false
+    if (Array.isArray(response.data.users) && response.data.users.length > 0) {
       const mappedUsers = response.data.users.map((user) => ({
         name: user.name || user.sam,
         sam: user.sam,
         email: user.email,
         enabled: user.enabled,
         lastLogon: user.last_logon,
-        dn: user.dn,  // 🆕 AJOUTER
+        dn: user.dn,
       }));
       setUsers(mappedUsers);
       setError(null);
@@ -82,6 +86,7 @@ const handleSearch = async () => {
     setLoading(false);
   }
 };
+
 
 // 🔹 Ouvrir le dialog de réinitialisation
 const handleResetClick = (user) => {
