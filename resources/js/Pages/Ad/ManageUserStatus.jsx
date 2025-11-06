@@ -39,10 +39,11 @@ export default function ManageUserStatus() {
   // 🔹 Recherche d'un utilisateur
 // 🔹 Recherche d'un utilisateur
 const handleSearch = async () => {
-  if (!search.trim()) {
-    setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
-    return;
-  }
+ if (!search.trim() && search.trim() !== ".") {
+  setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
+  return;
+}
+
   setLoading(true);
   setError(null);
   

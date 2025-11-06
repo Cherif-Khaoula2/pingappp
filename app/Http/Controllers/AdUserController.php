@@ -427,13 +427,15 @@ public function findUser(Request $request)
         
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
-
-    // 🔍 Filtre PowerShell
+// ✅ Autoriser "." comme recherche globale
+if (trim($search) === '' || trim($search) === '.') {
+    $filter = 'Name -like "*"';
+} else {
     $escapedSearch = str_replace(['"', "'"], ['`"', "''"], $search);
-    $filter = empty($search)
-        ? 'Name -like "*"'
-        : "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
+    $filter = "Name -like \"*{$escapedSearch}*\" -or SamAccountName -like \"*{$escapedSearch}*\" -or EmailAddress -like \"*{$escapedSearch}*\"";
+}
 
+   
     // ⚡ Requête AD
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 50 " .
