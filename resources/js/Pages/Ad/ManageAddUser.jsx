@@ -243,7 +243,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
         sam: form.sam,
         email: form.email,
         password: form.password,
-        direction: selectedDirection?.name || '',
+        direction: selectedDirection?.nom || '',
         accountType: accountType
       });
       
