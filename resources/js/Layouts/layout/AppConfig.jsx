@@ -61,8 +61,16 @@ const AppConfig = (props) => {
 
             
 
-            <Sidebar visible={layoutState.configSidebarVisible} onHide={onConfigSidebarHide} position="right" dismissable modal={false}
-                     className="layout-config-sidebar w-20rem">
+   <Sidebar
+    visible={layoutState.overlayMenuActive}   // <- L'état qui contrôle la visibilité
+    onHide={() =>
+        setLayoutState(prev => ({
+            ...prev,
+            overlayMenuActive: false      // <- Ferme l'overlay
+        }))
+    }
+    position="right"
+    className="layout-config-sidebar w-20rem">
                 {!props.simple && (
                     <>
                         <h5>Scale</h5>
