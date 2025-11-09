@@ -33,7 +33,13 @@ export default function ResetUserPassword() {
   const [showManualPassword, setShowManualPassword] = useState(false);
   const [resetError, setResetError] = useState(null);
   const [isResetting, setIsResetting] = useState(false);
-
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(25);
+  
+  const onPageChange = (event) => {
+  setFirst(event.first);
+  setRows(event.rows);
+};
   // 🔹 Changement du mode de mot de passe
   const handlePasswordModeChange = (mode) => {
     setPasswordMode(mode);
@@ -58,6 +64,7 @@ const handleSearch = async () => {
 
   setLoading(true);
   setError(null);
+  setFirst(0);
 
   try {
     const response = await axios.post("/ad/users/find", { search });
@@ -199,6 +206,14 @@ const confirmResetPassword = () => {
             <DataTable
               value={users}
               stripedRows
+              paginator
+              rows={rows}
+              first={first}
+              onPage={onPageChange}
+              rowsPerPageOptions={[25, 50, 100 , 200]}
+              paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+              currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
+              paginatorClassName="custom-paginator"
               responsiveLayout="scroll"
               className="custom-datatable"
               header={
