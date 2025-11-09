@@ -117,8 +117,8 @@ const handleMoveUser = async () => {
         >
             <option value="">-- Sélectionner utilisateur --</option>
             {filteredUsers.map(u => (
-                <option key={u.SamAccountName} value={u.DistinguishedName}>
-                    {u.Name} ({u.SamAccountName})
+                <option key={u.SamAccountName} value={u.SamAccountName}>
+                    ({u.SamAccountName})
                 </option>
                 
             ))}

@@ -1239,7 +1239,7 @@ public function moveUser(Request $request)
 
         return response()->json(['message' => 'Utilisateur déplacé avec succès']);
     } catch (\Throwable $e) {
-        Log::error('Erreur déplacement AD: ' . $e->getMessage(), ['userDn' => $userDn, 'targetOuDn' => $targetOuDn]);
+        
         return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
     }
 }
