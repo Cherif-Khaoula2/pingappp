@@ -428,45 +428,22 @@ public function findUser(Request $request)
     }
     
 
-   if (empty($search) || $search === '.') {
+ if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+    $psScripts = [];
 
-    // Vérifier qu'il y a au moins un DN
-    if (empty($userAuthDns)) {
-        $allUsers = [];
-    } else {
-        // Générer une commande PowerShell pour chaque DN
-       $psScript = "$all = @();";
-foreach ($userAuthDns as $dnPath) {
-    $dnPath = trim($dnPath);
-    $psScript .= "\$all += Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; ";
-}
-$psScript .= "$all | ConvertTo-Json -Depth 3 -Compress";
+  
+        $psScripts[] = "Get-ADUser -Filter * -ResultSetSize 1000  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+ 
 
+    $psScript = implode(";", $psScripts) .
+        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
 
-
-        // Exécuter PowerShell
-        $allUsersJson = shell_exec($psScript);
-
-        // Décoder JSON
-        $allUsers = json_decode($allUsersJson, true);
-
-        if (!is_array($allUsers)) {
-            Log::warning('Données AD invalides ou JSON incorrect', ['output' => $allUsersJson]);
-            $allUsers = [];
-        }
-    }
-
-    // Filtrer avec isDnAuthorized pour plus de sécurité
-    $filteredUsers = array_filter($allUsers, function ($user) use ($userAuthDns) {
-        return $this->isDnAuthorized($user['DistinguishedName'], $userAuthDns);
-    });
-
-    // Variable de log pour debug
+    // Variable de log à utiliser à la place de $filter
     $logFilter = implode(" OR ", $userAuthDns);
-}
 
-else {
+} else {
+
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
     $psScript =
