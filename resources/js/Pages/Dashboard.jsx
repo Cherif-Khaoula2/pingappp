@@ -243,7 +243,19 @@ export default function Dashboard({
             'unblock_user': 'info',
             'create_user': 'info', 
             'reset_password': 'warning',
-            'change_password': 'info'
+            'change_password': 'info',
+            'search_user': 'info',
+            'search_user_result': 'secondary',
+            'create_dn': 'success',
+            'update_dn': 'warning',
+            'delete_dn': 'danger',
+            'assign_dns_to_user': 'primary',
+            'assign_dn_to_users': 'primary',
+            'unassign_dn_from_users': 'warning',
+            'hide_account': 'secondary',
+            'unhide_account': 'success',
+            'authorize_ldap_user': 'success',
+            'unauthorize_ldap_user': 'danger'
         };
         
         const labelMap = {
@@ -253,7 +265,19 @@ export default function Dashboard({
             'unblock_user': 'Déblocage',
             'create_user': 'Création',
             'reset_password': 'Reset MDP',
-            'change_password': 'Change MDP'
+            'change_password': 'Change MDP',
+            'search_user': 'Recherche utilisateur',
+            'search_user_result': 'Résultats recherche',
+            'create_dn': 'Création DN',
+            'update_dn': 'Modification DN',
+            'delete_dn': 'Suppression DN',
+            'assign_dns_to_user': 'Affectation DNs',
+            'assign_dn_to_users': 'Ajout utilisateurs DN',
+            'unassign_dn_from_users': 'Retrait utilisateurs DN',
+            'hide_account': 'Masquage des utilisateurs',
+            'unhide_account': 'Démasquage des utilisateurs',
+            'authorize_ldap_user': 'Autorisation des utilisateurs',
+            'unauthorize_ldap_user': 'Désautorisation des utilisateurs'
         };
         
         return <Tag value={labelMap[row.action] || row.action} severity={severityMap[row.action] || 'secondary'} />;
