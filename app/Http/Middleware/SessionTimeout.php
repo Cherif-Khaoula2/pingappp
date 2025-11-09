@@ -8,7 +8,8 @@ use App\Traits\LogsAdActivity;
 class SessionTimeout
 {use LogsAdActivity;
     // Durée maximale d'inactivité (en secondes)
-    protected $timeout = 1800; // 30 minutes
+    protected $timeout = 300; // 5 minutes
+
 
     public function handle($request, Closure $next)
     {
