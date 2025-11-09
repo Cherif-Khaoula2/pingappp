@@ -42,23 +42,9 @@ export default function AdUsersList() {
     };
 
     const nameTemplate = (rowData) => {
-        const initial = rowData.Name ? rowData.Name.charAt(0).toUpperCase() : rowData.SamAccountName?.charAt(0).toUpperCase() || 'U';
         return (
             <div className="flex align-items-center gap-3">
-                <div
-                    className="flex align-items-center justify-content-center border-circle"
-                    style={{
-                        width: '45px',
-                        height: '45px',
-                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
-                        fontSize: '1.2rem',
-                        color: 'white',
-                        fontWeight: 'bold',
-                    }}
-                >
-                    {initial}
-                </div>
+              
                 <div>
                     <div className="font-semibold text-900 text-lg">{rowData.Name || rowData.SamAccountName}</div>
                     <div className="text-sm text-600 flex align-items-center gap-1">
@@ -81,16 +67,6 @@ export default function AdUsersList() {
         );
     };
 
-    const statusTemplate = (rowData) => {
-        const isEnabled = rowData.Enabled !== false;
-        return (
-            <Tag
-                value={isEnabled ? 'Actif' : 'Inactif'}
-                severity={isEnabled ? 'success' : 'danger'}
-                icon={isEnabled ? 'pi pi-check-circle' : 'pi pi-times-circle'}
-            />
-        );
-    };
 
     return (
         <Layout>
@@ -99,18 +75,6 @@ export default function AdUsersList() {
             <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
                 <div className="grid">
                     <div className="col-12">
-                        {/* Breadcrumb / Retour */}
-                        <div className="mb-3">
-                            <Link
-                                href="/ad/ou-page"
-                                className="inline-flex align-items-center gap-2 text-primary hover:text-primary-600 transition-colors"
-                                style={{ textDecoration: 'none', fontSize: '1rem' }}
-                            >
-                                <i className="pi pi-arrow-left"></i>
-                                <span className="font-semibold">Retour aux Unités Organisationnelles</span>
-                            </Link>
-                        </div>
-
                         <Card className="shadow-3 border-round-xl">
                             {error ? (
                                 <Message
@@ -136,26 +100,36 @@ export default function AdUsersList() {
                                 className="custom-datatable"
                                 header={
                                     <div className="flex flex-column gap-4">
-                                        <div className="flex align-items-center gap-3">
-                                            <div
-                                                className="flex align-items-center justify-content-center border-circle"
-                                                style={{
-                                                    width: '70px',
-                                                    height: '70px',
-                                                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                                                    boxShadow: '0 8px 20px rgba(59, 130, 246, 0.3)',
-                                                }}
-                                            >
-                                                <i className="pi pi-users text-white" style={{ fontSize: '2rem' }}></i>
+                                        <div className="flex align-items-center justify-content-between gap-3">
+                                            <div className="flex align-items-center gap-3">
+                                                <div
+                                                    className="flex align-items-center justify-content-center border-circle"
+                                                
+                                                >
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h1 className="text-900 text-3xl font-bold m-0 mb-1">
+                                                        Utilisateurs de l'Unité Organisationnelle
+                                                    </h1>
+                                                    <p className="text-600 m-0 text-lg">
+                                                        {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} dans cette OU
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="flex-1">
-                                                <h1 className="text-900 text-3xl font-bold m-0 mb-1">
-                                                    Utilisateurs de l'Unité Organisationnelle
-                                                </h1>
-                                                <p className="text-600 m-0 text-lg">
-                                                    {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} dans cette OU
-                                                </p>
-                                            </div>
+                                            <Link href="/ad/ou-page">
+                                                <Button
+                                        
+                                                    label="Retour aux OUs"
+                                                    outlined
+                                                    severity="secondary"
+                                                    className="custom-back-btn"
+                                                    style={{ 
+                                                        height: '48px',
+                                                        fontWeight: '600',
+                                                        whiteSpace: 'nowrap'
+                                                    }}
+                                                />
+                                            </Link>
                                         </div>
 
                                         {/* Distinguished Name de l'OU */}
@@ -237,13 +211,7 @@ export default function AdUsersList() {
                                     sortable
                                     style={{ minWidth: '250px' }}
                                 />
-                                <Column
-                                    field="Enabled"
-                                    header="Statut"
-                                    body={statusTemplate}
-                                    sortable
-                                    style={{ minWidth: '120px' }}
-                                />
+                                
                             </DataTable>
                         </Card>
                     </div>
@@ -280,6 +248,15 @@ export default function AdUsersList() {
 
                 :global(.custom-info-message) {
                     animation: slideIn 0.3s ease;
+                }
+
+                :global(.custom-back-btn) {
+                    transition: all 0.2s ease;
+                }
+
+                :global(.custom-back-btn:hover) {
+                    transform: translateX(-3px);
+                    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.2) !important;
                 }
 
                 .p-inputgroup :global(.p-inputtext) {
