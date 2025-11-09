@@ -157,26 +157,20 @@ trait ValidatesAdUsers
     /**
      * Vérifie si un DN est dans la liste des DNs autorisés
      */
- protected function isDnAuthorized(string $dn, array $authorizedDns): bool
-{
-    if (empty($authorizedDns)) {
+    protected function isDnAuthorized(string $dn, array $authorizedDns): bool
+    {
+        if (empty($authorizedDns)) {
+            return false;
+        }
+
+        foreach ($authorizedDns as $allowedDn) {
+            if (stripos($dn, $allowedDn) !== false) {
+                return true;
+            }
+        }
+
         return false;
     }
-
-    // Normaliser (minuscules et suppression des espaces superflus)
-    $dnNorm = strtolower(trim($dn));
-
-    foreach ($authorizedDns as $allowedDn) {
-        $allowedNorm = strtolower(trim($allowedDn));
-
-        if ($dnNorm === $allowedNorm) {
-            return true; // accès autorisé uniquement si le DN est exactement le même
-        }
-    }
-
-    return false; // aucun DN ne correspond exactement
-}
-
 
     /**
      * Échappe les caractères dangereux pour PowerShell (pour -Identity)
