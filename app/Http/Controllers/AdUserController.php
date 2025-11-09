@@ -1212,11 +1212,7 @@ public function moveUser(Request $request)
     $userDn = $this->escapePowerShellString($request->input('user_dn'));
     $targetOuDn = $this->escapePowerShellString($request->input('target_ou_dn'));
 
-    // 🔒 Vérification : user et target OU doivent être dans NewUsersOU
-    if (!str_contains($userDn, 'OU=NewUsersOU,DC=sarpi-dz,DC=sg') ||
-        !str_contains($targetOuDn, 'OU=NewUsersOU,DC=sarpi-dz,DC=sg')) {
-        return response()->json(['message' => 'Déplacement non autorisé'], 403);
-    }
+   
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
