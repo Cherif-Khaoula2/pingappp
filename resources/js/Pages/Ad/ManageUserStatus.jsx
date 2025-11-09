@@ -12,10 +12,11 @@ import { Message } from "primereact/message";
 import { Divider } from "primereact/divider";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { Head } from '@inertiajs/react';
-import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
-import 'primereact/resources/primereact.min.css';                   // Core CSS
-import 'primeicons/primeicons.css';                                 // Icônes
-import 'primeflex/primeflex.css';  
+import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
+
 export default function ManageUserStatus() {
    
   const [search, setSearch] = useState("");
@@ -23,6 +24,11 @@ export default function ManageUserStatus() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  
+  // 🆕 États pour la pagination
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(25);
+  
   const [confirmDialog, setConfirmDialog] = useState({
     visible: false,
     sam: null,
@@ -37,96 +43,97 @@ export default function ManageUserStatus() {
   });
 
   // 🔹 Recherche d'un utilisateur
-
-const handleSearch = async () => {
-  // ✅ Autoriser "." ou vide (on laisse le backend gérer)
-  if (!search.trim() && search.trim() !== ".") {
-    setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  try {
-    const response = await axios.post("/ad/users/find", { search });
-
-    // ✅ Afficher les utilisateurs même si success = false
-    if (Array.isArray(response.data.users) && response.data.users.length > 0) {
-      const mappedUsers = response.data.users.map((user) => ({
-        name: user.name || user.sam,
-        sam: user.sam,
-        email: user.email,
-        enabled: user.enabled,
-        lastLogon: user.last_logon,
-        dn: user.dn,
-      }));
-      setUsers(mappedUsers);
-      setError(null);
-    } else {
-      setUsers([]);
-      setError("Aucun utilisateur trouvé pour cette recherche.");
+  const handleSearch = async () => {
+    if (!search.trim() && search.trim() !== ".") {
+      setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
+      return;
     }
-  } catch (err) {
-    console.error("Erreur lors de la recherche :", err);
-    setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
-    setUsers([]);
-  } finally {
-    setLoading(false);
-  }
-};
 
+    setLoading(true);
+    setError(null);
+    setFirst(0); // 🆕 Réinitialiser la pagination lors d'une nouvelle recherche
+
+    try {
+      const response = await axios.post("/ad/users/find", { search });
+
+      if (Array.isArray(response.data.users) && response.data.users.length > 0) {
+        const mappedUsers = response.data.users.map((user) => ({
+          name: user.name || user.sam,
+          sam: user.sam,
+          email: user.email,
+          enabled: user.enabled,
+          lastLogon: user.last_logon,
+          dn: user.dn,
+        }));
+        setUsers(mappedUsers);
+        setError(null);
+      } else {
+        setUsers([]);
+        setError("Aucun utilisateur trouvé pour cette recherche.");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la recherche :", err);
+      setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🆕 Gestion du changement de page
+  const onPageChange = (event) => {
+    setFirst(event.first);
+    setRows(event.rows);
+  };
 
   // 🔹 Ouverture du dialog de confirmation
-const handleToggleClick = (user, action) => {
+  const handleToggleClick = (user, action) => {
     setConfirmDialog({
       visible: true,
       sam: user.sam,
       action,
       userName: user.name,
-      userEmail: user.email,  // 🆕
-      userDn: user.dn,        // 🆕
+      userEmail: user.email,
+      userDn: user.dn,
     });
-};
+  };
 
   // 🔹 Confirmer blocage/déblocage
-// 🔹 Confirmer blocage/déblocage
-const confirmToggle = () => {
-  setIsToggling(true);
-  
-  router.post(
-    "/ad/users/toggle",
-    { 
-      sam: confirmDialog.sam, 
-      action: confirmDialog.action, 
-    },
-    {
-      onSuccess: () => {
-        setSuccessDialog({
-          visible: true,
-          action: confirmDialog.action,
-          userName: confirmDialog.userName,
-          sam: confirmDialog.sam,
-        });
-        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
-        setIsToggling(false);
-        handleSearch();
+  const confirmToggle = () => {
+    setIsToggling(true);
+    
+    router.post(
+      "/ad/users/toggle",
+      { 
+        sam: confirmDialog.sam, 
+        action: confirmDialog.action, 
       },
-      onError: () => {
-        setError("Erreur lors du changement de statut");
-        setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
-        setIsToggling(false);
-      },
-    }
-  );
-};
+      {
+        onSuccess: () => {
+          setSuccessDialog({
+            visible: true,
+            action: confirmDialog.action,
+            userName: confirmDialog.userName,
+            sam: confirmDialog.sam,
+          });
+          setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+          setIsToggling(false);
+          handleSearch();
+        },
+        onError: () => {
+          setError("Erreur lors du changement de statut");
+          setConfirmDialog({ visible: false, sam: null, action: null, userName: null });
+          setIsToggling(false);
+        },
+      }
+    );
+  };
 
   // 🔹 Templates pour la table
   const nameTemplate = (rowData) => {
     const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : "U";
     return (
       <div className="flex align-items-center gap-3">
-        
         <div>
           <div className="font-semibold text-900 text-lg">{rowData.name}</div>
           <div className="text-sm text-600 flex align-items-center gap-1">
@@ -197,13 +204,19 @@ const confirmToggle = () => {
               stripedRows
               responsiveLayout="scroll"
               className="custom-datatable"
+              // 🆕 Configuration de la pagination
+              paginator
+              rows={rows}
+              first={first}
+              onPage={onPageChange}
+              rowsPerPageOptions={[25, 50, 100 , 200]}
+              paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+              currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
+              paginatorClassName="custom-paginator"
               header={
                 <div className="flex flex-column gap-4">
                   <div className="flex align-items-center gap-3">
-                    <div
-                      
-                    >
-                    </div>
+                    <div></div>
                     <div>
                       <h1 className="text-900 text-3xl font-bold m-0 mb-1">
                         Gestion Blocage / Déblocage
@@ -215,9 +228,8 @@ const confirmToggle = () => {
                   </div>
 
                   <div className="p-inputgroup" style={{ height: "52px" }}>
-                   
                     <InputText
-                      placeholder="Rechercher un utilisateur dans AD (nom, samaccountname , email)..."
+                      placeholder="Rechercher un utilisateur dans AD (nom, samaccountname, email)..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSearch()}
@@ -276,7 +288,6 @@ const confirmToggle = () => {
         className="custom-dialog"
       >
         <div className="p-4">
-          {/* Header personnalisé */}
           <div className="text-center mb-4">
             <div
               className="inline-flex align-items-center justify-content-center border-circle mb-3"
@@ -304,7 +315,6 @@ const confirmToggle = () => {
             </p>
           </div>
 
-          {/* Infos utilisateur */}
           <div className={`p-3 border-round-lg mb-4 border-1 ${
             confirmDialog.action === "block" ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
           }`}>
@@ -318,7 +328,6 @@ const confirmToggle = () => {
             </div>
           </div>
 
-          {/* Message d'avertissement */}
           <div className={`p-3 border-round-lg mb-4 ${
             confirmDialog.action === "block" ? "bg-orange-50" : "bg-blue-50"
           }`}>
@@ -343,7 +352,6 @@ const confirmToggle = () => {
             </div>
           </div>
 
-          {/* Boutons d'action */}
           <div className="flex gap-3 mt-4">
             <Button
               label="Annuler"
@@ -376,7 +384,6 @@ const confirmToggle = () => {
         className="custom-dialog"
       >
         <div className="p-5">
-          {/* Icône de succès */}
           <div className="text-center mb-4">
             <div
               className="inline-flex align-items-center justify-content-center border-circle mb-3"
@@ -403,7 +410,6 @@ const confirmToggle = () => {
 
           <Divider />
 
-          {/* Détails */}
           <div className="surface-100 border-round-lg p-4 mb-4">
             <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
               <i className="pi pi-user text-primary text-xl mt-1"></i>
@@ -436,7 +442,6 @@ const confirmToggle = () => {
             </div>
           </div>
 
-          {/* Message informatif */}
           <div className={`p-3 border-round-lg mb-4 ${
             successDialog.action === "block" ? "bg-red-50" : "bg-green-50"
           }`}>
@@ -451,7 +456,6 @@ const confirmToggle = () => {
             </div>
           </div>
 
-          {/* Bouton OK */}
           <Button
             label="OK, j'ai compris"
             onClick={() => setSuccessDialog({ visible: false, action: null, userName: null, sam: null })}
@@ -487,6 +491,30 @@ const confirmToggle = () => {
         .custom-datatable :global(.p-datatable-tbody > tr:hover) {
           background: var(--surface-100);
           transform: scale(1.01);
+        }
+
+        /* 🆕 Styles pour la pagination */
+        :global(.custom-paginator) {
+          padding: 1rem;
+          background: var(--surface-50);
+          border-radius: 0 0 12px 12px;
+        }
+
+        :global(.custom-paginator .p-paginator-current) {
+          color: var(--primary-700);
+          font-weight: 600;
+        }
+
+        :global(.custom-paginator .p-paginator-pages .p-paginator-page) {
+          min-width: 2.5rem;
+          height: 2.5rem;
+          margin: 0 0.25rem;
+          border-radius: 8px;
+        }
+
+        :global(.custom-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+          background: linear-gradient(135deg, #6366f1, #4f46e5);
+          border-color: transparent;
         }
 
         :global(.custom-dialog .p-dialog-content) {
