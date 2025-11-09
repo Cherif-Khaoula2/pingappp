@@ -9,3 +9,14 @@
     font-weight: normal;
     font-style: normal;
 }
+
+/* ✅ Fix blocage sur mobile : empêche un overlay invisible de bloquer l'écran */
+div[style*="z-index: 9999"][style*="background"] {
+    pointer-events: none !important;
+}
+
+/* ✅ Améliore la réactivité tactile sur mobile */
+body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
