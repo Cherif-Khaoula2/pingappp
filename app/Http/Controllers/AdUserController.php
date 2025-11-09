@@ -426,37 +426,24 @@ public function findUser(Request $request)
         
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
-    $resultSetSize = 10;
-if (empty($search) || $search === '.') {
-    $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-    $psScripts = [];
 
-    foreach ($userAuthDns as $dnPath) {
-        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+    // ✅ Amélioration de l'échappement PowerShell
+    $escapedSearch = $this->escapePowerShellStringForFilter($search);
+    
+    // ✅ Construction du filtre amélioré
+    if (empty($search)) {
+        $filter = 'Name -like "*"';
+    } else {
+        // Utiliser des wildcards explicites pour une recherche "contient"
+        $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
     }
 
-    $psScript = implode(";", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
-
-    // Variable de log à utiliser à la place de $filter
-    $logFilter = implode(" OR ", $userAuthDns);
-
-} else {
-    $escapedSearch = $this->escapePowerShellStringForFilter($search);
-    $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
+    // ✅ Script PowerShell optimisé avec limite augmentée
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
         "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
         "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
         "ConvertTo-Json -Depth 3 -Compress";
-
-    $logFilter = $filter;
-}
-
-// Pour le log
-Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $logFilter]);
-
-
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
@@ -481,7 +468,7 @@ Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $p
                 'exit_code' => $process->getExitCode(),
                 'error' => $process->getErrorOutput(),
                 'output' => $process->getOutput(),
-                'filter' => $logFilter,
+                'filter' => $filter,
                 'search' => $search
             ]);
             
@@ -581,7 +568,7 @@ Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $p
                     'found_users' => $authorizedUsers->pluck('sam')->toArray(),
                     'found_names' => $authorizedUsers->pluck('name')->toArray(),
                     'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-                    'search_filter' => $logFilter,
+                    'search_filter' => $filter,
                     'total_before_filter' => count($adUsers)
                 ]
             );
