@@ -561,10 +561,22 @@ if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
             $enabled = (bool)($adUser['Enabled'] ?? false);
             $isLocal = in_array($email, $existingEmails);
 
-            // ✅ Utiliser la méthode sécurisée
-            $isAuthorizedDn = $this->isDnAuthorized($dn, $userAuthDns);
+          $isAuthorizedDn = $this->isDnAuthorized($dn, $userAuthDns);
 
-          
+Log::info("🔍 Test DN", [
+    'dn' => $dn,
+    'normalized' => strtolower(trim($dn)),
+    'authorized_dns' => $userAuthDns,
+    'result' => $isAuthorizedDn ? '✅ AUTORISÉ' : '❌ REFUSÉ',
+    'ends_with_check' => array_map(function($allowedDn) use ($dn) {
+        $normalized = strtolower(trim($dn));
+        $normalizedAllowed = strtolower(trim($allowedDn));
+        return [
+            'allowed' => $allowedDn,
+            'ends_with' => str_ends_with($normalized, ',' . $normalizedAllowed) ? 'YES' : 'NO'
+        ];
+    }, $userAuthDns)
+]);
 
             return [
                 'name' => $adUser['Name'] ?? '',
