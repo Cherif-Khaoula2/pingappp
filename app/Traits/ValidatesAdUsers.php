@@ -167,20 +167,29 @@ protected function isDnAuthorized(string $dn, array $authorizedDns): bool
 
     foreach ($authorizedDns as $allowedDn) {
         $normalizedAllowedDn = strtolower(trim($allowedDn));
-        
+
         // Match exact
         if ($normalizedDn === $normalizedAllowedDn) {
             return true;
         }
-        
+
         // Le DN doit se terminer par ",allowedDn"
-        if (str_ends_with($normalizedDn, ',' . $normalizedAllowedDn)) {
-            return true;
+        if (!str_ends_with($normalizedDn, ',' . $normalizedAllowedDn)) {
+            continue; // teste le prochain DN autorisé
         }
+
+        // Vérification stricte : pas d'OU avant le DN autorisé
+        $beforeAllowedDn = substr($normalizedDn, 0, -(strlen(',' . $normalizedAllowedDn)));
+        if (preg_match('/\bou=/i', $beforeAllowedDn)) {
+            continue; // passe au DN autorisé suivant
+        }
+
+        return true; // trouvé un DN autorisé valide
     }
 
-    return false;
+    return false; // aucun DN autorisé ne correspond
 }
+
 
     /**
      * Échappe les caractères dangereux pour PowerShell (pour -Identity)
