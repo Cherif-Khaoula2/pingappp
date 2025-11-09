@@ -30,7 +30,8 @@ export default function Dashboard({
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredLogs, setFilteredLogs] = useState(recentLogs);
     const [periodFilter, setPeriodFilter] = useState(period);
-    
+
+    const [isLoading, setIsLoading] = useState(false);
     const pageProps = usePage().props;
     const { permissions = [] } = pageProps;
     

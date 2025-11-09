@@ -21,22 +21,45 @@ class DashboardController extends Controller
 
             $tz = 'Africa/Algiers';
             $period = (int) $request->input('period', 30);
+            
+            // ✅ Date de début pour filtrer TOUTES les données
+            $startDate = Carbon::now($tz)->subDays($period);
 
-            // ==================== 1️⃣ STATISTIQUES GLOBALES ====================
+            // ==================== 1️⃣ STATISTIQUES GLOBALES (FILTRÉES PAR PÉRIODE) ====================
             $stats = [
-                'total_logs' => AdActivityLog::count(),
+                'total_logs' => AdActivityLog::where('created_at', '>=', $startDate)->count(),
                 'today_logs' => AdActivityLog::whereDate('created_at', today())->count(),
-                'failed' => AdActivityLog::where('status', 'failed')->count(),
+                'failed' => AdActivityLog::where('status', 'failed')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
 
-                'login_count' => AdActivityLog::where('action', 'login')->count(),
-                'logout_count' => AdActivityLog::where('action', 'logout')->count(),
-                'block_count' => AdActivityLog::where('action', 'block_user')->count(),
-                'unblock_count' => AdActivityLog::where('action', 'unblock_user')->count(),
-                'create_count' => AdActivityLog::where('action', 'create_user')->count(),
-                'update_count' => AdActivityLog::where('action', 'update_user')->count(),
-                'delete_count' => AdActivityLog::where('action', 'delete_user')->count(),
-                'reset_password_count' => AdActivityLog::where('action', 'reset_password')->count(),
-                'change_password_count' => AdActivityLog::where('action', 'change_password')->count(),
+                'login_count' => AdActivityLog::where('action', 'login')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'logout_count' => AdActivityLog::where('action', 'logout')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'block_count' => AdActivityLog::where('action', 'block_user')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'unblock_count' => AdActivityLog::where('action', 'unblock_user')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'create_count' => AdActivityLog::where('action', 'create_user')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'update_count' => AdActivityLog::where('action', 'update_user')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'delete_count' => AdActivityLog::where('action', 'delete_user')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'reset_password_count' => AdActivityLog::where('action', 'reset_password')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
+                'change_password_count' => AdActivityLog::where('action', 'change_password')
+                    ->where('created_at', '>=', $startDate)
+                    ->count(),
             ];
 
             // ==================== 2️⃣ ACTIVITÉ JOURNALIÈRE ====================
@@ -44,7 +67,7 @@ class DashboardController extends Controller
                     DB::raw('DATE(created_at) as date'),
                     DB::raw('COUNT(*) as total')
                 )
-                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->where('created_at', '>=', $startDate)
                 ->groupBy('date')
                 ->orderBy('date', 'asc')
                 ->get();
@@ -78,7 +101,7 @@ class DashboardController extends Controller
             ];
 
             $actionBreakdown = AdActivityLog::select('action', DB::raw('COUNT(*) as count'))
-                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->where('created_at', '>=', $startDate)
                 ->groupBy('action')
                 ->orderByDesc('count')
                 ->get()
@@ -91,7 +114,7 @@ class DashboardController extends Controller
             // ==================== 4️⃣ TOP UTILISATEURS ACTIFS ====================
             $topPerformers = AdActivityLog::with('performer:id,first_name,last_name,email')
                 ->select('performed_by_id', DB::raw('COUNT(*) as count'))
-                ->where('created_at', '>=', Carbon::now($tz)->subDays($period))
+                ->where('created_at', '>=', $startDate)
                 ->whereNotNull('performed_by_id')
                 ->groupBy('performed_by_id')
                 ->orderByDesc('count')
@@ -112,12 +135,12 @@ class DashboardController extends Controller
                 })
                 ->toArray();
 
-            // ==================== 5️⃣ DERNIERS LOGS ====================
+            // ==================== 5️⃣ DERNIERS LOGS (FILTRÉS PAR PÉRIODE) ====================
             $recentLogs = AdActivityLog::with('performer:id,first_name,last_name,email')
+                ->where('created_at', '>=', $startDate)
                 ->latest()
                 ->limit(10)
                 ->get()
-                
                 ->map(function ($log) use ($tz) {
                     $performerName = 'Système';
 
@@ -151,6 +174,8 @@ class DashboardController extends Controller
             ];
 
             Log::info('=== [DASHBOARD] Données envoyées à Inertia ===', [
+                'period' => $period,
+                'start_date' => $startDate->format('Y-m-d'),
                 'stats' => count($stats),
                 'activity' => count($activityData),
                 'actions' => count($actionBreakdown),
