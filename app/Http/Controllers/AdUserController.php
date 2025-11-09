@@ -429,31 +429,41 @@ public function findUser(Request $request)
     
 
     
-    if (empty($search) || $search === '.') {
+  if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-    $psScripts = [];
-
+    
+    // ✅ LOG: DNs autorisés
+    Log::info("🔐 DNs autorisés pour l'utilisateur", [
+        'user_id' => auth()->id(),
+        'user_email' => auth()->user()->email,
+        'authorized_dns' => $userAuthDns
+    ]);
+    
+    // ✅ CORRECTION: Utiliser la syntaxe de tableau PowerShell
+    $searchBaseParts = [];
     foreach ($userAuthDns as $dnPath) {
-        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath'  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        // Chaque commande entre parenthèses
+        $searchBaseParts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
     }
+    
+    // Combiner avec @() et virgules (pas de point-virgules)
+    $psScript = "@(" . implode(", ", $searchBaseParts) . ") | " .
+        "Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName -Unique | " .
+        "ConvertTo-Json -Depth 3 -Compress";
 
-    $psScript = implode(";", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress | Out-String ";
-
-    // Variable de log à utiliser à la place de $filter
     $logFilter = implode(" OR ", $userAuthDns);
 
 } else {
-        $escapedSearch = $this->escapePowerShellStringForFilter($search);
-        $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
-        $psScript =
-            "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
-            "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
-            "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
-            "ConvertTo-Json -Depth 3 -Compress| Out-String ";
+    $escapedSearch = $this->escapePowerShellStringForFilter($search);
+    $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
+    $psScript =
+        "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
+        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
+        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+        "ConvertTo-Json -Depth 3 -Compress";
 
-        $logFilter = $filter;
-    }
+    $logFilter = $filter;
+}
 
     
 
