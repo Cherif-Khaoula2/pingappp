@@ -225,7 +225,10 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
 
     // 🔹 Récupérer les utilisateurs d'une OU spécifique
     Route::post('/ad/users-by-ou', [AdUserController::class, 'getUsersByOU']);
+
+    
     Route::get('/ad/ou-page', [AdUserController::class, 'showOuPage']);
+    Route::get('/ad/ou-users/{ou_dn}', [AdUserController::class, 'showUsersByOU'])->name('ad.ou.users');
 
 });
 

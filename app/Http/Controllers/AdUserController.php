@@ -1246,5 +1246,57 @@ public function showOuPage()
     }
 }
 
+public function showUsersByOU($ou_dn)
+{
+    $this->authorize('getaduser');
+
+    $ouDn = $this->escapePowerShellString(urldecode($ou_dn));
+
+    if (!str_contains($ouDn, "OU=NewUsersOU,DC=sarpi-dz,DC=sg")) {
+        abort(403, 'OU non autorisée');
+    }
+
+    try {
+        $users = $this->fetchUsersFromOU($ouDn); // méthode privée à créer
+        return Inertia::render('Ad/AdUsersList', [
+            'ou_dn' => $ouDn,
+            'users' => $users
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('Erreur récupération utilisateurs : ' . $e->getMessage());
+        return Inertia::render('Ad/AdUsersList', [
+            'ou_dn' => $ouDn,
+            'users' => [],
+            'error' => 'Impossible de récupérer les utilisateurs.'
+        ]);
+    }
+}
+private function fetchUsersFromOU($ouDn)
+{
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -Properties Name,SamAccountName,EmailAddress | Select-Object Name,SamAccountName,EmailAddress | ConvertTo-Json";
+    $adCommand = "powershell -Command \"$psCommand\"";
+
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+
+    $process = new Process($command);
+    $process->setTimeout(40);
+    $process->run();
+
+    if (!$process->isSuccessful()) {
+        throw new ProcessFailedException($process);
+    }
+
+    $output = trim($process->getOutput());
+    return json_decode($output, true);
+}
+
+
 
 }
