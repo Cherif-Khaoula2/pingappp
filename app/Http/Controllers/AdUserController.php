@@ -431,28 +431,23 @@ public function findUser(Request $request)
     
   if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-    
-    // ✅ LOG: DNs autorisés
-    Log::info("🔐 DNs autorisés pour l'utilisateur", [
-        'user_id' => auth()->id(),
-        'user_email' => auth()->user()->email,
-        'authorized_dns' => $userAuthDns
-    ]);
-    
-    // ✅ CORRECTION: Utiliser la syntaxe de tableau PowerShell
+
     $searchBaseParts = [];
     foreach ($userAuthDns as $dnPath) {
-        // Chaque commande entre parenthèses
         $searchBaseParts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
     }
-    
-    // Combiner avec @() et virgules (pas de point-virgules)
+
     $psScript = "@(" . implode(", ", $searchBaseParts) . ") | " .
         "Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName -Unique | " .
         "ConvertTo-Json -Depth 3 -Compress";
 
-    $logFilter = implode(" OR ", $userAuthDns);
+    $allUsers = json_decode(shell_exec($psScript), true);
 
+    $filteredUsers = array_filter($allUsers, function ($user) use ($userAuthDns) {
+        return $this->isDnAuthorized($user['DistinguishedName'], $userAuthDns);
+    });
+
+    // $filteredUsers contient uniquement les utilisateurs autorisés
 } else {
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
