@@ -173,11 +173,6 @@ export default function FindAllComputersLaps() {
   return (
     <Layout>
           <Head title="Liste des ordinateurs AD" />
-      
-    
-    
-    
-
       <div className="page-container">
         {/* Message d'erreur */}
         {error && (
