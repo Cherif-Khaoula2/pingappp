@@ -427,7 +427,7 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
     
-    $resultSetSize = 10;
+    $resultSetSize = 20;
     
     if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
