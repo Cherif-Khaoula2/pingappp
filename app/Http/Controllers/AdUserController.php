@@ -428,22 +428,44 @@ public function findUser(Request $request)
     }
     
 
-    
- if (empty($search) || $search === '.') {
+   if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-    $psScripts = [];
 
-    foreach ($userAuthDns as $dnPath) {
-        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+    // Vérifier qu'il y a au moins un DN
+    if (empty($userAuthDns)) {
+        $allUsers = [];
+    } else {
+        // Générer une commande PowerShell pour chaque DN
+        $psScripts = [];
+        foreach ($userAuthDns as $dnPath) {
+            $dnPath = trim($dnPath);
+            $psScripts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
+        }
+
+        // Combiner tous les résultats dans un tableau @() et convertir en JSON
+        $psScript = "@(" . implode(", ", $psScripts) . ") | ConvertTo-Json -Depth 3 -Compress";
+
+        // Exécuter PowerShell
+        $allUsersJson = shell_exec($psScript);
+
+        // Décoder JSON
+        $allUsers = json_decode($allUsersJson, true);
+
+        if (!is_array($allUsers)) {
+            Log::warning('Données AD invalides ou JSON incorrect', ['output' => $allUsersJson]);
+            $allUsers = [];
+        }
     }
 
-    $psScript = implode(";", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+    // Filtrer avec isDnAuthorized pour plus de sécurité
+    $filteredUsers = array_filter($allUsers, function ($user) use ($userAuthDns) {
+        return $this->isDnAuthorized($user['DistinguishedName'], $userAuthDns);
+    });
 
-    // Variable de log à utiliser à la place de $filter
+    // Variable de log pour debug
     $logFilter = implode(" OR ", $userAuthDns);
+}
 
-} 
 else {
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
