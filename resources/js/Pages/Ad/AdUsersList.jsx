@@ -22,6 +22,29 @@ export default function AdUsersList() {
     const [filteredUsers, setFilteredUsers] = useState(users);
     const [first, setFirst] = useState(0);
     const [rows, setRows] = useState(25);
+    const [selectedUserDn, setSelectedUserDn] = useState('');
+const [targetOuDn, setTargetOuDn] = useState('');
+const ous = props.ous || []; // liste des OU que tu passes depuis Laravel
+const handleMoveUser = async () => {
+    if (!selectedUserDn || !targetOuDn) return;
+
+    if (!confirm("Voulez-vous vraiment déplacer cet utilisateur ?")) return;
+
+    try {
+        await axios.post('/ad/move-user', {
+            user_dn: selectedUserDn,
+            target_ou_dn: targetOuDn,
+        });
+
+        alert('Utilisateur déplacé avec succès !');
+
+        // Optionnel : recharger la liste des utilisateurs
+        location.reload();
+    } catch (err) {
+        alert('Erreur lors du déplacement : ' + (err.response?.data?.message || err.message));
+    }
+};
+
 
     useEffect(() => {
         if (searchTerm.trim() === '') {
@@ -84,6 +107,48 @@ export default function AdUsersList() {
                                     className="mb-4"
                                 />
                             ) : null}
+<div className="flex flex-wrap gap-3 mb-4">
+    <div>
+        <label className="block mb-1 font-semibold">Utilisateur à déplacer</label>
+        <select 
+            className="border p-2 rounded"
+            value={selectedUserDn}
+            onChange={e => setSelectedUserDn(e.target.value)}
+        >
+            <option value="">-- Sélectionner utilisateur --</option>
+            {filteredUsers.map(u => (
+                <option key={u.SamAccountName} value={u.DistinguishedName}>
+                    {u.Name} ({u.SamAccountName})
+                </option>
+            ))}
+        </select>
+    </div>
+
+    <div>
+        <label className="block mb-1 font-semibold">OU cible</label>
+        <select 
+            className="border p-2 rounded"
+            value={targetOuDn}
+            onChange={e => setTargetOuDn(e.target.value)}
+        >
+            <option value="">-- Sélectionner OU cible --</option>
+            {ous.map(o => (
+                <option key={o.DistinguishedName} value={o.DistinguishedName}>
+                    {o.Name}
+                </option>
+            ))}
+        </select>
+    </div>
+
+    <div className="flex items-end">
+        <Button
+            label="Déplacer"
+            severity="success"
+            onClick={handleMoveUser}
+            disabled={!selectedUserDn || !targetOuDn}
+        />
+    </div>
+</div>
 
                             <DataTable
                                 value={filteredUsers}

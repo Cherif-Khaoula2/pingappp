@@ -35,8 +35,8 @@ class PermissionSeeder extends Seeder
             'getallhidden',
             'getadpc',
             'managedn',
-            'manageuserou'
-
+            'manageuserou',
+            'moveaduser'
         ];
 
         foreach ($permissions as $permission) {
