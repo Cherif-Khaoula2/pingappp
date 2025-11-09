@@ -430,27 +430,20 @@ public function findUser(Request $request)
     $resultSetSize = 10;
     
     if (empty($search) || $search === '.') {
-        $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-        
-        // ✅ LOG: DNs autorisés pour l'utilisateur connecté
-        Log::info("🔐 DNs autorisés pour l'utilisateur", [
-            'user_id' => auth()->id(),
-            'user_email' => auth()->user()->email,
-            'authorized_dns' => $userAuthDns
-        ]);
-        
-        $psScripts = [];
+    $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+    $psScripts = [];
 
-        foreach ($userAuthDns as $dnPath) {
-            $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
-        }
+    foreach ($userAuthDns as $dnPath) {
+        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+    }
 
-        $psScript = implode(";", $psScripts) .
-            " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+    $psScript = implode(";", $psScripts) .
+        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
 
-        $logFilter = implode(" OR ", $userAuthDns);
+    // Variable de log à utiliser à la place de $filter
+    $logFilter = implode(" OR ", $userAuthDns);
 
-    } else {
+} else {
         $escapedSearch = $this->escapePowerShellStringForFilter($search);
         $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
         $psScript =
