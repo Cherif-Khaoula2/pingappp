@@ -106,7 +106,7 @@ const handleResetClick = (user) => {
   }
 };
 
-  // 🔹 Confirmer la réinitialisation
+
 // 🔹 Confirmer la réinitialisation
 const confirmResetPassword = () => {
   if (!newPassword.trim()) {
