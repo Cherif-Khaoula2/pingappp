@@ -5,7 +5,6 @@ import { InputText } from 'primereact/inputtext';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
-import { Tag } from 'primereact/tag';
 import { Message } from 'primereact/message';
 import Layout from '@/Layouts/layout/layout.jsx';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
@@ -18,6 +17,8 @@ export default function AdOuList() {
     const ous = props.ous || [];
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredOus, setFilteredOus] = useState(ous);
+    const [first, setFirst] = useState(0);
+    const [rows, setRows] = useState(25);
 
     useEffect(() => {
         if (searchTerm.trim() === '') {
@@ -35,21 +36,27 @@ export default function AdOuList() {
         router.get(`/ad/ou-users/${encodeURIComponent(ouDn)}`);
     };
 
-    const getOuLevel = (dn) => {
-        if (!dn) return 0;
-        return (dn.match(/OU=/g) || []).length;
+    const onPageChange = (event) => {
+        setFirst(event.first);
+        setRows(event.rows);
     };
 
     const nameTemplate = (rowData) => {
-        const level = getOuLevel(rowData.DistinguishedName);
         return (
-            <div className="flex align-items-center gap-2">
-                <i className="pi pi-folder text-indigo-600 text-lg"></i>
+            <div className="flex align-items-center gap-3">
+                <div
+                    className="flex align-items-center justify-content-center border-circle"
+                    style={{
+                        width: '45px',
+                        height: '45px',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                    }}
+                >
+                    <i className="pi pi-folder text-white text-xl"></i>
+                </div>
                 <div>
-                    <div className="font-semibold text-900">{rowData.Name}</div>
-                    {level > 0 && (
-                        <Tag value={`Niveau ${level}`} severity="info" className="mt-1" style={{ fontSize: '0.7rem' }} />
-                    )}
+                    <div className="font-semibold text-900 text-lg">{rowData.Name}</div>
                 </div>
             </div>
         );
@@ -57,17 +64,23 @@ export default function AdOuList() {
 
     const dnTemplate = (rowData) => {
         return (
-            <span className="text-sm text-700 font-mono">{rowData.DistinguishedName}</span>
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-sitemap text-primary"></i>
+                <span className="text-sm text-600 font-mono">{rowData.DistinguishedName}</span>
+            </div>
         );
     };
 
     const actionTemplate = (rowData) => {
         return (
             <Button
-                label="Voir"
+                label="Voir les utilisateurs"
                 icon="pi pi-users"
-                className="p-button-sm p-button-outlined"
+                severity="info"
+                size="small"
+                outlined
                 onClick={() => handleClick(rowData.DistinguishedName)}
+                className="custom-view-btn"
             />
         );
     };
@@ -77,137 +90,187 @@ export default function AdOuList() {
             <Head title="Unités Organisationnelles - Active Directory" />
 
             <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-                <div className="mb-4">
-                    <h1 className="text-3xl md:text-4xl font-bold text-900 m-0 mb-2">
-                        Unités Organisationnelles
-                    </h1>
-                    <p className="text-base text-600 m-0">
-                        <i className="pi pi-sitemap mr-2"></i>
-                        {ous.length} unité{ous.length > 1 ? 's' : ''} disponible{ous.length > 1 ? 's' : ''}
-                    </p>
-                </div>
+                <div className="grid">
+                    <div className="col-12">
+                        <Card className="shadow-3 border-round-xl">
+                            <DataTable
+                                value={filteredOus}
+                                stripedRows
+                                paginator
+                                rows={rows}
+                                first={first}
+                                onPage={onPageChange}
+                                rowsPerPageOptions={[25, 50, 100, 200]}
+                                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                                currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} unités"
+                                paginatorClassName="custom-paginator"
+                                responsiveLayout="scroll"
+                                className="custom-datatable"
+                                header={
+                                    <div className="flex flex-column gap-4">
+                                        <div className="flex align-items-center gap-3">
+                                            <div
+                                                className="flex align-items-center justify-content-center border-circle"
+                                    
+                                            >
+                                            </div>
+                                            <div>
+                                                <h1 className="text-900 text-3xl font-bold m-0 mb-1">
+                                                    Unités Organisationnelles
+                                                </h1>
+                                                <p className="text-600 m-0 text-lg">
+                                                    Parcourez et gérez les unités organisationnelles Active Directory
+                                                </p>
+                                            </div>
+                                        </div>
 
-                <Card className="shadow-3 border-round-xl border-1 surface-border">
-                    <div className="mb-3">
-                        <span className="p-input-icon-left w-full md:w-20rem">
-                            <i className="pi pi-search" />
-                            <InputText
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Rechercher..."
-                                className="w-full"
-                            />
-                        </span>
+                                        <div className="p-inputgroup" style={{ height: "52px" }}>
+                                            <span className="p-inputgroup-addon" style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none' }}>
+                                                <i className="pi pi-search text-white"></i>
+                                            </span>
+                                            <InputText
+                                                placeholder="Rechercher une unité organisationnelle (nom, distinguished name)..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                style={{ height: "52px", fontSize: "1.05rem" }}
+                                            />
+                                            {searchTerm && (
+                                                <Button
+                                                    icon="pi pi-times"
+                                                    className="p-button-text"
+                                                    onClick={() => setSearchTerm('')}
+                                                    tooltip="Effacer"
+                                                    style={{ height: "52px" }}
+                                                />
+                                            )}
+                                        </div>
+
+                                        {filteredOus.length === 0 && searchTerm && (
+                                            <Message
+                                                severity="info"
+                                                text={`Aucun résultat pour "${searchTerm}"`}
+                                                style={{ width: "100%" }}
+                                                className="custom-info-message"
+                                            />
+                                        )}
+                                    </div>
+                                }
+                                emptyMessage={
+                                    <div className="text-center py-8">
+                                        <div className="mb-4">
+                                            <i className="pi pi-folder-open text-400" style={{ fontSize: "4rem" }}></i>
+                                        </div>
+                                        <h3 className="text-900 text-2xl font-semibold mb-2">Aucune unité organisationnelle</h3>
+                                        <p className="text-600 text-lg">Aucune unité organisationnelle n'est disponible pour le moment</p>
+                                    </div>
+                                }
+                            >
+                                <Column
+                                    field="Name"
+                                    header="Nom de l'unité"
+                                    body={nameTemplate}
+                                    sortable
+                                    style={{ minWidth: '280px' }}
+                                />
+                                <Column
+                                    field="DistinguishedName"
+                                    header="Distinguished Name"
+                                    body={dnTemplate}
+                                    sortable
+                                    style={{ minWidth: '400px' }}
+                                />
+                                <Column
+                                    header="Action"
+                                    body={actionTemplate}
+                                    style={{ minWidth: '220px' }}
+                                />
+                            </DataTable>
+                        </Card>
                     </div>
-
-                    {filteredOus.length === 0 && searchTerm ? (
-                        <Message
-                            severity="info"
-                            text={`Aucun résultat pour "${searchTerm}"`}
-                            className="w-full"
-                        />
-                    ) : filteredOus.length > 0 ? (
-                        <DataTable
-                            value={filteredOus}
-                            paginator
-                            rows={10}
-                            rowsPerPageOptions={[10, 25, 50]}
-                            dataKey="DistinguishedName"
-                            stripedRows
-                            responsiveLayout="scroll"
-                            className="p-datatable-sm"
-                            emptyMessage="Aucune unité organisationnelle trouvée"
-                        >
-                            <Column
-                                field="Name"
-                                header="Nom"
-                                body={nameTemplate}
-                                sortable
-                                style={{ minWidth: '250px' }}
-                            />
-                            <Column
-                                field="DistinguishedName"
-                                header="Distinguished Name"
-                                body={dnTemplate}
-                                sortable
-                                style={{ minWidth: '400px' }}
-                            />
-                            <Column
-                                header="Actions"
-                                body={actionTemplate}
-                                style={{ width: '150px', textAlign: 'center' }}
-                            />
-                        </DataTable>
-                    ) : (
-                        <div className="text-center p-5">
-                            <i className="pi pi-folder-open text-5xl text-400 mb-3"></i>
-                            <p className="text-600 text-lg">Aucune unité organisationnelle disponible</p>
-                        </div>
-                    )}
-                </Card>
+                </div>
             </div>
 
             <style jsx>{`
-                .p-card {
-                    background: #ffffff;
-                }
-                
-                .p-card .p-card-body {
+                .custom-datatable :global(.p-datatable-header) {
+                    background: var(--surface-50);
+                    border-radius: 12px 12px 0 0;
                     padding: 1.5rem;
                 }
-                
-                .p-card .p-card-content {
-                    padding: 0;
-                }
-                
-                .p-datatable .p-datatable-thead > tr > th {
-                    background: #f9fafb;
-                    border-color: #e5e7eb;
-                    color: #374151;
+
+                .custom-datatable :global(.p-datatable-thead > tr > th) {
+                    background: var(--primary-50);
+                    color: var(--primary-700);
                     font-weight: 600;
-                    font-size: 0.875rem;
+                    font-size: 1rem;
                     padding: 1rem;
                 }
-                
-                .p-datatable .p-datatable-tbody > tr {
-                    border-color: #e5e7eb;
+
+                .custom-datatable :global(.p-datatable-tbody > tr) {
+                    transition: all 0.2s ease;
                 }
-                
-                .p-datatable .p-datatable-tbody > tr > td {
-                    padding: 0.875rem 1rem;
-                    border-color: #e5e7eb;
+
+                .custom-datatable :global(.p-datatable-tbody > tr:hover) {
+                    background: var(--surface-100);
+                    transform: scale(1.005);
                 }
-                
-                .p-datatable .p-datatable-tbody > tr:hover {
-                    background: #f9fafb;
+
+                .custom-datatable :global(.p-datatable-tbody > tr > td) {
+                    padding: 1rem;
                 }
-                
-                .p-inputtext {
-                    border-radius: 0.5rem;
-                    border-color: #d1d5db;
+
+                :global(.custom-view-btn:hover) {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
                 }
-                
-                .p-inputtext:enabled:focus {
-                    box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.2);
-                    border-color: #4f46e5;
+
+                :global(.custom-info-message) {
+                    animation: slideIn 0.3s ease;
                 }
-                
-                .surface-border {
-                    border-color: #e5e7eb;
+
+                .p-inputgroup :global(.p-inputtext) {
+                    border-radius: 0;
                 }
-                
+
+                .p-inputgroup :global(.p-inputgroup-addon:first-child) {
+                    border-radius: 0.5rem 0 0 0.5rem;
+                }
+
+                .p-inputgroup :global(.p-button:last-child) {
+                    border-radius: 0 0.5rem 0.5rem 0;
+                }
+
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
                 .font-mono {
                     font-family: 'Courier New', Courier, monospace;
                 }
-                
+
                 @media (max-width: 768px) {
-                    .p-card .p-card-body {
+                    .custom-datatable :global(.p-datatable-header) {
                         padding: 1rem;
                     }
-                    
-                    .p-datatable .p-datatable-thead > tr > th,
-                    .p-datatable .p-datatable-tbody > tr > td {
-                        padding: 0.625rem 0.75rem;
+
+                    .custom-datatable :global(.p-datatable-thead > tr > th),
+                    .custom-datatable :global(.p-datatable-tbody > tr > td) {
+                        padding: 0.75rem;
+                    }
+
+                    .p-inputgroup {
+                        height: 45px !important;
+                    }
+
+                    .p-inputgroup :global(.p-inputtext) {
+                        height: 45px !important;
+                        font-size: 0.95rem !important;
                     }
                 }
             `}</style>
