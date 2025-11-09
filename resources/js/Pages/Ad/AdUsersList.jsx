@@ -120,6 +120,7 @@ const handleMoveUser = async () => {
                 <option key={u.SamAccountName} value={u.DistinguishedName}>
                     {u.Name} ({u.SamAccountName})
                 </option>
+                
             ))}
         </select>
     </div>

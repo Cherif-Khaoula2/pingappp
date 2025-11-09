@@ -1200,10 +1200,9 @@ private function fetchUsersFromOU($ouDn)
     $output = trim($process->getOutput());
     return json_decode($output, true);
 }
-
 public function moveUser(Request $request)
 {
-    $this->authorize('moveaduser'); // permission spécifique
+    $this->authorize('moveaduser');
 
     $request->validate([
         'user_dn' => 'required|string',
@@ -1212,17 +1211,12 @@ public function moveUser(Request $request)
 
     $userDn = $this->escapePowerShellString($request->input('user_dn'));
     $targetOuDn = $this->escapePowerShellString($request->input('target_ou_dn'));
-\Log::info('MoveUser Debug', [
-    'userDn' => $userDn,
-    'targetOuDn' => $targetOuDn
-]);
 
-    // Vérification : les OU autorisées
- if (!str_contains($userDn, 'OU=NewUsersOU,DC=sarpi-dz,DC=sg') ||
-    !str_contains($targetOuDn, 'OU=NewUsersOU,DC=sarpi-dz,DC=sg')) {
-    abort(403, 'Déplacement non autorisé');
-}
-
+    // 🔒 Vérification : user et target OU doivent être dans NewUsersOU
+    if (!str_contains($userDn, 'OU=NewUsersOU,DC=sarpi-dz,DC=sg') ||
+        !str_contains($targetOuDn, 'OU=NewUsersOU,DC=sarpi-dz,DC=sg')) {
+        return response()->json(['message' => 'Déplacement non autorisé'], 403);
+    }
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
@@ -1236,19 +1230,22 @@ public function moveUser(Request $request)
         ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
         : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
 
-    $process = new Process($command);
-    $process->setTimeout(30);
-    $process->run();
+    try {
+        $process = new Process($command);
+        $process->setTimeout(30);
+        $process->run();
 
-    if (!$process->isSuccessful()) {
-        throw new ProcessFailedException($process);
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        Log::info('Utilisateur déplacé', ['userDn' => $userDn, 'targetOuDn' => $targetOuDn]);
+
+        return response()->json(['message' => 'Utilisateur déplacé avec succès']);
+    } catch (\Throwable $e) {
+        Log::error('Erreur déplacement AD: ' . $e->getMessage(), ['userDn' => $userDn, 'targetOuDn' => $targetOuDn]);
+        return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
     }
-
-    return response()->json([
-        'success' => true,
-        'message' => "Utilisateur déplacé avec succès"
-    ]);
 }
-
 
 }
