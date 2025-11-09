@@ -427,33 +427,35 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-   $escapedSearch = $this->escapePowerShellStringForFilter($search);
-$userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-
-$filters = [];
-
-if (empty($search) || $search === '.') {
+    // ✅ Amélioration de l'échappement PowerShell
+    $escapedSearch = $this->escapePowerShellStringForFilter($search);
+    
+    // ✅ Construction du filtre amélioré
+  if (empty($search) || $search === '.') {
     // Retourner tous les utilisateurs dans les DNs autorisés
+    $psScripts = [];
+    $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+
     foreach ($userAuthDns as $dnPath) {
-        $filters[] = "(DistinguishedName -like '*$dnPath*')";
+        // Pour chaque OU autorisée, récupérer tous les utilisateurs
+        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
     }
-    $filter = implode(' -or ', $filters);
+
+    // Combiner les commandes et convertir en JSON
+    $psScript = implode("; ", $psScripts) .
+        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
 } else {
-    // Recherche normale "contient" dans les DNs autorisés
-    foreach ($userAuthDns as $dnPath) {
-        $filters[] = "((Name -like '*{$escapedSearch}*' -or SamAccountName -like '*{$escapedSearch}*' -or EmailAddress -like '*{$escapedSearch}*') -and (DistinguishedName -like '*$dnPath*'))";
-    }
-    $filter = implode(' -or ', $filters);
+    // Recherche normale "contient"
+    $escapedSearch = $this->escapePowerShellStringForFilter($search);
+    $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
 
-}Log::debug('AD Filter', ['filter' => $filter, 'search' => $search, 'userAuthDns' => $userAuthDns]);
+    $psScript =
+        "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
+        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
+        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+        "ConvertTo-Json -Depth 3 -Compress";
+}
 
-
-// Construction du script PowerShell
-$psScript =
-    "\$users = Get-ADUser -Filter {" . $filter . "}  " .
-    "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
-    "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
-    "ConvertTo-Json -Depth 3 -Compress";
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
