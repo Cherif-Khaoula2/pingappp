@@ -1,73 +1,330 @@
-import React from 'react';
-import { usePage, Link } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, usePage, Link } from '@inertiajs/react';
+import { Card } from 'primereact/card';
+import { InputText } from 'primereact/inputtext';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Button } from 'primereact/button';
+import { Tag } from 'primereact/tag';
+import { Message } from 'primereact/message';
+import Layout from '@/Layouts/layout/layout.jsx';
+import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
 
 export default function AdUsersList() {
     const { props } = usePage();
     const users = props.users || [];
     const ouDn = props.ou_dn;
     const error = props.error;
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredUsers, setFilteredUsers] = useState(users);
+    const [first, setFirst] = useState(0);
+    const [rows, setRows] = useState(25);
+
+    useEffect(() => {
+        if (searchTerm.trim() === '') {
+            setFilteredUsers(users);
+        } else {
+            const filtered = users.filter((user) =>
+                user.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.SamAccountName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.EmailAddress?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredUsers(filtered);
+        }
+    }, [searchTerm, users]);
+
+    const onPageChange = (event) => {
+        setFirst(event.first);
+        setRows(event.rows);
+    };
+
+    const nameTemplate = (rowData) => {
+        const initial = rowData.Name ? rowData.Name.charAt(0).toUpperCase() : rowData.SamAccountName?.charAt(0).toUpperCase() || 'U';
+        return (
+            <div className="flex align-items-center gap-3">
+                <div
+                    className="flex align-items-center justify-content-center border-circle"
+                    style={{
+                        width: '45px',
+                        height: '45px',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                        fontSize: '1.2rem',
+                        color: 'white',
+                        fontWeight: 'bold',
+                    }}
+                >
+                    {initial}
+                </div>
+                <div>
+                    <div className="font-semibold text-900 text-lg">{rowData.Name || rowData.SamAccountName}</div>
+                    <div className="text-sm text-600 flex align-items-center gap-1">
+                        <i className="pi pi-user text-xs"></i>
+                        {rowData.SamAccountName}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const emailTemplate = (rowData) => {
+        return rowData.EmailAddress ? (
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-envelope text-primary"></i>
+                <span className="text-900">{rowData.EmailAddress}</span>
+            </div>
+        ) : (
+            <span className="text-500 italic">Pas d'email</span>
+        );
+    };
+
+    const statusTemplate = (rowData) => {
+        const isEnabled = rowData.Enabled !== false;
+        return (
+            <Tag
+                value={isEnabled ? 'Actif' : 'Inactif'}
+                severity={isEnabled ? 'success' : 'danger'}
+                icon={isEnabled ? 'pi pi-check-circle' : 'pi pi-times-circle'}
+            />
+        );
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-5xl mx-auto">
-                <div className="mb-6 flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-800">Utilisateurs de l'OU</h1>
-                    <Link>
-                    /ad/ou-page
-                        ← Retour aux OUs
-                    </Link>
-                </div>
+        <Layout>
+            <Head title={`Utilisateurs - ${ouDn || 'OU'}`} />
 
-                <div className="mb-4">
-                    <p className="text-gray-600">OU sélectionnée :</p>
-                    <p className="text-sm font-mono text-gray-700 bg-white p-2 rounded border">{ouDn}</p>
-                </div>
-
-                {error ? (
-                    <div className="text-red-500 bg-red-100 p-4 rounded shadow">
-                        {error}
-                    </div>
-                ) : users.length === 0 ? (
-                    <div className="text-gray-500 bg-white p-4 rounded shadow">
-                        Aucun utilisateur trouvé dans cette unité organisationnelle.
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                        {users.map((user) => (
-                            <div
-                                key={user.SamAccountName}
-                                className="bg-white border border-gray-200 rounded-lg p-4 shadow hover:shadow-lg transition duration-300"
+            <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+                <div className="grid">
+                    <div className="col-12">
+                        {/* Breadcrumb / Retour */}
+                        <div className="mb-3">
+                            <Link
+                                href="/ad/ou-page"
+                                className="inline-flex align-items-center gap-2 text-primary hover:text-primary-600 transition-colors"
+                                style={{ textDecoration: 'none', fontSize: '1rem' }}
                             >
-                                <div className="flex items-center space-x-3 mb-2">
-                                    <div className="bg-blue-100 text-blue-600 rounded-full p-2">
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M5.121 17.804A4 4 0 017 16h10a4 4 0 011.879.804M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                <i className="pi pi-arrow-left"></i>
+                                <span className="font-semibold">Retour aux Unités Organisationnelles</span>
+                            </Link>
+                        </div>
+
+                        <Card className="shadow-3 border-round-xl">
+                            {error ? (
+                                <Message
+                                    severity="error"
+                                    text={error}
+                                    style={{ width: '100%' }}
+                                    className="mb-4"
+                                />
+                            ) : null}
+
+                            <DataTable
+                                value={filteredUsers}
+                                stripedRows
+                                paginator
+                                rows={rows}
+                                first={first}
+                                onPage={onPageChange}
+                                rowsPerPageOptions={[25, 50, 100, 200]}
+                                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                                currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
+                                paginatorClassName="custom-paginator"
+                                responsiveLayout="scroll"
+                                className="custom-datatable"
+                                header={
+                                    <div className="flex flex-column gap-4">
+                                        <div className="flex align-items-center gap-3">
+                                            <div
+                                                className="flex align-items-center justify-content-center border-circle"
+                                                style={{
+                                                    width: '70px',
+                                                    height: '70px',
+                                                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                                    boxShadow: '0 8px 20px rgba(59, 130, 246, 0.3)',
+                                                }}
+                                            >
+                                                <i className="pi pi-users text-white" style={{ fontSize: '2rem' }}></i>
+                                            </div>
+                                            <div className="flex-1">
+                                                <h1 className="text-900 text-3xl font-bold m-0 mb-1">
+                                                    Utilisateurs de l'Unité Organisationnelle
+                                                </h1>
+                                                <p className="text-600 m-0 text-lg">
+                                                    {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} dans cette OU
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Distinguished Name de l'OU */}
+                                        {ouDn && (
+                                            <div className="p-3 bg-blue-50 border-round-lg border-1 border-blue-200">
+                                                <div className="flex align-items-start gap-2">
+                                                    <i className="pi pi-sitemap text-blue-600 mt-1"></i>
+                                                    <div className="flex-1">
+                                                        <div className="text-blue-700 font-semibold mb-1 text-sm">Distinguished Name</div>
+                                                        <div className="text-900 font-mono text-sm break-all">{ouDn}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Barre de recherche */}
+                                        <div className="p-inputgroup" style={{ height: '52px' }}>
+                                            <span
+                                                className="p-inputgroup-addon"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                                    border: 'none',
+                                                }}
+                                            >
+                                                <i className="pi pi-search text-white"></i>
+                                            </span>
+                                            <InputText
+                                                placeholder="Rechercher un utilisateur (nom, samaccountname, email)..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                style={{ height: '52px', fontSize: '1.05rem' }}
                                             />
-                                        </svg>
+                                            {searchTerm && (
+                                                <Button
+                                                    icon="pi pi-times"
+                                                    className="p-button-text"
+                                                    onClick={() => setSearchTerm('')}
+                                                    tooltip="Effacer"
+                                                    style={{ height: '52px' }}
+                                                />
+                                            )}
+                                        </div>
+
+                                        {filteredUsers.length === 0 && searchTerm && (
+                                            <Message
+                                                severity="info"
+                                                text={`Aucun résultat pour "${searchTerm}"`}
+                                                style={{ width: '100%' }}
+                                                className="custom-info-message"
+                                            />
+                                        )}
                                     </div>
-                                    <div>
-                                        <h2 className="text-lg font-semibold text-gray-800">{}</h2>
-                                        <p className="text-sm text-gray-500">{user.SamAccountName}</p>
+                                }
+                                emptyMessage={
+                                    <div className="text-center py-8">
+                                        <div className="mb-4">
+                                            <i className="pi pi-users text-400" style={{ fontSize: '4rem' }}></i>
+                                        </div>
+                                        <h3 className="text-900 text-2xl font-semibold mb-2">
+                                            Aucun utilisateur trouvé
+                                        </h3>
+                                        <p className="text-600 text-lg">
+                                            Cette unité organisationnelle ne contient aucun utilisateur
+                                        </p>
                                     </div>
-                                </div>
-                                <p className="text-sm text-gray-600">
-                                    {user.EmailAddress || <span className="italic text-gray-400">Pas d’email</span>}
-                                </p>
-                            </div>
-                        ))}
+                                }
+                            >
+                                <Column
+                                    field="Name"
+                                    header="Utilisateur"
+                                    body={nameTemplate}
+                                    sortable
+                                    style={{ minWidth: '280px' }}
+                                />
+                                <Column
+                                    field="EmailAddress"
+                                    header="Email"
+                                    body={emailTemplate}
+                                    sortable
+                                    style={{ minWidth: '250px' }}
+                                />
+                                <Column
+                                    field="Enabled"
+                                    header="Statut"
+                                    body={statusTemplate}
+                                    sortable
+                                    style={{ minWidth: '120px' }}
+                                />
+                            </DataTable>
+                        </Card>
                     </div>
-                )}
+                </div>
             </div>
-        </div>
+
+            <style jsx>{`
+                .custom-datatable :global(.p-datatable-header) {
+                    background: var(--surface-50);
+                    border-radius: 12px 12px 0 0;
+                    padding: 1.5rem;
+                }
+
+                .custom-datatable :global(.p-datatable-thead > tr > th) {
+                    background: var(--primary-50);
+                    color: var(--primary-700);
+                    font-weight: 600;
+                    font-size: 1rem;
+                    padding: 1rem;
+                }
+
+                .custom-datatable :global(.p-datatable-tbody > tr) {
+                    transition: all 0.2s ease;
+                }
+
+                .custom-datatable :global(.p-datatable-tbody > tr:hover) {
+                    background: var(--surface-100);
+                    transform: scale(1.005);
+                }
+
+                .custom-datatable :global(.p-datatable-tbody > tr > td) {
+                    padding: 1rem;
+                }
+
+                :global(.custom-info-message) {
+                    animation: slideIn 0.3s ease;
+                }
+
+                .p-inputgroup :global(.p-inputtext) {
+                    border-radius: 0;
+                }
+
+                .p-inputgroup :global(.p-inputgroup-addon:first-child) {
+                    border-radius: 0.5rem 0 0 0.5rem;
+                }
+
+                .p-inputgroup :global(.p-button:last-child) {
+                    border-radius: 0 0.5rem 0.5rem 0;
+                }
+
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .custom-datatable :global(.p-datatable-header) {
+                        padding: 1rem;
+                    }
+
+                    .custom-datatable :global(.p-datatable-thead > tr > th),
+                    .custom-datatable :global(.p-datatable-tbody > tr > td) {
+                        padding: 0.75rem;
+                    }
+
+                    .p-inputgroup {
+                        height: 45px !important;
+                    }
+
+                    .p-inputgroup :global(.p-inputtext) {
+                        height: 45px !important;
+                        font-size: 0.95rem !important;
+                    }
+                }
+            `}</style>
+        </Layout>
     );
 }
