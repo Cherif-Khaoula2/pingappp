@@ -438,7 +438,7 @@ public function findUser(Request $request)
     }
 
     $psScript = implode(";", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress | Out-String ";
 
     // Variable de log à utiliser à la place de $filter
     $logFilter = implode(" OR ", $userAuthDns);
@@ -450,7 +450,7 @@ public function findUser(Request $request)
             "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
             "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
             "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
-            "ConvertTo-Json -Depth 3 -Compress";
+            "ConvertTo-Json -Depth 3 -Compress| Out-String ";
 
         $logFilter = $filter;
     }
@@ -507,23 +507,33 @@ public function findUser(Request $request)
                 'count' => 0
             ]);
         }
+// Nettoyer l'output
+$cleanOutput = str_replace([
+    '\\u0027',  // Apostrophe échappée
+    "\r",       // Carriage return
+], [
+    "'",
+    ""
+], $output);
 
-        $adUsers = json_decode($output, true);
-        
-        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
-            Log::warning("Données AD invalides ou vides pour : $search", [
-                'output' => $output,
-                'json_error' => json_last_error_msg()
-            ]);
-            
-            return response()->json([
-                'success' => false, 
-                'message' => 'Aucun utilisateur trouvé', 
-                'users' => [],
-                'count' => 0
-            ]);
-        }
+// Essayer de décoder avec options pour gérer UTF-8
+$adUsers = json_decode($cleanOutput, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
 
+if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
+    Log::warning("Données AD invalides ou vides pour : $search", [
+        'output' => substr($output, 0, 500), // Limiter pour le log
+        'json_error' => json_last_error_msg(),
+        'json_error_code' => json_last_error()
+    ]);
+    
+    return response()->json([
+        'success' => false, 
+        'message' => 'Erreur lors de la récupération des données', 
+        'users' => [],
+        'count' => 0
+    ]);
+}
+       
         if (isset($adUsers['Name'])) {
             $adUsers = [$adUsers];
         }
