@@ -233,7 +233,7 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
      ->middleware('permission:manageuserou')
      ->name('ad.ou.users');
 
-     Route::post('/ad/move-user', [AdController::class, 'moveUser'])
+     Route::post('/ad/move-user', [AdUserController::class, 'moveUser'])
       ->middleware('permission:moveaduser')
      ->name('ad.user.move');
 
