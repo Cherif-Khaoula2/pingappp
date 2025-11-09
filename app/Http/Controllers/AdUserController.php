@@ -1161,6 +1161,7 @@ public function showUsersByOU($ou_dn)
         $ous = $this->fetchAdOUs(); // méthode privée à créer
         return Inertia::render('Ad/AdUsersList', [
             'ou_dn' => $ouDn,
+             'ous' => $this->fetchAdOUs(), 
             'users' => $users
         ]);
     } catch (\Throwable $e) {
