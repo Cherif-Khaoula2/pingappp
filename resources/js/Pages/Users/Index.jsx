@@ -129,9 +129,8 @@ const nameTemplate = (rowData) => {
         <div className="flex align-items-center gap-3">
           <div 
             className="inline-flex align-items-center justify-content-center bg-blue-100 border-circle" 
-            style={{ width: '48px', height: '48px' }}
+          
           >
-            <i className="pi pi-users text-3xl text-blue-600"></i>
           </div>
           <div>
             <h1 className="text-900 text-3xl font-bold m-0">

@@ -266,13 +266,9 @@ export default function DnIndex({ dns, users }) {
                             <div className="flex align-items-center gap-4">
                                 <div
                                     className="flex align-items-center justify-content-center border-circle shadow-4"
-                                    style={{
-                                        width: "70px",
-                                        height: "70px",
-                                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                    }}
+                                
                                 >
-                                    <i className="pi pi-sitemap text-white text-3xl"></i>
+                                   
                                 </div>
                                 <div>
                                     <h1 className="text-900 text-3xl font-bold m-0 mb-2">Gestion des DNs</h1>

@@ -134,11 +134,10 @@ export default function Hidden({ hiddenAccounts }) {
                 <div className="flex flex-column md:flex-row justify-content-between align-items-center mb-4 gap-3">
                     <div className="flex align-items-center gap-3">
                         <div className="flex align-items-center justify-content-center bg-primary border-circle" 
-                             style={{ width: '3rem', height: '3rem' }}>
-                            <i className="pi pi-eye-slash text-white text-2xl" />
+                             >
                         </div>
                         <div>
-                            <h2 className="m-0 text-900">Gestion des comptes masqués</h2>
+                        <h1 className="text-900 text-3xl font-bold m-0">Gestion des comptes masqués</h1>
                             <p className="mt-1 mb-0 text-600">
                                 Administrez les comptes LDAP exclus de la synchronisation
                             </p>
