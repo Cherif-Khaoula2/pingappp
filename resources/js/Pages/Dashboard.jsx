@@ -441,44 +441,45 @@ export default function Dashboard({
                                 </div>
 
                                 {filteredLogs.length > 0 ? (
-                                    <DataTable 
-                                        value={filteredLogs} 
-                                        rows={10}
-                                        dataKey="id"
-                                        className="p-datatable-sm"
-                                        stripedRows
-                                        responsiveLayout="stack"
-                                        breakpoint="960px"
-                                        scrollable
-                                        scrollHeight="400px"
-                                    >
-                                        <Column
-                                            field="performer_name"
-                                            header="Utilisateur"
-                                            sortable
-                                            style={{ minWidth: '150px' }}
-                                            headerStyle={{ fontSize: '0.875rem' }}
-                                            body={(rowData) => (
-                                                <span>{rowData.performer_name ? rowData.performer_name.replace(/\./g, ' ') : 'Système'}</span>
-                                            )}
-                                        />
-                                        <Column 
-                                            field="action" 
-                                            header="Action" 
-                                            body={actionTemplate} 
-                                            sortable 
-                                            style={{ minWidth: '120px' }}
-                                            headerStyle={{ fontSize: '0.875rem' }}
-                                        />
-                                        <Column 
-                                            field="created_at_formatted" 
-                                            header="Date" 
-                                            sortable 
-                                            style={{ minWidth: '150px' }}
-                                            headerStyle={{ fontSize: '0.875rem' }}
-                                            bodyStyle={{ fontSize: '0.875rem' }}
-                                        />
-                                    </DataTable>
+                              <DataTable 
+                                   value={filteredLogs.filter(log => log.performer_name && log.performer_name !== 'Système')} 
+                                   rows={10}
+                                   dataKey="id"
+                                   className="p-datatable-sm"
+                                   stripedRows
+                                   responsiveLayout="stack"
+                                   breakpoint="960px"
+                                   scrollable
+                                   scrollHeight="400px"
+                               >
+                                   <Column
+                                       field="performer_name"
+                                       header="Utilisateur"
+                                       sortable
+                                       style={{ minWidth: '150px' }}
+                                       headerStyle={{ fontSize: '0.875rem' }}
+                                       body={(rowData) => (
+                                           <span>{rowData.performer_name ? rowData.performer_name.replace(/\./g, ' ') : 'Système'}</span>
+                                       )}
+                                   />
+                                   <Column 
+                                       field="action" 
+                                       header="Action" 
+                                       body={actionTemplate} 
+                                       sortable 
+                                       style={{ minWidth: '120px' }}
+                                       headerStyle={{ fontSize: '0.875rem' }}
+                                   />
+                                   <Column 
+                                       field="created_at_formatted" 
+                                       header="Date" 
+                                       sortable 
+                                       style={{ minWidth: '150px' }}
+                                       headerStyle={{ fontSize: '0.875rem' }}
+                                       bodyStyle={{ fontSize: '0.875rem' }}
+                                   />
+                               </DataTable>
+  
                                 ) : (
                                     <div className="text-center p-4 md:p-5 bg-gray-50 border-round-md">
                                         <i className="pi pi-inbox text-4xl md:text-5xl text-400 mb-3"></i>

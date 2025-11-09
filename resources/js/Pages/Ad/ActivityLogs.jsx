@@ -345,13 +345,8 @@ const performedByTemplate = (rowData) => {
                 <div className="flex align-items-center gap-3">
                     <div 
                         className="inline-flex align-items-center justify-content-center border-circle" 
-                        style={{ 
-                            width: '56px', 
-                            height: '56px',
-                            background: 'linear-gradient(135deg, #667eea, #764ba2)'
-                        }}
+                       
                     >
-                        <i className="pi pi-list text-3xl text-white"></i>
                     </div>
                     <div>
                         <h1 className="text-900 text-3xl font-bold m-0">

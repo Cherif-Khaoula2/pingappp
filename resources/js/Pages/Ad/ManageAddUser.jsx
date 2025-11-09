@@ -339,7 +339,6 @@ useEffect(() => {
       <div className="grid">
         <div className="col-12">
           <div className="flex align-items-center gap-3 mb-3 md:mb-4">
-            <i className="pi pi-user-plus text-primary text-2xl md:text-3xl"></i>
             <div>
               <h1 className="text-900 text-xl md:text-3xl font-bold m-0">
                 Créer un utilisateur AD / Exchange

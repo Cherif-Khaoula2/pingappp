@@ -73,7 +73,7 @@ class DnController extends Controller
         try {
             $dn = Dn::create($validated);
 
-            // ✅ SÉCURISÉ : Utilise la méthode de sanitization
+            // ✅ CORRIGÉ : Ajout du user_agent
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -82,6 +82,7 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'success',
                 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'dn_id' => $dn->id,
                     'nom' => $dn->nom,
@@ -99,6 +100,7 @@ class DnController extends Controller
                 'target_user_name' => $validated['nom'],
                 'status' => 'failed',
                 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
@@ -141,7 +143,7 @@ class DnController extends Controller
             $addedUsers = array_diff($newUserIds, $oldUserIds);
             $removedUsers = array_diff($oldUserIds, $newUserIds);
 
-            // ✅ SÉCURISÉ
+            // ✅ CORRIGÉ : Ajout du user_agent
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -150,6 +152,7 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'success',
                 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'dn_id' => $dn->id,
                     'changes' => [
@@ -176,6 +179,7 @@ class DnController extends Controller
                     'target_user_name' => $addedUserNames,
                     'status' => 'success',
                     'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                     'details' => $this->sanitizeForJson([
                         'dn_id' => $dn->id,
                         'dn_nom' => $dn->nom,
@@ -199,6 +203,7 @@ class DnController extends Controller
                     'target_user_name' => $removedUserNames,
                     'status' => 'success',
                     'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                     'details' => $this->sanitizeForJson([
                         'dn_id' => $dn->id,
                         'dn_nom' => $dn->nom,
@@ -218,6 +223,7 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'failed',
                 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
@@ -242,7 +248,7 @@ class DnController extends Controller
             $dn->users()->detach();
             $dn->delete();
 
-            // ✅ SÉCURISÉ
+            // ✅ CORRIGÉ : Ajout du user_agent
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -251,6 +257,7 @@ class DnController extends Controller
                 'target_user_name' => $dnNom,
                 'status' => 'success',
                 'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'dn_id' => $dnId,
                     'affected_users' => $affectedUsers,
@@ -269,6 +276,7 @@ class DnController extends Controller
                 'target_user_name' => $dn->nom,
                 'status' => 'failed',
                 'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),
@@ -305,7 +313,7 @@ class DnController extends Controller
             $dnNames = $dnsAssigned->pluck('nom')->implode(', ');
             $dnPaths = $dnsAssigned->pluck('path')->implode(', ');
 
-            // ✅ SÉCURISÉ
+            // ✅ CORRIGÉ : Ajout du user_agent
             AdActivityLog::create([
                 'performed_by_id' => Auth::id(),
                 'performed_by_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
@@ -314,6 +322,7 @@ class DnController extends Controller
                 'target_user_name' => $userName,
                 'status' => 'success',
                 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'user_id' => $user->id,
                     'dn_ids' => $validated['dn_ids'],
@@ -335,6 +344,7 @@ class DnController extends Controller
                     : 'Unknown',
                 'status' => 'failed',
                 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), // ✅ AJOUTÉ
                 'details' => $this->sanitizeForJson([
                     'error' => $this->sanitizeErrorMessage($e->getMessage()),
                 ]),

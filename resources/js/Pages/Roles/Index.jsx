@@ -189,9 +189,8 @@ const RolesIndex = ({ roles: rolesPaginated = {}, search = '' }) => {
         <div className="flex align-items-center gap-3">
           <div
             className="inline-flex align-items-center justify-content-center bg-indigo-50 border-circle"
-            style={{ width: '48px', height: '48px' }}
+          
           >
-            <i className="pi pi-shield text-3xl text-indigo-600"></i>
           </div>
           <div>
             <h1 className="text-900 text-3xl font-bold m-0">Gestion des rôles</h1>
