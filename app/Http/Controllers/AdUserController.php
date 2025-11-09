@@ -587,20 +587,6 @@ if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
         $authorizedUsers = $users->where('is_authorized_dn', true)->values();
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
-Log::info("🔍 Test DN", [
-    'dn' => $dn,
-    'normalized' => strtolower(trim($dn)),
-    'authorized_dns' => $userAuthDns,
-    'result' => $isAuthorizedDn ? '✅ AUTORISÉ' : '❌ REFUSÉ',
-    'ends_with_check' => array_map(function($allowedDn) use ($dn) {
-        $normalized = strtolower(trim($dn));
-        $normalizedAllowed = strtolower(trim($allowedDn));
-        return [
-            'allowed' => $allowedDn,
-            'ends_with' => str_ends_with($normalized, ',' . $normalizedAllowed) ? 'YES' : 'NO'
-        ];
-    }, $userAuthDns)
-]);
       
 
         if ($authorizedUsers->count() > 0) {
