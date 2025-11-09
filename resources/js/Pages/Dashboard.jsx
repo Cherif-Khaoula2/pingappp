@@ -247,7 +247,6 @@ export default function Dashboard({
             color: "bg-red-500",
             lightColor: "bg-red-50",
             percentage: safeStats.total_logs > 0 ? ((safeStats.block_count / safeStats.total_logs) * 100).toFixed(1): 0,
-            alert: safeStats.block_count > 10
         },
         { 
             label: "Déblocages", 
@@ -370,9 +369,7 @@ export default function Dashboard({
                                         <div className={`${stat.lightColor} p-3 border-round-lg`}>
                                             <i className={`${stat.icon} ${stat.color.replace('bg-', 'text-')} text-2xl`}></i>
                                         </div>
-                                        {stat.alert && (
-                                            <Tag value="Attention" severity="danger" icon="pi pi-exclamation-triangle" />
-                                        )}
+                                       
                                     </div>
                                     
                                     <div>
