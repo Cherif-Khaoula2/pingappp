@@ -7,10 +7,11 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import Layout from '@/Layouts/layout/layout.jsx';
-import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
-import 'primereact/resources/primereact.min.css';                   // Core CSS
-import 'primeicons/primeicons.css';                                 // Icônes
+import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';  
+
 const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
   const [query, setQuery] = useState(search || '');
   const { processing } = useForm({});
@@ -20,13 +21,11 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
   const canadd = permissions.includes("adduser");
   const canviewldap = permissions.includes("getallldap");
   
-  // Extraire les données paginées
   const users = usersPaginated.data || [];
   const total = usersPaginated.total || 0;
   const currentPage = usersPaginated.current_page || 1;
   const perPage = usersPaginated.per_page || 10;
 
-  // 🔍 Recherche utilisateur
   const handleSearch = (e) => {
     e.preventDefault();
     router.get(route('users.index'), { search: query }, {
@@ -35,43 +34,39 @@ const UsersIndex = ({ users: usersPaginated = {}, search = '' }) => {
     });
   };
 
-const nameTemplate = (rowData) => {
-  // Construit le nom complet et supprime tout point final
-  const fullName = `${rowData.first_name || ''} ${rowData.last_name || ''}`
-    .trim()
-    .replace(/\.$/, ''); // 🔹 enlève le point final s’il existe
+  const nameTemplate = (rowData) => {
+    const fullName = `${rowData.first_name || ''} ${rowData.last_name || ''}`
+      .trim()
+      .replace(/\.$/, '');
 
-  // Si c’est "Système", on ne l’affiche pas du tout
-  if (fullName.toLowerCase() === 'système') {
-    return null;
-  }
+    if (fullName.toLowerCase() === 'système') {
+      return null;
+    }
 
-  const initial = rowData.first_name
-    ? rowData.first_name.charAt(0).toUpperCase()
-    : 'U';
+    const initial = rowData.first_name
+      ? rowData.first_name.charAt(0).toUpperCase()
+      : 'U';
 
-  return (
-    <div className="flex align-items-center gap-3">
-      <div
-        className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
-        style={{
-          width: '40px',
-          height: '40px',
-          background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-        }}
-      >
-        {initial}
+    return (
+      <div className="flex align-items-center gap-3">
+        <div
+          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
+          style={{
+            width: '40px',
+            height: '40px',
+            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+          }}
+        >
+          {initial}
+        </div>
+        <div>
+          <div className="font-medium text-900">{fullName || 'Sans nom'}</div>
+          <div className="text-sm text-600">{rowData.email}</div>
+        </div>
       </div>
-      <div>
-        <div className="font-medium text-900">{fullName || 'Sans nom'}</div>
-        <div className="text-sm text-600">{rowData.email}</div>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
-
-  // Template pour les rôles
   const rolesTemplate = (rowData) => {
     return (
       <div className="flex flex-wrap gap-1">
@@ -104,7 +99,20 @@ const nameTemplate = (rowData) => {
     );
   };
 
-  // Template statut
+  // 🆕 Template pour la colonne Site
+  const siteTemplate = (rowData) => {
+    if (!rowData.site) {
+      return (
+        <span className="text-500 italic">Non défini</span>
+      );
+    }
+    return (
+      <div className="flex align-items-center gap-2">
+        <span className="font-medium text-700">{rowData.site}</span>
+      </div>
+    );
+  };
+
   const statusTemplate = (rowData) => {
     return rowData.deleted_at ? (
       <Tag 
@@ -122,14 +130,12 @@ const nameTemplate = (rowData) => {
     );
   };
 
-  // Header du tableau
   const tableHeader = (
     <div className="flex flex-column gap-3">
       <div className="flex align-items-center justify-content-between flex-wrap gap-3">
         <div className="flex align-items-center gap-3">
           <div 
             className="inline-flex align-items-center justify-content-center bg-blue-100 border-circle" 
-          
           >
           </div>
           <div>
@@ -155,11 +161,9 @@ const nameTemplate = (rowData) => {
               }}
             />
           )}
-       
         </div>
       </div>
 
-      {/* Barre de recherche */}
       <form onSubmit={handleSearch}>
         <div className="p-inputgroup">
           <span className="p-inputgroup-addon">
@@ -206,120 +210,125 @@ const nameTemplate = (rowData) => {
 
   return (
     <Layout>
-        <Head title="Gestion des utilisateurs" />
+      <Head title="Gestion des utilisateurs" />
       <div className="grid">
         <div className="col-12">
           <Card className="shadow-2">
-           <DataTable
-  value={users}
-  header={tableHeader}
-  lazy
-  paginator
-  first={(currentPage - 1) * perPage}
-  rows={perPage}
-  totalRecords={total}
-  onPage={(e) => {
-    const page = (e.first / e.rows) + 1;
-    router.get(route('users.index'), { 
-      search: query,
-      page: page 
-    }, {
-      preserveState: true,
-      preserveScroll: true
-    });
-  }}
-  rowsPerPageOptions={[5, 10, 25, 50]}
-  onRowsPerPageChange={(e) => {
-    router.get(route('users.index'), { 
-      search: query,
-      per_page: e.value 
-    }, {
-      preserveState: true,
-      preserveScroll: true
-    });
-  }}
-  emptyMessage={
-    <div className="text-center py-6">
-      <i className="pi pi-users text-400 mb-3" style={{ fontSize: '3rem' }}></i>
-      <h3 className="text-900 text-xl font-medium mb-2">
-        Aucun utilisateur trouvé
-      </h3>
-      <p className="text-600 mb-4">
-        {query 
-          ? 'Essayez de modifier votre recherche'
-          : 'Commencez par créer votre premier utilisateur'}
-      </p>
-      {!query && canadd && (
-        <Button
-          label="Créer un utilisateur"
-          icon="pi pi-user-plus"
-          onClick={() => router.visit(route('users.create'))}
-          style={{
-            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-            border: 'none'
-          }}
-        />
-      )}
-    </div>
-  }
-  stripedRows
-  responsiveLayout="scroll"
-  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-  currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
-  onRowClick={(e) => {
-    if (e.data && e.data.id) {
-      router.visit(route('users.edit', e.data.id));
-      
-    }
-  }}
-  rowClassName={(data) => data.id ? 'cursor-pointer hover:bg-gray-50' : ''}
-  selectionMode="single"
->
-<Column
-  field="first_name"
-  header="Utilisateur"
-  body={nameTemplate}
-  sortable
-  style={{ minWidth: '250px' }}
-/>
+            <DataTable
+              value={users}
+              header={tableHeader}
+              lazy
+              paginator
+              first={(currentPage - 1) * perPage}
+              rows={perPage}
+              totalRecords={total}
+              onPage={(e) => {
+                const page = (e.first / e.rows) + 1;
+                router.get(route('users.index'), { 
+                  search: query,
+                  page: page 
+                }, {
+                  preserveState: true,
+                  preserveScroll: true
+                });
+              }}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              onRowsPerPageChange={(e) => {
+                router.get(route('users.index'), { 
+                  search: query,
+                  per_page: e.value 
+                }, {
+                  preserveState: true,
+                  preserveScroll: true
+                });
+              }}
+              emptyMessage={
+                <div className="text-center py-6">
+                  <i className="pi pi-users text-400 mb-3" style={{ fontSize: '3rem' }}></i>
+                  <h3 className="text-900 text-xl font-medium mb-2">
+                    Aucun utilisateur trouvé
+                  </h3>
+                  <p className="text-600 mb-4">
+                    {query 
+                      ? 'Essayez de modifier votre recherche'
+                      : 'Commencez par créer votre premier utilisateur'}
+                  </p>
+                  {!query && canadd && (
+                    <Button
+                      label="Créer un utilisateur"
+                      icon="pi pi-user-plus"
+                      onClick={() => router.visit(route('users.create'))}
+                      style={{
+                        background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        border: 'none'
+                      }}
+                    />
+                  )}
+                </div>
+              }
+              stripedRows
+              responsiveLayout="scroll"
+              paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+              currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
+              onRowClick={(e) => {
+                if (e.data && e.data.id) {
+                  router.visit(route('users.edit', e.data.id));
+                }
+              }}
+              rowClassName={(data) => data.id ? 'cursor-pointer hover:bg-gray-50' : ''}
+              selectionMode="single"
+            >
+              <Column
+                field="first_name"
+                header="Utilisateur"
+                body={nameTemplate}
+                sortable
+                style={{ minWidth: '250px' }}
+              />
 
-  <Column
-    field="roles"
-    header="Rôles"
-    body={rolesTemplate}
-    style={{ minWidth: '200px' }}
-  />
+              <Column
+                field="roles"
+                header="Rôles"
+                body={rolesTemplate}
+                style={{ minWidth: '200px' }}
+              />
 
-  {/* ✅ Nouvelle colonne Historique */}
-  <Column
-    header="Historique"
-    body={(rowData) => (
-      <Button
-        icon="pi pi-clock"
-        label="Voir Historique"
-        severity="info"
-        text
-        size="small"
-        onClick={() => router.visit(`/ad/activity-logs/user/${rowData.id}`)}
-        style={{
-          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          border: 'none',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '6px'
-        }}
-      />
-    )}
-    style={{ minWidth: '140px', textAlign: 'center' }}
-  />
-</DataTable>
+              {/* 🆕 Colonne Site */}
+              <Column
+                field="site"
+                header="Site"
+                body={siteTemplate}
+                sortable
+                style={{ minWidth: '150px' }}
+              />
 
+              <Column
+                header="Historique"
+                body={(rowData) => (
+                  <Button
+                    icon="pi pi-clock"
+                    label="Voir Historique"
+                    severity="info"
+                    text
+                    size="small"
+                    onClick={() => router.visit(`/ad/activity-logs/user/${rowData.id}`)}
+                    style={{
+                      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '6px'
+                    }}
+                  />
+                )}
+                style={{ minWidth: '140px', textAlign: 'center' }}
+              />
+            </DataTable>
           </Card>
         </div>
       </div>
 
-      <style >{`
-        /* Card styling */
+      <style>{`
         :global(.p-card) {
           border-radius: 12px;
           border: 1px solid #e5e7eb;
@@ -333,7 +342,6 @@ const nameTemplate = (rowData) => {
           padding: 0;
         }
 
-        /* DataTable styling */
         :global(.p-datatable .p-datatable-header) {
           background: white;
           border-bottom: 1px solid #e5e7eb;
@@ -364,7 +372,6 @@ const nameTemplate = (rowData) => {
           cursor: pointer;
         }
 
-        /* Input styling */
         :global(.p-inputtext) {
           border-radius: 8px;
           border: 1px solid #e5e7eb;
@@ -383,7 +390,6 @@ const nameTemplate = (rowData) => {
           border-right: none;
         }
 
-        /* Button styling */
         :global(.p-button) {
           border-radius: 8px;
           font-weight: 600;
@@ -399,26 +405,22 @@ const nameTemplate = (rowData) => {
           border-width: 2px;
         }
 
-        /* Tag styling */
         :global(.p-tag) {
           border-radius: 6px;
           padding: 0.35rem 0.7rem;
           font-size: 0.875rem;
         }
 
-        /* Shadow */
         :global(.shadow-2) {
           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
         }
 
-        /* Paginator */
         :global(.p-paginator) {
           background: #f9fafb;
           border-top: 1px solid #e5e7eb;
           padding: 1rem 1.5rem;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
           :global(.p-datatable .p-datatable-header) {
             padding: 1rem;
