@@ -480,7 +480,7 @@ Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $p
                 'exit_code' => $process->getExitCode(),
                 'error' => $process->getErrorOutput(),
                 'output' => $process->getOutput(),
-                'filter' => $filter,
+                'filter' => $logFilter,
                 'search' => $search
             ]);
             
@@ -580,7 +580,7 @@ Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $p
                     'found_users' => $authorizedUsers->pluck('sam')->toArray(),
                     'found_names' => $authorizedUsers->pluck('name')->toArray(),
                     'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-                    'search_filter' => $filter,
+                    'search_filter' => $logFilter,
                     'total_before_filter' => count($adUsers)
                 ]
             );
