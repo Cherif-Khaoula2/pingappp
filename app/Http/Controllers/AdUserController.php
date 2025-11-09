@@ -447,7 +447,7 @@ public function findUser(Request $request)
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
-
+Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $filter]);
     $sshOptions = [
         '-o', 'StrictHostKeyChecking=no',
         '-o', 'UserKnownHostsFile=/dev/null',
