@@ -591,23 +591,7 @@ Log::info("🔍 Test DN", [
 
       
 
-        if ($authorizedUsers->count() > 0) {
-            $this->logAdActivity(
-                action: 'search_user_result',
-                targetUser: $search,
-                targetUserName: null,
-                success: true,
-                additionalDetails: [
-                    'results_count' => $authorizedUsers->count(),
-                    'unauthorized_count' => $unauthorizedUsers->count(),
-                    'found_users' => $authorizedUsers->pluck('sam')->toArray(),
-                    'found_names' => $authorizedUsers->pluck('name')->toArray(),
-                    'found_emails' => $authorizedUsers->pluck('email')->filter()->toArray(),
-                    'search_filter' => $logFilter,
-                    'total_before_filter' => count($adUsers)
-                ]
-            );
-        }
+        
 
         return response()->json([
             'users' => $authorizedUsers,
