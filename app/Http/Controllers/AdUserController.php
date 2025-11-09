@@ -423,49 +423,102 @@ public function findUser(Request $request)
             success: false,
             errorMessage: 'Configuration SSH manquante'
         );
-
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // Si la recherche est vide, on peut retourner tous les utilisateurs
-    // ou décider de ne rien retourner
-    if (empty($search)) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Veuillez fournir un nom ou SamAccountName pour la recherche',
-            'users' => []
+    try {
+        // Génération du script PowerShell
+        if (empty($search) || $search === '.') {
+            $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+            $psScripts = [];
+
+            foreach ($userAuthDns as $dnPath) {
+                $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 10 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+            }
+
+            $psScript = implode(";", $psScripts) .
+                " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+
+        } else {
+            $escapedSearch = $this->escapePowerShellStringForFilter($search);
+            $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
+            $psScript = "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
+                "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
+                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+        }
+
+        Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript]);
+
+        $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+        $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+
+        $sshOptions = [
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'LogLevel=ERROR'
+        ];
+
+        $command = $keyPath && file_exists($keyPath)
+            ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
+            : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
+
+        $process = new Process($command);
+        $process->setTimeout(60);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            Log::error('PowerShell SSH Error', [
+                'exit_code' => $process->getExitCode(),
+                'error' => $process->getErrorOutput(),
+                'output' => $process->getOutput(),
+                'search' => $search
+            ]);
+            throw new ProcessFailedException($process);
+        }
+
+        $output = trim($process->getOutput());
+        if (empty($output) || $output === 'null') {
+            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé', 'users' => [], 'count' => 0]);
+        }
+
+        $adUsers = json_decode($output, true);
+        if (!$adUsers || json_last_error() !== JSON_ERROR_NONE) {
+            return response()->json(['success' => false, 'message' => 'Aucun utilisateur trouvé', 'users' => [], 'count' => 0]);
+        }
+
+        if (isset($adUsers['Name'])) {
+            $adUsers = [$adUsers];
+        }
+
+        // Validation des utilisateurs via validateAdUserAccess
+        $users = collect($adUsers)->map(function ($adUser) {
+            $sam = strtolower($adUser['SamAccountName'] ?? '');
+            $validation = $this->validateAdUserAccess($sam);
+            if (!$validation['authorized']) return null;
+
+            $validatedUser = $validation['user'];
+            return [
+                'name' => $validatedUser['name'] ?? '',
+                'sam' => $validatedUser['sam'] ?? '',
+                'email' => $validatedUser['email'] ?? '',
+                'enabled' => $validatedUser['enabled'] ?? false,
+                'dn' => $validatedUser['dn'] ?? '',
+                'is_authorized_dn' => true,
+                'source' => 'active_directory'
+            ];
+        })->filter()->values();
+
+        return response()->json(['users' => $users]);
+
+    } catch (\Throwable $e) {
+        Log::error('findUser error', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'search' => $search
         ]);
+        return response()->json(['success' => false, 'message' => 'Erreur serveur : ' . $e->getMessage(), 'users' => []], 500);
     }
-
-    // On utilise la méthode du trait pour récupérer l'utilisateur AD
-    $validation = $this->validateAdUserAccess($search);
-
-    if (!$validation['authorized']) {
-        return response()->json([
-            'success' => false,
-            'message' => $validation['error'] ?? 'Utilisateur non autorisé',
-            'users' => []
-        ]);
-    }
-
-    $adUser = $validation['user'];
-
-    // Vérifier si l'utilisateur existe déjà localement
-    $isLocal = \App\Models\User::where('email', strtolower($adUser['email'] ?? ''))->exists();
-
-    return response()->json([
-        'success' => true,
-        'users' => [[
-            'name' => $adUser['name'] ?? '',
-            'sam' => $adUser['sam'] ?? '',
-            'email' => $adUser['email'] ?? '',
-            'enabled' => $adUser['enabled'] ?? false,
-            'dn' => $adUser['dn'] ?? '',
-            'is_local' => $isLocal,
-            'is_authorized_dn' => true,
-            'source' => 'active_directory'
-        ]]
-    ]);
 }
 
 
