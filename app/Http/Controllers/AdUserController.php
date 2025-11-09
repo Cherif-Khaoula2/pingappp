@@ -444,11 +444,13 @@ if (empty($search) || $search === '.') {
         $filters[] = "((Name -like '*{$escapedSearch}*' -or SamAccountName -like '*{$escapedSearch}*' -or EmailAddress -like '*{$escapedSearch}*') -and (DistinguishedName -like '*$dnPath*'))";
     }
     $filter = implode(' -or ', $filters);
-}
+
+}Log::debug('AD Filter', ['filter' => $filter, 'search' => $search, 'userAuthDns' => $userAuthDns]);
+
 
 // Construction du script PowerShell
 $psScript =
-    "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
+    "\$users = Get-ADUser -Filter {" . $filter . "}  " .
     "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
     "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
     "ConvertTo-Json -Depth 3 -Compress";
