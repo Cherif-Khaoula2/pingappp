@@ -221,6 +221,10 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
     Route::post('/ad/create-user', [AdUserController::class, 'createAdUser'])
     ->middleware('permission:addaduser')
     ->name('ad.create-user');
+      Route::get('/ad/ous', [AdUserController::class, 'getAllAdOUs']);
+
+    // 🔹 Récupérer les utilisateurs d'une OU spécifique
+    Route::post('/ad/users-by-ou', [AdUserController::class, 'getUsersByOU']);
 
 });
 

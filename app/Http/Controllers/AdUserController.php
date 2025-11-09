@@ -1094,4 +1094,107 @@ protected function extractOuName($ouPath)
             'mailboxes' => $mailboxes
         ]);
     }
+
+public function getAllAdOUs()
+    {
+        $this->authorize('getaduser');
+
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
+
+        if (!$host || !$user) {
+            return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+        }
+
+        $baseDn = "OU=NewUsersOU,DC=sarpi-dz,DC=sg";
+        $psCommand = "Get-ADOrganizationalUnit -Filter * -SearchBase '$baseDn' | Select-Object Name,DistinguishedName | ConvertTo-Json";
+        $adCommand = "powershell -Command \"$psCommand\"";
+
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+
+        try {
+            $process = new Process($command);
+            $process->setTimeout(40);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+
+            $output = trim($process->getOutput());
+            $data = json_decode($output, true);
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getAllAdOUs error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur PowerShell : ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getUsersByOU(Request $request)
+    {
+        $this->authorize('getaduser');
+
+        $request->validate([
+            'ou_dn' => 'required|string'
+        ]);
+
+        $ouDn = $this->escapePowerShellString($request->input('ou_dn'));
+
+        if (!str_contains($ouDn, "OU=NewUsersOU,DC=sarpi-dz,DC=sg")) {
+            return response()->json(['success' => false, 'message' => 'OU non autorisée'], 403);
+        }
+
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
+
+        if (!$host || !$user) {
+            return response()->json(['success' => false, 'message' => 'Configuration SSH manquante'], 500);
+        }
+
+        $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -Properties Name,SamAccountName,EmailAddress | Select-Object Name,SamAccountName,EmailAddress | ConvertTo-Json";
+        $adCommand = "powershell -Command \"$psCommand\"";
+
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+
+        try {
+            $process = new Process($command);
+            $process->setTimeout(40);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+
+            $output = trim($process->getOutput());
+            $data = json_decode($output, true);
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('getUsersByOU error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur PowerShell : ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 }
