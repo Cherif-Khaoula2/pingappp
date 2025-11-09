@@ -1200,48 +1200,5 @@ private function fetchUsersFromOU($ouDn)
     $output = trim($process->getOutput());
     return json_decode($output, true);
 }
-public function moveUser(Request $request)
-{
-    $this->authorize('moveaduser');
-
-    $request->validate([
-        'user_dn' => 'required|string',
-        'target_ou_dn' => 'required|string',
-    ]);
-
-    $userDn = $this->escapePowerShellString($request->input('user_dn'));
-    $targetOuDn = $this->escapePowerShellString($request->input('target_ou_dn'));
-
-   
-
-    $host = env('SSH_HOST');
-    $user = env('SSH_USER');
-    $password = env('SSH_PASSWORD');
-    $keyPath = env('SSH_KEY_PATH');
-
-    $psCommand = "Move-ADObject -Identity '$userDn' -TargetPath '$targetOuDn'";
-    $adCommand = "powershell -Command \"$psCommand\"";
-
-    $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
-
-    try {
-        $process = new Process($command);
-        $process->setTimeout(30);
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new ProcessFailedException($process);
-        }
-
-        Log::info('Utilisateur déplacé', ['userDn' => $userDn, 'targetOuDn' => $targetOuDn]);
-
-        return response()->json(['message' => 'Utilisateur déplacé avec succès']);
-    } catch (\Throwable $e) {
-        
-        return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
-    }
-}
 
 }
