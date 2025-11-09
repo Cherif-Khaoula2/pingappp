@@ -61,7 +61,7 @@ const AppConfig = (props) => {
 
             
 
-            <Sidebar visible={layoutState.configSidebarVisible} onHide={onConfigSidebarHide} position="right"
+            <Sidebar visible={layoutState.configSidebarVisible} onHide={onConfigSidebarHide} position="right" dismissable modal={false}
                      className="layout-config-sidebar w-20rem">
                 {!props.simple && (
                     <>
