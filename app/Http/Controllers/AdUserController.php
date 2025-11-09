@@ -436,14 +436,12 @@ public function findUser(Request $request)
         $allUsers = [];
     } else {
         // Générer une commande PowerShell pour chaque DN
-        $psScripts = [];
+       $psScript = "$all = @();";
 foreach ($userAuthDns as $dnPath) {
     $dnPath = trim($dnPath);
-    $psScripts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
+    $psScript .= "\$all += Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; ";
 }
-
-// Combiner tous les résultats dans un tableau PowerShell
-$psScript = "@(" . implode(", ", $psScripts) . ") | ConvertTo-Json -Depth 3 -Compress";
+$psScript .= "$all | ConvertTo-Json -Depth 3 -Compress";
 
 
 
