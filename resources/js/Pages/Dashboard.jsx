@@ -42,7 +42,6 @@ export default function Dashboard({
     const safeActionBreakdown = Array.isArray(actionBreakdown) ? actionBreakdown : [];
     const safeTopPerformers = Array.isArray(topPerformers) ? topPerformers : [];
 
-    // ✅ Mapping des actions en français COURT pour les graphiques
     const getActionLabel = (action) => {
         const labelMap = {
             'login': 'Connexion',
@@ -173,13 +172,11 @@ export default function Dashboard({
         }
     };
 
-    // ✅ CORRECTION : Filtrer pour afficher UNIQUEMENT les actions principales
-    // Le contrôleur PHP envoie les actions avec leurs labels français
     const includedActions = ['Connexion', 'Déconnexion', 'Création', 'Blocage', 'Déblocage', 'Reset MDP'];
     const filteredActionBreakdown = safeActionBreakdown.filter(a => includedActions.includes(a.action));
     
     const actionChartData = {
-        labels: filteredActionBreakdown.map(a => a.action), // ✅ Utiliser directement le label français du backend
+        labels: filteredActionBreakdown.map(a => a.action),
         datasets: [{
             data: filteredActionBreakdown.map(a => a.count),
             backgroundColor: [
@@ -325,6 +322,15 @@ export default function Dashboard({
         setDateRange(null);
     };
 
+    // ✅ Filtrer les utilisateurs actifs (exclure "Système" et "Khaoula HAMADOUCHE")
+    const filteredTopPerformers = safeTopPerformers.filter(user => {
+        const name = user.name?.trim() || "";
+        return name !== "" && 
+               name !== "Système" && 
+               name !== "Khaoula HAMADOUCHE" &&
+               name !== "Khaoula HAMADOUCHE.";
+    });
+
     return (
         <Layout>
             <Head title="Dashboard AD - Vue d'ensemble" />
@@ -377,8 +383,9 @@ export default function Dashboard({
                     ))}
                 </div>
 
-                <div className="flex flex-wrap justify-content-between gap-3 mb-3 md:mb-4">
-                    <div className="flex-1 min-w-[60%]">
+                {/* ✅ PREMIÈRE LIGNE: Graphiques côte à côte */}
+                <div className="grid mb-3 md:mb-4">
+                    <div className="col-12 lg:col-8">
                         <Card title={`Évolution de l'activité (${period} jours)`} className="shadow-2 md:shadow-3 h-full">
                             <div style={{ height: '300px' }}>
                                 {safeActivityData.length > 0 ? (
@@ -395,7 +402,7 @@ export default function Dashboard({
                         </Card>
                     </div>
 
-                    <div className="flex-1 min-w-[35%]">
+                    <div className="col-12 lg:col-4">
                         <Card title="Répartition par type" className="shadow-2 md:shadow-3 h-full">
                             <div style={{ height: '300px' }}>
                                 {filteredActionBreakdown.length > 0 ? (
@@ -413,10 +420,11 @@ export default function Dashboard({
                     </div>
                 </div>
 
+                {/* ✅ DEUXIÈME LIGNE: Journal et Utilisateurs actifs côte à côte */}
                 <div className="grid mb-3 md:mb-4">
                     {canViewLogs && (
                         <div className="col-12 lg:col-8">
-                            <Card title="Journal d'activité détaillé" className="shadow-2 md:shadow-3">
+                            <Card title="Journal d'activité détaillé" className="shadow-2 md:shadow-3 h-full">
                                 <div className="mb-3 flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center gap-2">
                                     <span className="text-sm md:text-base text-600">
                                         <i className="pi pi-info-circle mr-2"></i>
@@ -440,7 +448,7 @@ export default function Dashboard({
                                         className="p-datatable-sm"
                                         stripedRows
                                         responsiveLayout="stack"
-                                        breakpoint="768px"
+                                        breakpoint="960px"
                                         scrollable
                                         scrollHeight="400px"
                                     >
@@ -482,11 +490,10 @@ export default function Dashboard({
                     )}
 
                     <div className="col-12 lg:col-4">
-                        <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3">
+                        <Card title="Utilisateurs les plus actifs" className="shadow-2 md:shadow-3 h-full">
                             <div className="flex flex-column gap-2 md:gap-3">
-                                {safeTopPerformers.length > 0 ? (
-                                    safeTopPerformers
-                                        .filter(user => user.name && user.name.trim() !== "")
+                                {filteredTopPerformers.length > 0 ? (
+                                    filteredTopPerformers
                                         .slice(0, 5)
                                         .map((user, idx) => {
                                             const content = (
@@ -551,7 +558,7 @@ export default function Dashboard({
                     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                 }
                 
-                @media (max-width: 768px) {
+                @media (max-width: 960px) {
                     .p-datatable .p-datatable-tbody > tr > td {
                         padding: 0.5rem !important;
                     }
