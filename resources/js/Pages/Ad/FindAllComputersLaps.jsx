@@ -174,16 +174,7 @@ export default function FindAllComputersLaps() {
     <Layout>
           <Head title="Liste des ordinateurs AD" />
       
-     
-     
-        <div className="top-progress-bar">
-          <ProgressBar 
-            value={loadingProgress} 
-            showValue={false}
-            style={{ height: '4px', borderRadius: 0 }}
-            className="progress-bar-custom"
-          />
-        </div>
+    
     
     
 
