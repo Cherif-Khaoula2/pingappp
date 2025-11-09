@@ -427,23 +427,31 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
 
-    // ✅ Amélioration de l'échappement PowerShell
-    $escapedSearch = $this->escapePowerShellStringForFilter($search);
-    
-    // ✅ Construction du filtre amélioré
-    if (empty($search)) {
-        $filter = 'Name -like "*"';
-    } else {
-        // Utiliser des wildcards explicites pour une recherche "contient"
-        $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
-    }
+   $escapedSearch = $this->escapePowerShellStringForFilter($search);
+$userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
 
-    // ✅ Script PowerShell optimisé avec limite augmentée
-    $psScript =
-        "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
-        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
-        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
-        "ConvertTo-Json -Depth 3 -Compress";
+$filters = [];
+
+if (empty($search) || $search === '.') {
+    // Retourner tous les utilisateurs dans les DNs autorisés
+    foreach ($userAuthDns as $dnPath) {
+        $filters[] = "(DistinguishedName -like '*$dnPath*')";
+    }
+    $filter = implode(' -or ', $filters);
+} else {
+    // Recherche normale "contient" dans les DNs autorisés
+    foreach ($userAuthDns as $dnPath) {
+        $filters[] = "((Name -like '*{$escapedSearch}*' -or SamAccountName -like '*{$escapedSearch}*' -or EmailAddress -like '*{$escapedSearch}*') -and (DistinguishedName -like '*$dnPath*'))";
+    }
+    $filter = implode(' -or ', $filters);
+}
+
+// Construction du script PowerShell
+$psScript =
+    "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
+    "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
+    "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+    "ConvertTo-Json -Depth 3 -Compress";
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
