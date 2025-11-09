@@ -44,17 +44,7 @@ export default function AdOuList() {
     const nameTemplate = (rowData) => {
         return (
             <div className="flex align-items-center gap-3">
-                <div
-                    className="flex align-items-center justify-content-center border-circle"
-                    style={{
-                        width: '45px',
-                        height: '45px',
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
-                    }}
-                >
-                    <i className="pi pi-folder text-white text-xl"></i>
-                </div>
+                
                 <div>
                     <div className="font-semibold text-900 text-lg">{rowData.Name}</div>
                 </div>
