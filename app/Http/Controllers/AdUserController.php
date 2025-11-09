@@ -751,17 +751,20 @@ public function createAdUser(Request $request)
                 'message' => "Un utilisateur avec le SamAccountName '$sam' existe déjà."
             ], 409);
         }
+$adCommand = "New-ADUser -Name '$escapedName' `
+    -SamAccountName '$escapedSam' `
+    -UserPrincipalName '$userPrincipalName' ";
 
-        $adCommand = "
-            New-ADUser -Name '$escapedName' `
-                -SamAccountName '$escapedSam' `
-                -UserPrincipalName '$userPrincipalName' `
-                -EmailAddress $emailAddress `
-                -Path '$escapedOuPath' `
-                -AccountPassword (ConvertTo-SecureString '$escapedPassword' -AsPlainText -Force) `
-                -Enabled \$true;
-            Write-Output 'User created successfully';
-        ";
+// Ajouter Email seulement si c’est AD+Exchange
+if ($accountType === "AD+Exchange") {
+    $adCommand .= " -EmailAddress '$escapedEmail' ";
+}
+
+$adCommand .= " -Path '$escapedOuPath' `
+    -AccountPassword (ConvertTo-SecureString '$escapedPassword' -AsPlainText -Force) `
+    -Enabled \$true;
+Write-Output 'User created successfully';";
+
 
         $command = $keyPath && file_exists($keyPath)
             ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
