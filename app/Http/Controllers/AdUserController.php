@@ -1195,6 +1195,56 @@ public function getAllAdOUs()
             ], 500);
         }
     }
+    private function fetchAdOUs()
+{
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    if (!$host || !$user) {
+        throw new \Exception('Configuration SSH manquante');
+    }
+
+    $baseDn = "OU=NewUsersOU,DC=sarpi-dz,DC=sg";
+    $psCommand = "Get-ADOrganizationalUnit -Filter * -SearchBase '$baseDn' | Select-Object Name,DistinguishedName | ConvertTo-Json";
+    $adCommand = "powershell -Command \"$psCommand\"";
+
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+
+    $process = new Process($command);
+    $process->setTimeout(40);
+    $process->run();
+
+    if (!$process->isSuccessful()) {
+        throw new ProcessFailedException($process);
+    }
+
+    $output = trim($process->getOutput());
+    return json_decode($output, true);
+}
+
+public function showOuPage()
+{
+    $this->authorize('getaduser');
+
+    try {
+        $ous = $this->fetchAdOUs();
+
+        return Inertia::render('Ad/AdOuList', [
+            'ous' => $ous
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('Erreur lors de la récupération des OUs : ' . $e->getMessage());
+
+        return Inertia::render('Ad/AdOuList', [
+            'ous' => [],
+            'error' => 'Impossible de récupérer les unités organisationnelles.'
+        ]);
+    }
+}
 
 
 }
