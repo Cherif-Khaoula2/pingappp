@@ -430,20 +430,19 @@ public function findUser(Request $request)
     // ✅ Amélioration de l'échappement PowerShell
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     
-    // ✅ Construction du filtre amélioré
   if (empty($search) || $search === '.') {
     // Retourner tous les utilisateurs dans les DNs autorisés
-    $psScripts = [];
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+    $psScripts = [];
 
     foreach ($userAuthDns as $dnPath) {
-        // Pour chaque OU autorisée, récupérer tous les utilisateurs
         $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
     }
 
-    // Combiner les commandes et convertir en JSON
-    $psScript = implode("; ", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+    // Concatène tous les résultats dans $users
+    $psScript = "\$users = " . implode(" + ", $psScripts) . "; " .
+                "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+
 } else {
     // Recherche normale "contient"
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
@@ -452,9 +451,12 @@ public function findUser(Request $request)
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
         "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
-        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
-        "ConvertTo-Json -Depth 3 -Compress";
+        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
 }
+Log::debug('PowerShell script généré', [
+    'search' => $search,
+    'psScript' => $psScript,
+]);
 
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
