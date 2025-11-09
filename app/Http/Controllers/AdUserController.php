@@ -1157,7 +1157,8 @@ public function showUsersByOU($ou_dn)
     }
 
     try {
-        $users = $this->fetchUsersFromOU($ouDn); // méthode privée à créer
+        $users = $this->fetchUsersFromOU($ouDn);
+        $ous = $this->fetchAdOUs(); // méthode privée à créer
         return Inertia::render('Ad/AdUsersList', [
             'ou_dn' => $ouDn,
             'users' => $users
@@ -1167,6 +1168,7 @@ public function showUsersByOU($ou_dn)
         return Inertia::render('Ad/AdUsersList', [
             'ou_dn' => $ouDn,
             'users' => [],
+            'ous' => $this->fetchAdOUs(), 
             'error' => 'Impossible de récupérer les utilisateurs.'
         ]);
     }
