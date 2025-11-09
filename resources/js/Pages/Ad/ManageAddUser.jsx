@@ -187,6 +187,10 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
       return newForm;
     });
   };
+useEffect(() => {
+  // ✅ Débloque les clics sur mobile
+  document.addEventListener('touchstart', () => {}, { passive: true });
+}, []);
 
   useEffect(() => {
     if (passwordMode === "auto" && !form.password) {
