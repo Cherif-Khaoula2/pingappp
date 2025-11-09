@@ -433,7 +433,7 @@ public function findUser(Request $request)
     $psScripts = [];
 
   
-        $psScripts[] = "Get-ADUser -Filter * -ResultSetSize 1000  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        $psScripts[] = "Get-ADUser -Filter *   -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
  
 
     $psScript = implode(";", $psScripts) .
