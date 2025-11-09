@@ -437,8 +437,9 @@ if (empty($search) || $search === '.') {
     $psScript = implode(";", $psScripts) .
         " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
 
-    // Dans ce cas, $filter n'existe pas, donc il ne faut pas l'utiliser
-    $logFilter = implode(" OR ", $userAuthDns); // juste pour le logging
+    // Variable de log à utiliser à la place de $filter
+    $logFilter = implode(" OR ", $userAuthDns);
+
 } else {
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
@@ -451,7 +452,7 @@ if (empty($search) || $search === '.') {
     $logFilter = $filter;
 }
 
-// Puis pour le log, utiliser $logFilter au lieu de $filter
+// Pour le log
 Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $logFilter]);
 
 
