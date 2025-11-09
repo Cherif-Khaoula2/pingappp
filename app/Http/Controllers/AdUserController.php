@@ -427,14 +427,14 @@ public function findUser(Request $request)
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
     
-    $resultSetSize = 20;
+
     
     if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
     $psScripts = [];
 
     foreach ($userAuthDns as $dnPath) {
-        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath'  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
     }
 
     $psScript = implode(";", $psScripts) .
@@ -455,7 +455,7 @@ public function findUser(Request $request)
         $logFilter = $filter;
     }
 
-    Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $logFilter]);
+    
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
@@ -528,12 +528,7 @@ public function findUser(Request $request)
             $adUsers = [$adUsers];
         }
 
-        // ✅ LOG: DNs récupérés depuis AD
-        Log::info("📋 Résultats bruts depuis Active Directory", [
-            'search' => $search,
-            'total_results' => count($adUsers),
-            'dns_found' => collect($adUsers)->pluck('DistinguishedName')->toArray()
-        ]);
+       
 
         $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
         $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')->map(fn($sam) => strtolower($sam))->toArray();
@@ -549,13 +544,7 @@ public function findUser(Request $request)
             // ✅ Utiliser la méthode sécurisée
             $isAuthorizedDn = $this->isDnAuthorized($dn, $userAuthDns);
 
-            // ✅ LOG: Vérification DN par DN
-            Log::info("🔍 Vérification DN", [
-                'sam' => $sam,
-                'dn' => $dn,
-                'authorized_dns' => $userAuthDns,
-                'is_authorized' => $isAuthorizedDn ? '✅ OUI' : '❌ NON'
-            ]);
+          
 
             return [
                 'name' => $adUser['Name'] ?? '',
@@ -578,22 +567,7 @@ public function findUser(Request $request)
         $authorizedUsers = $users->where('is_authorized_dn', true)->values();
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
 
-        // ✅ LOG: Résumé final
-        Log::info("✅ Résultat final de la recherche", [
-            'search' => $search,
-            'total_found' => count($adUsers),
-            'after_filter' => $users->count(),
-            'authorized' => $authorizedUsers->count(),
-            'unauthorized' => $unauthorizedUsers->count(),
-            'authorized_users' => $authorizedUsers->map(fn($u) => [
-                'sam' => $u['sam'],
-                'dn' => $u['dn']
-            ])->toArray(),
-            'unauthorized_users' => $unauthorizedUsers->map(fn($u) => [
-                'sam' => $u['sam'],
-                'dn' => $u['dn']
-            ])->toArray()
-        ]);
+      
 
         if ($authorizedUsers->count() > 0) {
             $this->logAdActivity(
