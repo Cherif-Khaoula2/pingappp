@@ -429,26 +429,22 @@ public function findUser(Request $request)
     
 
     
-  if (empty($search) || $search === '.') {
+ if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+    $psScripts = [];
 
-    $searchBaseParts = [];
     foreach ($userAuthDns as $dnPath) {
-        $searchBaseParts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
+        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
     }
 
-    $psScript = "@(" . implode(", ", $searchBaseParts) . ") | " .
-        "Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName -Unique | " .
-        "ConvertTo-Json -Depth 3 -Compress";
+    $psScript = implode(";", $psScripts) .
+        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
 
-    $allUsers = json_decode(shell_exec($psScript), true);
+    // Variable de log à utiliser à la place de $filter
+    $logFilter = implode(" OR ", $userAuthDns);
 
-    $filteredUsers = array_filter($allUsers, function ($user) use ($userAuthDns) {
-        return $this->isDnAuthorized($user['DistinguishedName'], $userAuthDns);
-    });
-
-    // $filteredUsers contient uniquement les utilisateurs autorisés
-} else {
+} 
+else {
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
     $psScript =
