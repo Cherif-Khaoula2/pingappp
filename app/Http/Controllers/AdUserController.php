@@ -1096,7 +1096,7 @@ protected function extractOuName($ouPath)
     }
 
     private function fetchAdOUs()
-{
+{ $this->authorize('manageuserou'); 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
     $password = env('SSH_PASSWORD');
@@ -1128,7 +1128,7 @@ protected function extractOuName($ouPath)
 
 public function showOuPage()
 {
-    $this->authorize('getaduser');
+    $this->authorize('manageuserou');
 
     try {
         $ous = $this->fetchAdOUs();
@@ -1148,7 +1148,7 @@ public function showOuPage()
 
 public function showUsersByOU($ou_dn)
 {
-    $this->authorize('getaduser');
+    $this->authorize('manageuserou');
 
     $ouDn = $this->escapePowerShellString(urldecode($ou_dn));
 
@@ -1172,7 +1172,7 @@ public function showUsersByOU($ou_dn)
     }
 }
 private function fetchUsersFromOU($ouDn)
-{
+{$this->authorize('manageuserou');
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
     $password = env('SSH_PASSWORD');
