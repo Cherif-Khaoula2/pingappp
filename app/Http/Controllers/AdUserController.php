@@ -426,12 +426,13 @@ public function findUser(Request $request)
         
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
+    $resultSetSize = 10;
 if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
     $psScripts = [];
 
     foreach ($userAuthDns as $dnPath) {
-        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
     }
 
     $psScript = implode(";", $psScripts) .
