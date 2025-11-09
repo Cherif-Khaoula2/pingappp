@@ -44,7 +44,7 @@ export default function AdOuList() {
     const nameTemplate = (rowData) => {
         return (
             <div className="flex align-items-center gap-3">
-                
+            
                 <div>
                     <div className="font-semibold text-900 text-lg">{rowData.Name}</div>
                 </div>
