@@ -443,7 +443,7 @@ public function findUser(Request $request)
     $searchBaseParts = [];
     foreach ($userAuthDns as $dnPath) {
         // Chaque commande entre parenthèses
-        $searchBaseParts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
+        $searchBaseParts[] = "(Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize 50 -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName)";
     }
     
     // Combiner avec @() et virgules (pas de point-virgules)
