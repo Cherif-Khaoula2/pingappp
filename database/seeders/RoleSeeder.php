@@ -16,8 +16,5 @@ class RoleSeeder extends Seeder
         $adminRole->syncPermissions($permissions);
 
  
-        $managerRole = Role::firstOrCreate(['name' => 'manager']);
-        $managerRole->givePermissionTo(['getuser', 'getalluser', 'getrole', 'getallrole']);
-
     }
 }

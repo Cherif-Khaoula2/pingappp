@@ -63,6 +63,11 @@ const AppMenu = () => {
                 icon: 'pi pi-link',
                 to: safeRoute('dns.index'),
             },
+             hasPermission('manageuserou') && {
+                label: 'Unités Organisationnelles',
+                icon: 'pi pi-sitemap',
+                to: safeRoute('ad.ou'),
+            },
         ].filter(Boolean);
 
         const administration =
