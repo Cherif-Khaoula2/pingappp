@@ -426,10 +426,6 @@ public function findUser(Request $request)
         
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
-
-    // ✅ Amélioration de l'échappement PowerShell
-    $escapedSearch = $this->escapePowerShellStringForFilter($search);
-    
 if (empty($search) || $search === '.') {
     $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
     $psScripts = [];
@@ -438,9 +434,11 @@ if (empty($search) || $search === '.') {
         $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
     }
 
-    // Combine toutes les commandes pour un seul PS script
     $psScript = implode(";", $psScripts) .
         " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+
+    // Dans ce cas, $filter n'existe pas, donc il ne faut pas l'utiliser
+    $logFilter = implode(" OR ", $userAuthDns); // juste pour le logging
 } else {
     $escapedSearch = $this->escapePowerShellStringForFilter($search);
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
@@ -449,12 +447,13 @@ if (empty($search) || $search === '.') {
         "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
         "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
         "ConvertTo-Json -Depth 3 -Compress";
+
+    $logFilter = $filter;
 }
 
-Log::debug('PowerShell script généré', [
-    'search' => $search,
-    'psScript' => $psScript,
-]);
+// Puis pour le log, utiliser $logFilter au lieu de $filter
+Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $logFilter]);
+
 
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
