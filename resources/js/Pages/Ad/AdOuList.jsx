@@ -22,9 +22,7 @@ export default function AdOuList() {
     const ous = props.ous || [];
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredOus, setFilteredOus] = useState(ous);
-    const [selectedLevel, setSelectedLevel] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [globalFilterValue, setGlobalFilterValue] = useState('');
 
     // Calculer les statistiques
     const statistics = useMemo(() => {
@@ -36,6 +34,11 @@ export default function AdOuList() {
             avgLevel: levels.length > 0 ? (levels.reduce((a, b) => a + b, 0) / levels.length).toFixed(1) : 0
         };
     }, [ous]);
+
+    const getOuLevel = (dn) => {
+        if (!dn) return 0;
+        return (dn.match(/OU=/g) || []).length;
+    };
 
     // Options de filtre par niveau
     const levelOptions = useMemo(() => {
@@ -57,14 +60,10 @@ export default function AdOuList() {
             );
         }
 
-        // Filtre par niveau
-        if (selectedLevel !== null) {
-            filtered = filtered.filter(ou => getOuLevel(ou.DistinguishedName) === selectedLevel);
-        }
-
         setFilteredOus(filtered);
-    }, [searchTerm, selectedLevel, ous]);
+    }, [searchTerm, ous]);
 
+    // Fonctions utilitaires définies AVANT les useMemo
     const handleClick = (ouDn) => {
         setLoading(true);
         router.get(`/ad/ou-users/${encodeURIComponent(ouDn)}`, {}, {
@@ -72,20 +71,7 @@ export default function AdOuList() {
         });
     };
 
-    const getOuLevel = (dn) => {
-        if (!dn) return 0;
-        return (dn.match(/OU=/g) || []).length;
-    };
-
-    const getSeverityByLevel = (level) => {
-        if (level === 0) return 'success';
-        if (level <= 2) return 'info';
-        if (level <= 4) return 'warning';
-        return 'danger';
-    };
-
     const nameTemplate = (rowData) => {
-        const level = getOuLevel(rowData.DistinguishedName);
         return (
             <div className="flex align-items-center gap-2">
                 <div className="flex align-items-center justify-content-center border-circle bg-indigo-50" 
@@ -94,17 +80,10 @@ export default function AdOuList() {
                 </div>
                 <div className="flex-1">
                     <div className="font-semibold text-900 mb-1">{rowData.Name}</div>
-                    <div className="flex align-items-center gap-2">
-                        <Tag 
-                            value={`Niveau ${level}`} 
-                            severity={getSeverityByLevel(level)} 
-                            className="text-xs"
-                        />
-                        <span className="text-xs text-500">
-                            <i className="pi pi-sitemap mr-1"></i>
-                            {rowData.DistinguishedName?.split(',').length || 0} composants
-                        </span>
-                    </div>
+                    <span className="text-xs text-500">
+                        <i className="pi pi-sitemap mr-1"></i>
+                        {rowData.DistinguishedName?.split(',').length || 0} composants
+                    </span>
                 </div>
             </div>
         );
@@ -151,20 +130,11 @@ export default function AdOuList() {
                 </span>
             </div>
             <div className="flex gap-2 w-full md:w-auto">
-                <Dropdown
-                    value={selectedLevel}
-                    options={levelOptions}
-                    onChange={(e) => setSelectedLevel(e.value)}
-                    placeholder="Filtrer par niveau"
-                    className="w-full md:w-15rem"
-                    showClear={selectedLevel !== null}
-                />
                 <Button
                     icon="pi pi-refresh"
                     className="p-button-outlined"
                     onClick={() => {
                         setSearchTerm('');
-                        setSelectedLevel(null);
                     }}
                     tooltip="Réinitialiser les filtres"
                     tooltipOptions={{ position: 'top' }}
@@ -189,7 +159,7 @@ export default function AdOuList() {
             <Head title="Unités Organisationnelles - Active Directory" />
 
             <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-                {/* En-tête avec statistiques */}
+                {/* En-tête */}
                 <div className="mb-4">
                     <div className="flex align-items-center justify-content-between mb-3">
                         <div>
@@ -198,68 +168,9 @@ export default function AdOuList() {
                                 Unités Organisationnelles
                             </h1>
                             <p className="text-base text-600 m-0">
-                                Gestion et navigation dans la structure Active Directory
+                                <i className="pi pi-folder mr-2"></i>
+                                {ous.length} unité{ous.length > 1 ? 's' : ''} disponible{ous.length > 1 ? 's' : ''}
                             </p>
-                        </div>
-                    </div>
-
-                    {/* Cartes de statistiques */}
-                    <div className="grid">
-                        <div className="col-12 md:col-6 lg:col-3">
-                            <Card className="border-1 surface-border shadow-2">
-                                <div className="flex align-items-center gap-3">
-                                    <div className="flex align-items-center justify-content-center border-circle bg-blue-50"
-                                         style={{ width: '50px', height: '50px' }}>
-                                        <i className="pi pi-folder text-blue-600 text-2xl"></i>
-                                    </div>
-                                    <div>
-                                        <div className="text-500 text-sm mb-1">Total des OUs</div>
-                                        <div className="text-900 font-bold text-2xl">{statistics.total}</div>
-                                    </div>
-                                </div>
-                            </Card>
-                        </div>
-                        <div className="col-12 md:col-6 lg:col-3">
-                            <Card className="border-1 surface-border shadow-2">
-                                <div className="flex align-items-center gap-3">
-                                    <div className="flex align-items-center justify-content-center border-circle bg-green-50"
-                                         style={{ width: '50px', height: '50px' }}>
-                                        <i className="pi pi-chart-bar text-green-600 text-2xl"></i>
-                                    </div>
-                                    <div>
-                                        <div className="text-500 text-sm mb-1">Niveau Moyen</div>
-                                        <div className="text-900 font-bold text-2xl">{statistics.avgLevel}</div>
-                                    </div>
-                                </div>
-                            </Card>
-                        </div>
-                        <div className="col-12 md:col-6 lg:col-3">
-                            <Card className="border-1 surface-border shadow-2">
-                                <div className="flex align-items-center gap-3">
-                                    <div className="flex align-items-center justify-content-center border-circle bg-orange-50"
-                                         style={{ width: '50px', height: '50px' }}>
-                                        <i className="pi pi-arrow-up text-orange-600 text-2xl"></i>
-                                    </div>
-                                    <div>
-                                        <div className="text-500 text-sm mb-1">Niveau Maximum</div>
-                                        <div className="text-900 font-bold text-2xl">{statistics.maxLevel}</div>
-                                    </div>
-                                </div>
-                            </Card>
-                        </div>
-                        <div className="col-12 md:col-6 lg:col-3">
-                            <Card className="border-1 surface-border shadow-2">
-                                <div className="flex align-items-center gap-3">
-                                    <div className="flex align-items-center justify-content-center border-circle bg-purple-50"
-                                         style={{ width: '50px', height: '50px' }}>
-                                        <i className="pi pi-filter text-purple-600 text-2xl"></i>
-                                    </div>
-                                    <div>
-                                        <div className="text-500 text-sm mb-1">Résultats Filtrés</div>
-                                        <div className="text-900 font-bold text-2xl">{filteredOus.length}</div>
-                                    </div>
-                                </div>
-                            </Card>
                         </div>
                     </div>
                 </div>
@@ -272,13 +183,12 @@ export default function AdOuList() {
                         </div>
                     )}
 
-                    {filteredOus.length === 0 && (searchTerm || selectedLevel !== null) ? (
+                    {filteredOus.length === 0 && searchTerm ? (
                         <div className="text-center p-6">
                             <i className="pi pi-search text-6xl text-400 mb-3"></i>
                             <h3 className="text-900 font-semibold mb-2">Aucun résultat trouvé</h3>
                             <p className="text-600 mb-4">
-                                {searchTerm && `Aucune OU correspondant à "${searchTerm}"`}
-                                {selectedLevel !== null && ` au niveau ${selectedLevel}`}
+                                Aucune OU correspondant à "{searchTerm}"
                             </p>
                             <Button
                                 label="Réinitialiser les filtres"
@@ -286,7 +196,6 @@ export default function AdOuList() {
                                 className="p-button-outlined"
                                 onClick={() => {
                                     setSearchTerm('');
-                                    setSelectedLevel(null);
                                 }}
                             />
                         </div>
