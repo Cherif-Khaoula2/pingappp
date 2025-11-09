@@ -174,23 +174,9 @@ protected function isDnAuthorized(string $dn, array $authorizedDns): bool
         }
         
         // Le DN doit se terminer par ",allowedDn"
-        if (!str_ends_with($normalizedDn, ',' . $normalizedAllowedDn)) {
-            continue;
+        if (str_ends_with($normalizedDn, ',' . $normalizedAllowedDn)) {
+            return true;
         }
-        
-        // ✅ NOUVELLE VÉRIFICATION: 
-        // Extraire la partie AVANT le DN autorisé
-        $beforeAllowedDn = substr($normalizedDn, 0, -(strlen(',' . $normalizedAllowedDn)));
-        
-        // Cette partie doit être uniquement un CN= (pas d'autres OU=)
-        // Exemples valides: "cn=user" ou "cn=user,cn=other"
-        // Exemple invalide: "ou=tmp" ou "cn=user,ou=tmp"
-        if (preg_match('/\bou=/i', $beforeAllowedDn)) {
-            // Il y a un OU= avant le DN autorisé = NON AUTORISÉ
-            continue;
-        }
-        
-        return true;
     }
 
     return false;
