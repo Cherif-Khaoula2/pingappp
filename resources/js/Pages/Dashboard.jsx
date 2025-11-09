@@ -22,7 +22,8 @@ export default function Dashboard({
     period = 30, 
     error = null,
     actionBreakdown = [],
-    topPerformers = []
+    topPerformers = [],
+    topSites = []
 }) {
     const [dateRange, setDateRange] = useState(null);
     const [selectedActions, setSelectedActions] = useState(null);
@@ -42,6 +43,7 @@ export default function Dashboard({
     const safeRecentLogs = Array.isArray(recentLogs) ? recentLogs : [];
     const safeActionBreakdown = Array.isArray(actionBreakdown) ? actionBreakdown : [];
     const safeTopPerformers = Array.isArray(topPerformers) ? topPerformers : [];
+    const safeTopSites = Array.isArray(topSites) ? topSites : [];
 
     const getActionLabel = (action) => {
         const labelMap = {
@@ -442,45 +444,44 @@ export default function Dashboard({
                                 </div>
 
                                 {filteredLogs.length > 0 ? (
-                              <DataTable 
-                                   value={filteredLogs.filter(log => log.performer_name && log.performer_name !== 'Système')} 
-                                   rows={10}
-                                   dataKey="id"
-                                   className="p-datatable-sm"
-                                   stripedRows
-                                   responsiveLayout="stack"
-                                   breakpoint="960px"
-                                   scrollable
-                                   scrollHeight="400px"
-                               >
-                                   <Column
-                                       field="performer_name"
-                                       header="Utilisateur"
-                                       sortable
-                                       style={{ minWidth: '150px' }}
-                                       headerStyle={{ fontSize: '0.875rem' }}
-                                       body={(rowData) => (
-                                           <span>{rowData.performer_name ? rowData.performer_name.replace(/\./g, ' ') : 'Système'}</span>
-                                       )}
-                                   />
-                                   <Column 
-                                       field="action" 
-                                       header="Action" 
-                                       body={actionTemplate} 
-                                       sortable 
-                                       style={{ minWidth: '120px' }}
-                                       headerStyle={{ fontSize: '0.875rem' }}
-                                   />
-                                   <Column 
-                                       field="created_at_formatted" 
-                                       header="Date" 
-                                       sortable 
-                                       style={{ minWidth: '150px' }}
-                                       headerStyle={{ fontSize: '0.875rem' }}
-                                       bodyStyle={{ fontSize: '0.875rem' }}
-                                   />
-                               </DataTable>
-  
+                                    <DataTable 
+                                        value={filteredLogs.filter(log => log.performer_name && log.performer_name !== 'Système')} 
+                                        rows={10}
+                                        dataKey="id"
+                                        className="p-datatable-sm"
+                                        stripedRows
+                                        responsiveLayout="stack"
+                                        breakpoint="960px"
+                                        scrollable
+                                        scrollHeight="400px"
+                                    >
+                                        <Column
+                                            field="performer_name"
+                                            header="Utilisateur"
+                                            sortable
+                                            style={{ minWidth: '150px' }}
+                                            headerStyle={{ fontSize: '0.875rem' }}
+                                            body={(rowData) => (
+                                                <span>{rowData.performer_name ? rowData.performer_name.replace(/\./g, ' ') : 'Système'}</span>
+                                            )}
+                                        />
+                                        <Column 
+                                            field="action" 
+                                            header="Action" 
+                                            body={actionTemplate} 
+                                            sortable 
+                                            style={{ minWidth: '120px' }}
+                                            headerStyle={{ fontSize: '0.875rem' }}
+                                        />
+                                        <Column 
+                                            field="created_at_formatted" 
+                                            header="Date" 
+                                            sortable 
+                                            style={{ minWidth: '150px' }}
+                                            headerStyle={{ fontSize: '0.875rem' }}
+                                            bodyStyle={{ fontSize: '0.875rem' }}
+                                        />
+                                    </DataTable>
                                 ) : (
                                     <div className="text-center p-4 md:p-5 bg-gray-50 border-round-md">
                                         <i className="pi pi-inbox text-4xl md:text-5xl text-400 mb-3"></i>
@@ -512,9 +513,8 @@ export default function Dashboard({
                                                         </div>
                                                         <div className="flex-1 overflow-hidden">
                                                             <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
-                                                                 {user.name ? user.name.replace(/\./g, ' ') : 'Système'} 
+                                                                {user.name ? user.name.replace(/\./g, ' ') : 'Système'} 
                                                             </p>
-
                                                             <p className="text-xs md:text-sm text-600 m-0">
                                                                 {user.count} activités
                                                             </p>
@@ -544,6 +544,49 @@ export default function Dashboard({
                                     <div className="text-center p-4">
                                         <i className="pi pi-users text-4xl text-300 mb-2"></i>
                                         <p className="text-600 text-sm">Aucun utilisateur actif</p>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+
+                {/* ✅ TROISIÈME LIGNE: Sites les plus actifs */}
+                <div className="grid mb-3 md:mb-4">
+                    <div className="col-12">
+                        <Card title="Sites les plus actifs" className="shadow-2 md:shadow-3">
+                            <div className="grid">
+                                {safeTopSites.length > 0 ? (
+                                    safeTopSites.slice(0, 8).map((site, idx) => (
+                                        <div key={idx} className="col-12 sm:col-6 md:col-4 lg:col-3">
+                                            <div className="flex align-items-center justify-content-between p-2 md:p-3 border-round-md bg-indigo-50 border-1 border-indigo-100 hover:bg-indigo-100 transition-colors transition-duration-200">
+                                                <div className="flex align-items-center gap-2 md:gap-3 flex-1 overflow-hidden">
+                                                    <div className="w-2rem h-2rem md:w-3rem md:h-3rem flex align-items-center justify-content-center border-circle bg-indigo-500 text-white flex-shrink-0">
+                                                        <i className="pi pi-building text-base md:text-xl"></i>
+                                                    </div>
+                                                    <div className="flex-1 overflow-hidden">
+                                                        <p className="font-semibold text-900 m-0 text-sm md:text-base truncate">
+                                                            {site.site}
+                                                        </p>
+                                                        <p className="text-xs md:text-sm text-600 m-0">
+                                                            {site.count} activités
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Tag 
+                                                    value={`${idx + 1}`} 
+                                                    severity={idx === 0 ? 'success' : idx === 1 ? 'info' : 'secondary'}
+                                                    className="flex-shrink-0 text-xs md:text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="col-12">
+                                        <div className="text-center p-4 md:p-5 bg-gray-50 border-round-md">
+                                            <i className="pi pi-building text-4xl md:text-5xl text-300 mb-3"></i>
+                                            <p className="text-600 text-base md:text-lg">Aucun site actif</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -135,7 +135,31 @@ class DashboardController extends Controller
                 })
                 ->toArray();
 
-            // ==================== 5️⃣ DERNIERS LOGS (FILTRÉS PAR PÉRIODE) ====================
+            // ==================== 5️⃣ SITES LES PLUS ACTIFS ====================
+            $topSites = AdActivityLog::with('performer:id,site')
+                ->select('performed_by_id', DB::raw('COUNT(*) as count'))
+                ->where('created_at', '>=', $startDate)
+                ->whereNotNull('performed_by_id')
+                ->groupBy('performed_by_id')
+                ->get()
+                ->filter(function ($log) {
+                    return $log->performer && !empty($log->performer->site);
+                })
+                ->groupBy(function ($log) {
+                    return $log->performer->site;
+                })
+                ->map(function ($siteGroup, $siteName) {
+                    return [
+                        'site' => $siteName,
+                        'count' => $siteGroup->sum('count'),
+                    ];
+                })
+                ->sortByDesc('count')
+                ->take(10)
+                ->values()
+                ->toArray();
+
+            // ==================== 6️⃣ DERNIERS LOGS (FILTRÉS PAR PÉRIODE) ====================
             $recentLogs = AdActivityLog::with('performer:id,first_name,last_name,email')
                 ->where('created_at', '>=', $startDate)
                 ->latest()
@@ -169,6 +193,7 @@ class DashboardController extends Controller
                 'activityData' => $activityData,
                 'actionBreakdown' => $actionBreakdown,
                 'topPerformers' => $topPerformers,
+                'topSites' => $topSites,
                 'recentLogs' => $recentLogs,
                 'period' => $period,
             ];
@@ -180,6 +205,7 @@ class DashboardController extends Controller
                 'activity' => count($activityData),
                 'actions' => count($actionBreakdown),
                 'performers' => count($topPerformers),
+                'sites' => count($topSites),
                 'logs' => count($recentLogs),
             ]);
 
@@ -201,6 +227,7 @@ class DashboardController extends Controller
                 'activityData' => [],
                 'actionBreakdown' => [],
                 'topPerformers' => [],
+                'topSites' => [],
                 'recentLogs' => [],
                 'period' => $request->input('period', 30),
                 'error' => 'Erreur lors du chargement du tableau de bord : ' . $e->getMessage(),
