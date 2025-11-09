@@ -11,9 +11,11 @@
 }
 
 /* ✅ Fix blocage sur mobile : empêche un overlay invisible de bloquer l'écran */
+/* Empêche les overlays de bloquer les clics */
 div[style*="z-index: 9999"][style*="background"] {
-    pointer-events: none !important;
+  pointer-events: none !important;
 }
+
 
 /* ✅ Améliore la réactivité tactile sur mobile */
 body {

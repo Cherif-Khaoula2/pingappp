@@ -62,6 +62,13 @@ const Layout = ({ children }) => {
             }
         },
     });
+const hideOverlayMenu = () => {
+    setLayoutState(prev => ({
+        ...prev,
+        overlayMenuActive: false,
+        staticMenuMobileActive: false
+    }));
+};
 
     const hideMenu = () => {
         setLayoutState((prevLayoutState) => ({
