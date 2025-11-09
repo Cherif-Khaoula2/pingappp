@@ -553,21 +553,6 @@ if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
 
           $isAuthorizedDn = $this->isDnAuthorized($dn, $userAuthDns);
 
-Log::info("🔍 Test DN", [
-    'dn' => $dn,
-    'normalized' => strtolower(trim($dn)),
-    'authorized_dns' => $userAuthDns,
-    'result' => $isAuthorizedDn ? '✅ AUTORISÉ' : '❌ REFUSÉ',
-    'ends_with_check' => array_map(function($allowedDn) use ($dn) {
-        $normalized = strtolower(trim($dn));
-        $normalizedAllowed = strtolower(trim($allowedDn));
-        return [
-            'allowed' => $allowedDn,
-            'ends_with' => str_ends_with($normalized, ',' . $normalizedAllowed) ? 'YES' : 'NO'
-        ];
-    }, $userAuthDns)
-]);
-
             return [
                 'name' => $adUser['Name'] ?? '',
                 'sam' => $adUser['SamAccountName'] ?? '',
