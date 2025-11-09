@@ -69,24 +69,24 @@ export default function Dashboard({
 
     const actionOptions = [
         { label: 'Toutes les actions', value: '' },
-        { label: '🔑 Connexion', value: 'login' },
-        { label: '🚪 Déconnexion', value: 'logout' },
-        { label: '🔒 Blocage utilisateur', value: 'block_user' },
-        { label: '🔓 Déblocage utilisateur', value: 'unblock_user' },
-        { label: '🔄 Reset mot de passe', value: 'reset_password' },
-        { label: '➕ Création compte AD', value: 'create_user' },
-        { label: '🔍 Recherche', value: 'search_user' },
-        { label: '📋 Résultats recherche', value: 'search_user_result' },
-        { label: '📁 Création DN', value: 'create_dn' },
-        { label: '✏️ Modification DN', value: 'update_dn' },
-        { label: '🗑️ Suppression DN', value: 'delete_dn' },
-        { label: '🔗 Affectation DNs', value: 'assign_dns_to_user' },
-        { label: '👥 Ajout utilisateurs DN', value: 'assign_dn_to_users' },
-        { label: '❌ Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
-        { label: '👁️ Masquage des utilisateurs', value: 'hide_account' },
-        { label: '👁️ Démasquage des utilisateurs', value: 'unhide_account' },        
-        { label: '✅ Autorisation des utilisateurs', value: 'authorize_ldap_user' },
-        { label: '🚫 Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
+        { label: ' Connexion', value: 'login' },
+        { label: ' Déconnexion', value: 'logout' },
+        { label: ' Blocage utilisateur', value: 'block_user' },
+        { label: ' Déblocage utilisateur', value: 'unblock_user' },
+        { label: ' Reset mot de passe', value: 'reset_password' },
+        { label: ' Création compte AD', value: 'create_user' },
+        { label: ' Recherche', value: 'search_user' },
+        { label: ' Résultats recherche', value: 'search_user_result' },
+        { label: ' Création DN', value: 'create_dn' },
+        { label: ' Modification DN', value: 'update_dn' },
+        { label: ' Suppression DN', value: 'delete_dn' },
+        { label: ' Affectation DNs', value: 'assign_dns_to_user' },
+        { label: ' Ajout utilisateurs DN', value: 'assign_dn_to_users' },
+        { label: ' Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
+        { label: ' Masquage des utilisateurs', value: 'hide_account' },
+        { label: ' Démasquage des utilisateurs', value: 'unhide_account' },        
+        { label: 'Autorisation des utilisateurs', value: 'authorize_ldap_user' },
+        { label: ' Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
     ];
 
     const periodOptions = [
@@ -341,13 +341,20 @@ export default function Dashboard({
                         <h1 className="text-2xl md:text-4xl font-bold text-900 m-0">Dashboard Active Directory</h1>
                         <p className="text-sm md:text-base text-600 mt-1 md:mt-2">Vue d'ensemble des activités et statistiques</p>
                     </div>
-                    <Dropdown 
-                        value={periodFilter} 
-                        options={periodOptions} 
-                        onChange={handlePeriodChange}
-                        placeholder="Période"
-                        className="w-full md:w-10rem"
-                    />
+<Dropdown 
+    value={periodFilter} 
+    options={periodOptions} 
+    onChange={(e) => {
+        handlePeriodChange(e);
+        setLayoutState(prev => ({
+            ...prev,
+            overlayMenuActive: false // <- ferme le menu sur mobile
+        }));
+    }}
+    placeholder="Période"
+    className="w-full md:w-10rem"
+/>
+
                 </div>
 
                 {error && (
