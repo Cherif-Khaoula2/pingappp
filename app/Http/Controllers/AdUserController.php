@@ -426,37 +426,43 @@ public function findUser(Request $request)
         
         return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
     }
+    
     $resultSetSize = 10;
-if (empty($search) || $search === '.') {
-    $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
-    $psScripts = [];
+    
+    if (empty($search) || $search === '.') {
+        $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
+        
+        // ✅ LOG: DNs autorisés pour l'utilisateur connecté
+        Log::info("🔐 DNs autorisés pour l'utilisateur", [
+            'user_id' => auth()->id(),
+            'user_email' => auth()->user()->email,
+            'authorized_dns' => $userAuthDns
+        ]);
+        
+        $psScripts = [];
 
-    foreach ($userAuthDns as $dnPath) {
-        $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        foreach ($userAuthDns as $dnPath) {
+            $psScripts[] = "Get-ADUser -Filter * -SearchBase '$dnPath' -ResultSetSize $resultSetSize  -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        }
+
+        $psScript = implode(";", $psScripts) .
+            " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+
+        $logFilter = implode(" OR ", $userAuthDns);
+
+    } else {
+        $escapedSearch = $this->escapePowerShellStringForFilter($search);
+        $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
+        $psScript =
+            "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
+            "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
+            "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+            "ConvertTo-Json -Depth 3 -Compress";
+
+        $logFilter = $filter;
     }
 
-    $psScript = implode(";", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
-
-    // Variable de log à utiliser à la place de $filter
-    $logFilter = implode(" OR ", $userAuthDns);
-
-} else {
-    $escapedSearch = $this->escapePowerShellStringForFilter($search);
-    $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
-    $psScript =
-        "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
-        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
-        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
-        "ConvertTo-Json -Depth 3 -Compress";
-
-    $logFilter = $filter;
-}
-
-// Pour le log
-Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $logFilter]);
-
-
+    Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $psScript, 'filter' => $logFilter]);
 
     $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
     $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
@@ -529,40 +535,72 @@ Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $p
             $adUsers = [$adUsers];
         }
 
+        // ✅ LOG: DNs récupérés depuis AD
+        Log::info("📋 Résultats bruts depuis Active Directory", [
+            'search' => $search,
+            'total_results' => count($adUsers),
+            'dns_found' => collect($adUsers)->pluck('DistinguishedName')->toArray()
+        ]);
+
         $userAuthDns = auth()->user()->dns()->pluck('path')->toArray();
         $hiddenSamAccounts = AdHiddenAccount::pluck('samaccountname')->map(fn($sam) => strtolower($sam))->toArray();
         $existingEmails = User::pluck('email')->map(fn($email) => strtolower($email))->toArray();
 
-       $users = collect($adUsers)->map(function ($adUser) use ($existingEmails, $hiddenSamAccounts, $userAuthDns) {
-    $email = strtolower($adUser['EmailAddress'] ?? '');
-    $sam = strtolower($adUser['SamAccountName'] ?? '');
-    $dn = $adUser['DistinguishedName'] ?? '';
-    $enabled = (bool)($adUser['Enabled'] ?? false);
-    $isLocal = in_array($email, $existingEmails);
+        $users = collect($adUsers)->map(function ($adUser) use ($existingEmails, $hiddenSamAccounts, $userAuthDns) {
+            $email = strtolower($adUser['EmailAddress'] ?? '');
+            $sam = strtolower($adUser['SamAccountName'] ?? '');
+            $dn = $adUser['DistinguishedName'] ?? '';
+            $enabled = (bool)($adUser['Enabled'] ?? false);
+            $isLocal = in_array($email, $existingEmails);
 
-    // ✅ Utiliser la méthode sécurisée
-    $isAuthorizedDn = $this->isDnAuthorized($dn, $userAuthDns);
+            // ✅ Utiliser la méthode sécurisée
+            $isAuthorizedDn = $this->isDnAuthorized($dn, $userAuthDns);
 
-    return [
-        'name' => $adUser['Name'] ?? '',
-        'sam' => $adUser['SamAccountName'] ?? '',
-        'email' => $email,
-        'enabled' => $enabled,
-        'is_local' => $isLocal,
-        'dn' => $dn,
-        'is_authorized_dn' => $isAuthorizedDn,
-        'source' => 'active_directory'
-    ];
-})
-->filter(fn($u) =>
-    !empty($u['name']) &&
-    !empty($u['sam']) &&
-    !in_array(strtolower($u['sam']), $hiddenSamAccounts)
-)
-->values();
+            // ✅ LOG: Vérification DN par DN
+            Log::info("🔍 Vérification DN", [
+                'sam' => $sam,
+                'dn' => $dn,
+                'authorized_dns' => $userAuthDns,
+                'is_authorized' => $isAuthorizedDn ? '✅ OUI' : '❌ NON'
+            ]);
+
+            return [
+                'name' => $adUser['Name'] ?? '',
+                'sam' => $adUser['SamAccountName'] ?? '',
+                'email' => $email,
+                'enabled' => $enabled,
+                'is_local' => $isLocal,
+                'dn' => $dn,
+                'is_authorized_dn' => $isAuthorizedDn,
+                'source' => 'active_directory'
+            ];
+        })
+        ->filter(fn($u) =>
+            !empty($u['name']) &&
+            !empty($u['sam']) &&
+            !in_array(strtolower($u['sam']), $hiddenSamAccounts)
+        )
+        ->values();
 
         $authorizedUsers = $users->where('is_authorized_dn', true)->values();
         $unauthorizedUsers = $users->where('is_authorized_dn', false)->values();
+
+        // ✅ LOG: Résumé final
+        Log::info("✅ Résultat final de la recherche", [
+            'search' => $search,
+            'total_found' => count($adUsers),
+            'after_filter' => $users->count(),
+            'authorized' => $authorizedUsers->count(),
+            'unauthorized' => $unauthorizedUsers->count(),
+            'authorized_users' => $authorizedUsers->map(fn($u) => [
+                'sam' => $u['sam'],
+                'dn' => $u['dn']
+            ])->toArray(),
+            'unauthorized_users' => $unauthorizedUsers->map(fn($u) => [
+                'sam' => $u['sam'],
+                'dn' => $u['dn']
+            ])->toArray()
+        ]);
 
         if ($authorizedUsers->count() > 0) {
             $this->logAdActivity(
@@ -613,7 +651,6 @@ Log::debug("PowerShell script généré", ['search' => $search, 'psScript' => $p
         ], 500);
     }
 }
-
 
 
 
