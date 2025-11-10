@@ -118,8 +118,8 @@ console.log(targetOuDn)
         >
             <option value="">-- Sélectionner utilisateur --</option>
             {filteredUsers.map(u => (
-                <option key={u.SamAccountName} value={u.SamAccountName}>
-                    ({u.SamAccountName})
+                <option key={u.DistinguishedName} value={u.DistinguishedName}>
+                    u.Name
                 </option>
                 
             ))}
