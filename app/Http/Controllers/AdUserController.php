@@ -1269,8 +1269,34 @@ private function fetchUsersFromOU($ouDn)
     } catch (\Throwable $e) {
         return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
     }
+}public function showOuExplorer($baseOuDn = null)
+{
+    $this->authorize('manageuserou');
+
+    try {
+        // OU de base à afficher
+        $baseDn = $baseOuDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
+
+        // Utiliser la méthode combinée qui existe
+        $data = $this->fetchAdOUsAndUsers($baseDn);
+
+        return Inertia::render('Ad/AdOuUsersExplorer', [
+            'data' => $data,
+            'baseOuDn' => $baseDn
+        ]);
+
+    } catch (\Throwable $e) {
+        Log::error('Erreur lors de la récupération des OUs ou utilisateurs : ' . $e->getMessage());
+
+        return Inertia::render('Ad/AdOuUsersExplorer', [
+            'data' => [],
+            'baseOuDn' => $baseDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg',
+            'error' => 'Impossible de récupérer les unités organisationnelles et utilisateurs.'
+        ]);
+    }
 }
-private function fetchAdOUsAndUsers()
+
+private function fetchAdOUsAndUsers($baseDn = null)
 {
     $this->authorize('manageuserou');
 
@@ -1283,10 +1309,11 @@ private function fetchAdOUsAndUsers()
         throw new \Exception('Configuration SSH manquante');
     }
 
-    $baseDn = "OU=NewUsersOU,DC=sarpi-dz,DC=sg";
+    // Utiliser le baseDn fourni ou celui par défaut
+    $baseDn = $baseDn ?? "OU=NewUsersOU,DC=sarpi-dz,DC=sg";
 
-    // 1️⃣ Récupérer les OU
-    $psOUs = "Get-ADOrganizationalUnit -Filter * -SearchBase '$baseDn' | Select-Object Name,DistinguishedName | ConvertTo-Json";
+    // 1️⃣ Récupérer les OU enfants directs
+    $psOUs = "Get-ADOrganizationalUnit -Filter * -SearchBase '$baseDn' -SearchScope OneLevel | Select-Object Name,DistinguishedName | ConvertTo-Json";
     $adCommandOUs = "powershell -Command \"$psOUs\"";
 
     $commandOUs = $keyPath && file_exists($keyPath)
@@ -1296,21 +1323,21 @@ private function fetchAdOUsAndUsers()
     $processOUs = new Process($commandOUs);
     $processOUs->setTimeout(40);
     $processOUs->run();
+    
     if (!$processOUs->isSuccessful()) {
         throw new ProcessFailedException($processOUs);
     }
 
-    $ous = json_decode(trim($processOUs->getOutput()), true);
+    $outputOUs = trim($processOUs->getOutput());
+    $ous = $outputOUs ? json_decode($outputOUs, true) : [];
+    
+    // Si c'est un seul objet, le mettre dans un tableau
+    if ($ous && !isset($ous[0])) {
+        $ous = [$ous];
+    }
 
-    // Filtrer seulement les OU enfants directs
-    $directChildrenOUs = array_filter($ous, function($ou) use ($baseDn) {
-        $relativeDn = str_ireplace(',' . $baseDn, '', $ou['DistinguishedName']);
-        return preg_match('/^OU=[^,]+$/i', $relativeDn);
-    });
-    $directChildrenOUs = array_values($directChildrenOUs);
-
-    // 2️⃣ Récupérer les utilisateurs directement dans cette OU
-    $psUsers = "Get-ADUser -Filter * -SearchBase '$baseDn' -Properties Name,SamAccountName,EmailAddress | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json";
+    // 2️⃣ Récupérer les utilisateurs directement dans cette OU (pas les sous-OU)
+    $psUsers = "Get-ADUser -Filter * -SearchBase '$baseDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json";
     $adCommandUsers = "powershell -Command \"$psUsers\"";
 
     $commandUsers = $keyPath && file_exists($keyPath)
@@ -1320,16 +1347,23 @@ private function fetchAdOUsAndUsers()
     $processUsers = new Process($commandUsers);
     $processUsers->setTimeout(40);
     $processUsers->run();
+    
     if (!$processUsers->isSuccessful()) {
         throw new ProcessFailedException($processUsers);
     }
 
-    $users = json_decode(trim($processUsers->getOutput()), true);
+    $outputUsers = trim($processUsers->getOutput());
+    $users = $outputUsers ? json_decode($outputUsers, true) : [];
+    
+    // Si c'est un seul objet, le mettre dans un tableau
+    if ($users && !isset($users[0])) {
+        $users = [$users];
+    }
 
     // 3️⃣ Combiner OU et utilisateurs en 1 seule liste
     $combined = [];
 
-    foreach ($directChildrenOUs as $ou) {
+    foreach ($ous as $ou) {
         $combined[] = [
             'type' => 'ou',
             'Name' => $ou['Name'],
@@ -1341,7 +1375,7 @@ private function fetchAdOUsAndUsers()
         $combined[] = [
             'type' => 'user',
             'Name' => $user['Name'],
-            'SamAccountName' => $user['SamAccountName'],
+            'SamAccountName' => $user['SamAccountName'] ?? '',
             'EmailAddress' => $user['EmailAddress'] ?? null,
             'DistinguishedName' => $user['DistinguishedName']
         ];
@@ -1349,38 +1383,4 @@ private function fetchAdOUsAndUsers()
 
     return $combined;
 }
-public function showOuExplorer($baseOuDn = null)
-{
-    $this->authorize('manageuserou');
-
-    try {
-        // OU de base à afficher
-        $baseDn = $baseOuDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
-
-        $ous = $this->fetchAdOUs($baseDn); // OU enfants directs
-        $users = $this->fetchAdUsers($baseDn); // utilisateurs directs dans cette OU
-
-        // Ajouter un type pour distinguer OU / utilisateur
-        $ous = array_map(fn($ou) => array_merge($ou, ['type' => 'ou']), $ous);
-        $users = array_map(fn($u) => array_merge($u, ['type' => 'user']), $users);
-
-        // Fusionner OU et users
-        $data = array_merge($ous, $users);
-
-        return Inertia::render('Ad/AdOuUsersExplorer', [
-            'data' => $data,
-            'baseOuDn' => $baseDn
-        ]);
-
-    } catch (\Throwable $e) {
-        Log::error('Erreur lors de la récupération des OUs ou utilisateurs : ' . $e->getMessage());
-
-        return Inertia::render('Ad/AdOuUsersExplorer', [
-            'data' => [],
-            'error' => 'Impossible de récupérer les unités organisationnelles et utilisateurs.'
-        ]);
-    }
-}
-
-
 }
