@@ -1,12 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
-import { Head, usePage, Link } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { Message } from 'primereact/message';
+import { Dropdown } from 'primereact/dropdown';
+import { Tag } from 'primereact/tag';
 import Layout from '@/Layouts/layout/layout.jsx';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
@@ -23,28 +24,31 @@ export default function AdUsersList() {
     const [filteredUsers, setFilteredUsers] = useState(users);
     const [first, setFirst] = useState(0);
     const [rows, setRows] = useState(25);
-    const [selectedUsersDn, setSelectedUsersDn] = useState([]); // tableau pour plusieurs DN
+    const [selectedUsers, setSelectedUsers] = useState([]);
     const [targetOuDn, setTargetOuDn] = useState('');
+    const [loading, setLoading] = useState(false);
     const ous = props.ous || [];
 
     const handleMoveUsers = async () => {
-        if (!selectedUsersDn.length || !targetOuDn) return;
+        if (!selectedUsers.length || !targetOuDn) return;
 
-        if (!confirm(`Voulez-vous déplacer ${selectedUsersDn.length} utilisateur(s) ?`)) return;
+        if (!confirm(`Voulez-vous déplacer ${selectedUsers.length} utilisateur(s) ?`)) return;
 
+        setLoading(true);
         try {
+            const usersDn = selectedUsers.map(user => user.DistinguishedName);
             
-                await axios.post('/ad/move-user', {
-                users_dn: selectedUsersDn,
+            await axios.post('/ad/move-user', {
+                users_dn: usersDn,
                 target_ou_dn: targetOuDn,
             });
 
-            alert(`${selectedUsersDn.length} utilisateur(s) déplacé(s) avec succès !`);
-
-            // Optionnel : recharger la liste des utilisateurs
+            alert(`${selectedUsers.length} utilisateur(s) déplacé(s) avec succès !`);
             location.reload();
         } catch (err) {
             alert('Erreur lors du déplacement : ' + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -68,8 +72,14 @@ export default function AdUsersList() {
 
     const nameTemplate = (rowData) => (
         <div className="flex align-items-center gap-3">
+            <div className="flex align-items-center justify-content-center bg-primary-100 text-primary-700 border-circle" 
+                 style={{ width: '42px', height: '42px', fontWeight: 'bold' }}>
+                {(rowData.Name || rowData.SamAccountName).charAt(0).toUpperCase()}
+            </div>
             <div>
-                <div className="font-semibold text-900 text-lg">{rowData.Name || rowData.SamAccountName}</div>
+                <div className="font-semibold text-900 text-lg mb-1">
+                    {rowData.Name || rowData.SamAccountName}
+                </div>
                 <div className="text-sm text-600 flex align-items-center gap-1">
                     <i className="pi pi-user text-xs"></i>
                     {rowData.SamAccountName}
@@ -87,6 +97,28 @@ export default function AdUsersList() {
         <span className="text-500 italic">Pas d'email</span>
     );
 
+    const ouOptions = ous.map(o => ({
+        label: o.Name,
+        value: o.DistinguishedName
+    }));
+
+    const header = (
+        <div className="flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-users text-3xl text-primary"></i>
+                <div>
+                    <h2 className="text-2xl font-bold text-900 m-0">Utilisateurs Active Directory</h2>
+                    <p className="text-600 m-0 mt-1">{ouDn || 'Tous les utilisateurs'}</p>
+                </div>
+            </div>
+            <div className="flex align-items-center gap-2">
+                <Tag value={`${filteredUsers.length} utilisateur${filteredUsers.length > 1 ? 's' : ''}`} 
+                     severity="info" 
+                     icon="pi pi-users" />
+            </div>
+        </div>
+    );
+
     return (
         <Layout>
             <Head title={`Utilisateurs - ${ouDn || 'OU'}`} />
@@ -94,35 +126,71 @@ export default function AdUsersList() {
                 <div className="grid">
                     <div className="col-12">
                         <Card className="shadow-3 border-round-xl">
-                            {error && <Message severity="error" text={error} style={{ width: '100%' }} className="mb-4" />}
+                            {header}
+                            
+                            {error && (
+                                <Message 
+                                    severity="error" 
+                                    text={error} 
+                                    style={{ width: '100%' }} 
+                                    className="mb-4" 
+                                />
+                            )}
 
-                            <div className="flex flex-wrap gap-3 mb-4">
-                                <div>
-                                    <label className="block mb-1 font-semibold">OU cible</label>
-                                    <select
-                                        className="border p-2 rounded"
-                                        value={targetOuDn}
-                                        onChange={e => setTargetOuDn(e.target.value)}
-                                    >
-                                        <option value="">-- Sélectionner OU cible --</option>
-                                        {ous.map(o => (
-                                            <option key={o.DistinguishedName} value={o.DistinguishedName}>
-                                                {o.Name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="flex items-end">
-                                    <Button
-                                        label={`Déplacer (${selectedUsersDn.length})`}
-                                        severity="success"
-                                        onClick={handleMoveUsers}
-                                        disabled={!selectedUsersDn.length || !targetOuDn}
+                            {/* Barre de recherche */}
+                            <div className="mb-4">
+                                <span className="p-input-icon-left w-full md:w-20rem">
+                                    <i className="pi pi-search" />
+                                    <InputText
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Rechercher un utilisateur..."
+                                        className="w-full"
                                     />
-                                </div>
+                                </span>
                             </div>
 
+                            {/* Actions de déplacement */}
+                            <Card className="bg-blue-50 border-blue-200 mb-4">
+                                <div className="flex flex-wrap align-items-end gap-3">
+                                    <div className="flex-1" style={{ minWidth: '250px' }}>
+                                        <label className="block mb-2 font-semibold text-900">
+                                            <i className="pi pi-folder-open mr-2"></i>
+                                            OU de destination
+                                        </label>
+                                        <Dropdown
+                                            value={targetOuDn}
+                                            onChange={(e) => setTargetOuDn(e.value)}
+                                            options={ouOptions}
+                                            placeholder="Sélectionner une OU cible"
+                                            filter
+                                            className="w-full"
+                                            disabled={loading}
+                                        />
+                                    </div>
+
+                                    <div className="flex align-items-center gap-2">
+                                        {selectedUsers.length > 0 && (
+                                            <Tag 
+                                                value={`${selectedUsers.length} sélectionné${selectedUsers.length > 1 ? 's' : ''}`}
+                                                severity="warning"
+                                                icon="pi pi-check-circle"
+                                            />
+                                        )}
+                                        <Button
+                                            label="Déplacer"
+                                            icon="pi pi-arrow-right"
+                                            severity="success"
+                                            onClick={handleMoveUsers}
+                                            disabled={!selectedUsers.length || !targetOuDn || loading}
+                                            loading={loading}
+                                            className="px-4"
+                                        />
+                                    </div>
+                                </div>
+                            </Card>
+
+                            {/* Table des utilisateurs */}
                             <DataTable
                                 value={filteredUsers}
                                 stripedRows
@@ -136,14 +204,32 @@ export default function AdUsersList() {
                                 paginatorClassName="custom-paginator"
                                 responsiveLayout="scroll"
                                 className="custom-datatable"
-                                selectionMode="checkbox" // ✅ mode sélection multiple
-                                selection={selectedUsersDn}
-                                onSelectionChange={e => setSelectedUsersDn(e.value.map(u => u.DistinguishedName))}
+                                selectionMode="checkbox"
+                                selection={selectedUsers}
+                                onSelectionChange={(e) => setSelectedUsers(e.value)}
                                 dataKey="DistinguishedName"
+                                emptyMessage="Aucun utilisateur trouvé"
                             >
-                                <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
-                                <Column field="Name" header="Utilisateur" body={nameTemplate} sortable style={{ minWidth: '280px' }} />
-                                <Column field="EmailAddress" header="Email" body={emailTemplate} sortable style={{ minWidth: '250px' }} />
+                                <Column 
+                                    selectionMode="multiple" 
+                                    headerStyle={{ width: '3rem' }}
+                                    frozen
+                                />
+                                <Column 
+                                    field="Name" 
+                                    header="Utilisateur" 
+                                    body={nameTemplate} 
+                                    sortable 
+                                    style={{ minWidth: '300px' }}
+                                    frozen
+                                />
+                                <Column 
+                                    field="EmailAddress" 
+                                    header="Email" 
+                                    body={emailTemplate} 
+                                    sortable 
+                                    style={{ minWidth: '280px' }} 
+                                />
                             </DataTable>
                         </Card>
                     </div>
