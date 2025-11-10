@@ -1281,12 +1281,6 @@ public function showOuExplorer($baseOuDn = null)
     try {
         // Décoder l'URL et utiliser l'OU de base
         $baseDn = $baseOuDn ? urldecode($baseOuDn) : 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
- $ouDn = $this->escapePowerShellString(urldecode($ou_dn));
-
-    if (!str_contains($ouDn, "OU=NewUsersOU,DC=sarpi-dz,DC=sg")) {
-        abort(403, 'OU non autorisée');
-    }$ous = $this->fetchAdOUs(); // méthode privée à créer
-       
 
         Log::info('Accès explorateur AD', ['baseDn' => $baseDn]);
 
@@ -1295,8 +1289,7 @@ public function showOuExplorer($baseOuDn = null)
 
         return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => $data,
-            'baseOuDn' => $baseDn,
-            'ousd' => $this->fetchAdOUs(), 
+            'baseOuDn' => $baseDn
         ]);
 
     } catch (\Throwable $e) {
