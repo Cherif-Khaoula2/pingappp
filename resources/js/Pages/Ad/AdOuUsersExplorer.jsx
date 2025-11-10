@@ -109,6 +109,7 @@ export default function AdOuUsersExplorer() {
         : <Tag value="Utilisateur" severity="info" icon="pi pi-user" />;
 
     const ous = filteredData.filter(item => item.type === 'ou');
+    
     const users = filteredData.filter(item => item.type === 'user');
 
     // ✅ Fonction pour déplacer les utilisateurs sélectionnés
@@ -186,7 +187,7 @@ export default function AdOuUsersExplorer() {
                                             className="w-full p-2 border border-gray-300 rounded"
                                         >
                                             <option value="">Sélectionner une OU cible</option>
-                                            {ous.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
+                                            {ousd.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
                                         </select>
                                     </div>
 
