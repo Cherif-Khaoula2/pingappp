@@ -20,7 +20,7 @@ export default function AdOuUsersExplorer() {
     const data = props.data || [];
     const baseOuDn = props.baseOuDn || 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
     const error = props.error;
-
+const ousd = props.ousd || [];
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredData, setFilteredData] = useState(data);
 
@@ -180,15 +180,20 @@ export default function AdOuUsersExplorer() {
                                         <label className="block mb-2 font-semibold text-900">
                                             <i className="pi pi-folder-open mr-2"></i> OU de destination
                                         </label>
-                                        <select 
-                                            value={targetOuDn} 
-                                            onChange={(e) => setTargetOuDn(e.target.value)} 
-                                            disabled={loading}
-                                            className="w-full p-2 border border-gray-300 rounded"
-                                        >
-                                            <option value="">Sélectionner une OU cible</option>
-                                            {ousd.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
-                                        </select>
+                                       <select 
+    value={targetOuDn} 
+    onChange={(e) => setTargetOuDn(e.target.value)} 
+    disabled={loading}
+    className="w-full p-2 border border-gray-300 rounded"
+>
+    <option value="">Sélectionner une OU cible</option>
+    {ousd.map(o => (
+        <option key={o.DistinguishedName} value={o.DistinguishedName}>
+            {o.Name}
+        </option>
+    ))}
+</select>
+
                                     </div>
 
                                     <div className="flex align-items-center gap-2">
