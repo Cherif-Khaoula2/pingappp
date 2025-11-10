@@ -1203,8 +1203,7 @@ private function fetchUsersFromOU($ouDn)
         ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
         : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
-    Log::debug('🔹 Commande PowerShell exécutée', ['command' => implode(' ', $command)]);
-
+   
     $process = new Process($command);
     $process->setTimeout(40);
     $process->run();
@@ -1218,62 +1217,73 @@ private function fetchUsersFromOU($ouDn)
     }
 
     $output = trim($process->getOutput());
-    Log::debug('🧩 Sortie PowerShell brute', ['output' => $output]);
-
+   
     // 🔹 Nettoyage et décodage robuste
     $cleanOutput = str_replace(["\\u0027", "\r"], ["'", ""], $output);
     $decoded = json_decode($cleanOutput, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
 
-    Log::debug('📦 Résultat décodé', [
-        'decoded' => $decoded,
-        'json_error' => json_last_error_msg(),
-    ]);
 
     return $decoded ?: [];
 }
 
-
-public function moveUser(Request $request)
+public function moveUsers(Request $request)
 {
     $this->authorize('moveaduser');
 
     $request->validate([
-        'user_dn' => 'required|string',
+        'users_dn' => 'required|array|min:1',
+        'users_dn.*' => 'string',
         'target_ou_dn' => 'required|string',
     ]);
 
-    $userDn = $this->escapePowerShellString($request->input('user_dn'));
+    $usersDn = array_map([$this, 'escapePowerShellString'], $request->input('users_dn'));
     $targetOuDn = $this->escapePowerShellString($request->input('target_ou_dn'));
-
-   
 
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
     $password = env('SSH_PASSWORD');
     $keyPath = env('SSH_KEY_PATH');
 
-    $psCommand = "Move-ADObject -Identity '$userDn' -TargetPath '$targetOuDn'";
-    $adCommand = "powershell -Command \"$psCommand\"";
+    // 🔹 Générer le script PowerShell pour déplacer tous les utilisateurs
+    $psScript = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ";
+    foreach ($usersDn as $dn) {
+        $psScript .= "Move-ADObject -Identity '$dn' -TargetPath '$targetOuDn'; ";
+    }
+
+    // 🔹 Encodage en Base64 UTF-16LE pour SSH PowerShell
+    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
 
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
+        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
     try {
         $process = new Process($command);
-        $process->setTimeout(30);
+        $process->setTimeout(60);
         $process->run();
 
         if (!$process->isSuccessful()) {
             throw new ProcessFailedException($process);
         }
 
-        Log::info('Utilisateur déplacé', ['userDn' => $userDn, 'targetOuDn' => $targetOuDn]);
+      
 
-        return response()->json(['message' => 'Utilisateur déplacé avec succès']);
+        return response()->json(['message' => 'Tous les utilisateurs ont été déplacés avec succès']);
     } catch (\Throwable $e) {
-        
-        return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
+        Log::error('Erreur déplacement utilisateurs', [
+            'usersDn' => $usersDn,
+            'targetOuDn' => $targetOuDn
+        ]);
+
+        return response()->json(['message' => 'Erreur lors du déplacement : ' . $e->getMessage()], 500);
     }
 }
+
 }
