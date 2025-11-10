@@ -1224,7 +1224,10 @@ private function fetchUsersFromOU($ouDn)
 
 
     return $decoded ?: [];
-}public function moveUsers(Request $request)
+}
+
+
+public function moveUsers(Request $request)
 {
     $this->authorize('moveaduser');
 
@@ -1304,8 +1307,6 @@ public function showOuExplorer($baseOuDn = null)
     }
 }
 
-
-
 private function fetchAdOUsAndUsers($baseDn = null)
 {
     $this->authorize('manageuserou');
@@ -1319,21 +1320,31 @@ private function fetchAdOUsAndUsers($baseDn = null)
         throw new \Exception('Configuration SSH manquante');
     }
 
-    // Utiliser le baseDn fourni ou celui par défaut
     $baseDn = $baseDn ?? "OU=NewUsersOU,DC=sarpi-dz,DC=sg";
 
-    // 1️⃣ Récupérer les OU enfants directs
-    $psOUs = "Get-ADOrganizationalUnit -Filter * -SearchBase '$baseDn' -SearchScope OneLevel | Select-Object Name,DistinguishedName | ConvertTo-Json";
-    $adCommandOUs = "powershell -Command \"$psOUs\"";
+    // 🔹 1️⃣ Script PowerShell pour récupérer les OUs
+    $psOUs = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+    Get-ADOrganizationalUnit -Filter * -SearchBase '$baseDn' -SearchScope OneLevel |
+    Select-Object Name,DistinguishedName |
+    ConvertTo-Json -Compress";
+
+    $psOUsBase64 = base64_encode(mb_convert_encoding($psOUs, 'UTF-16LE', 'UTF-8'));
+    $adCommandOUs = "powershell -NoProfile -NonInteractive -EncodedCommand {$psOUsBase64}";
+
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
 
     $commandOUs = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommandOUs]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommandOUs];
+        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $adCommandOUs])
+        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $adCommandOUs]);
 
     $processOUs = new Process($commandOUs);
     $processOUs->setTimeout(40);
     $processOUs->run();
-    
+
     if (!$processOUs->isSuccessful()) {
         Log::warning('Erreur lors de la récupération des OUs', [
             'error' => $processOUs->getErrorOutput(),
@@ -1342,28 +1353,29 @@ private function fetchAdOUsAndUsers($baseDn = null)
     }
 
     $outputOUs = trim($processOUs->getOutput());
-    $ous = [];
-    
-    if (!empty($outputOUs) && $outputOUs !== 'null') {
-        $decoded = json_decode($outputOUs, true);
-        if ($decoded) {
-            // Si c'est un seul objet, le mettre dans un tableau
-            $ous = isset($decoded[0]) ? $decoded : [$decoded];
-        }
+    $ous = json_decode($outputOUs, true, 512, JSON_INVALID_UTF8_SUBSTITUTE) ?: [];
+
+    if (isset($ous['Name'])) {
+        $ous = [$ous]; // si un seul OU, le mettre dans un tableau
     }
 
-    // 2️⃣ Récupérer les utilisateurs directement dans cette OU (pas les sous-OU)
-    $psUsers = "Get-ADUser -Filter * -SearchBase '$baseDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json";
-    $adCommandUsers = "powershell -Command \"$psUsers\"";
+    // 🔹 2️⃣ Script PowerShell pour récupérer les utilisateurs directs
+    $psUsers = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+    Get-ADUser -Filter * -SearchBase '$baseDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress |
+    Select-Object Name,SamAccountName,EmailAddress,DistinguishedName |
+    ConvertTo-Json -Compress";
+
+    $psUsersBase64 = base64_encode(mb_convert_encoding($psUsers, 'UTF-16LE', 'UTF-8'));
+    $adCommandUsers = "powershell -NoProfile -NonInteractive -EncodedCommand {$psUsersBase64}";
 
     $commandUsers = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommandUsers]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommandUsers];
+        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $adCommandUsers])
+        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $adCommandUsers]);
 
     $processUsers = new Process($commandUsers);
     $processUsers->setTimeout(40);
     $processUsers->run();
-    
+
     if (!$processUsers->isSuccessful()) {
         Log::warning('Erreur lors de la récupération des utilisateurs', [
             'error' => $processUsers->getErrorOutput(),
@@ -1372,45 +1384,31 @@ private function fetchAdOUsAndUsers($baseDn = null)
     }
 
     $outputUsers = trim($processUsers->getOutput());
-    $users = [];
-    
-    if (!empty($outputUsers) && $outputUsers !== 'null') {
-        $decoded = json_decode($outputUsers, true);
-        if ($decoded) {
-            // Si c'est un seul objet, le mettre dans un tableau
-            $users = isset($decoded[0]) ? $decoded : [$decoded];
-        }
+    $users = json_decode($outputUsers, true, 512, JSON_INVALID_UTF8_SUBSTITUTE) ?: [];
+
+    if (isset($users['Name'])) {
+        $users = [$users]; // si un seul utilisateur
     }
 
-    // 3️⃣ Combiner OU et utilisateurs en 1 seule liste
+    // 🔹 3️⃣ Combiner OU et utilisateurs
     $combined = [];
 
-    // S'assurer que $ous est un tableau
-    if (is_array($ous)) {
-        foreach ($ous as $ou) {
-            if (isset($ou['Name']) && isset($ou['DistinguishedName'])) {
-                $combined[] = [
-                    'type' => 'ou',
-                    'Name' => $ou['Name'],
-                    'DistinguishedName' => $ou['DistinguishedName']
-                ];
-            }
-        }
+    foreach ($ous as $ou) {
+        $combined[] = [
+            'type' => 'ou',
+            'Name' => $ou['Name'] ?? '',
+            'DistinguishedName' => $ou['DistinguishedName'] ?? ''
+        ];
     }
 
-    // S'assurer que $users est un tableau
-    if (is_array($users)) {
-        foreach ($users as $user) {
-            if (isset($user['Name']) && isset($user['DistinguishedName'])) {
-                $combined[] = [
-                    'type' => 'user',
-                    'Name' => $user['Name'],
-                    'SamAccountName' => $user['SamAccountName'] ?? '',
-                    'EmailAddress' => $user['EmailAddress'] ?? null,
-                    'DistinguishedName' => $user['DistinguishedName']
-                ];
-            }
-        }
+    foreach ($users as $user) {
+        $combined[] = [
+            'type' => 'user',
+            'Name' => $user['Name'] ?? '',
+            'SamAccountName' => $user['SamAccountName'] ?? '',
+            'EmailAddress' => $user['EmailAddress'] ?? null,
+            'DistinguishedName' => $user['DistinguishedName'] ?? ''
+        ];
     }
 
     Log::info('Données AD récupérées', [
