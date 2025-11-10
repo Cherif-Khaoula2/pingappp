@@ -236,7 +236,7 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
      Route::post('/ad/move-user', [AdUserController::class, 'moveUsers'])
       ->middleware('permission:moveaduser')
      ->name('ad.user.move');
-    Route::get('/ad/ou-explorer/{baseOuDn?}', [AdController::class, 'showOuExplorer'])
+    Route::get('/ad/ou-explorer/{baseOuDn?}', [AdUserController::class, 'showOuExplorer'])
     ->where('baseOuDn', '.*')
     ->name('ad.ou.explorer');
 
