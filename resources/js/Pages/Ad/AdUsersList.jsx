@@ -119,7 +119,7 @@ console.log(targetOuDn)
             <option value="">-- Sélectionner utilisateur --</option>
             {filteredUsers.map(u => (
                 <option key={u.DistinguishedName} value={u.DistinguishedName}>
-                    u.Name
+                    u.DistinguishedName
                 </option>
                 
             ))}
