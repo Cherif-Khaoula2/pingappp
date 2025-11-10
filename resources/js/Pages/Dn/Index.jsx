@@ -175,16 +175,7 @@ export default function DnIndex({ dns, users }) {
 
     const nomTemplate = (rowData) => (
         <div className="flex align-items-center gap-3">
-            <div 
-                className="inline-flex align-items-center justify-content-center border-circle"
-               style={{
-                     width: "35px",
-                    height: "35px",
-                    background: "linear-gradient(135deg, #e0f2fe, #bfdbfe)",
-                }}
-            >
-                <i className="pi pi-folder text-primary text-xl"></i>
-            </div>
+        
             <div>
                 <span className="font-bold text-900 text-lg block mb-1">{rowData.nom}</span>
             </div>
