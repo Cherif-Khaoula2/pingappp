@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Head, usePage, Link } from '@inertiajs/react';
 import { Card } from 'primereact/card';
@@ -32,7 +33,8 @@ export default function AdUsersList() {
         if (!confirm(`Voulez-vous déplacer ${selectedUsersDn.length} utilisateur(s) ?`)) return;
 
         try {
-            await axios.post('/ad/move-users', {
+            
+                await axios.post('/ad/move-user', {
                 users_dn: selectedUsersDn,
                 target_ou_dn: targetOuDn,
             });
