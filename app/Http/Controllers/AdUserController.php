@@ -1279,6 +1279,8 @@ public function showOuExplorer($baseOuDn = null)
         // Décoder l'URL et utiliser l'OU de base
         $baseDn = $baseOuDn ? urldecode($baseOuDn) : 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
 
+        Log::info('Accès explorateur AD', ['baseDn' => $baseDn]);
+
         // Utiliser la méthode combinée qui existe
         $data = $this->fetchAdOUsAndUsers($baseDn);
 
@@ -1288,15 +1290,21 @@ public function showOuExplorer($baseOuDn = null)
         ]);
 
     } catch (\Throwable $e) {
-        Log::error('Erreur lors de la récupération des OUs ou utilisateurs : ' . $e->getMessage());
+        Log::error('Erreur lors de la récupération des OUs ou utilisateurs', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'baseDn' => $baseDn ?? 'non défini'
+        ]);
 
         return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => [],
             'baseOuDn' => $baseDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg',
-            'error' => 'Impossible de récupérer les unités organisationnelles et utilisateurs: ' . $e->getMessage()
+            'error' => 'Impossible de récupérer les données: ' . $e->getMessage()
         ]);
     }
 }
+
+
 
 private function fetchAdOUsAndUsers($baseDn = null)
 {
@@ -1327,15 +1335,21 @@ private function fetchAdOUsAndUsers($baseDn = null)
     $processOUs->run();
     
     if (!$processOUs->isSuccessful()) {
-        throw new ProcessFailedException($processOUs);
+        Log::warning('Erreur lors de la récupération des OUs', [
+            'error' => $processOUs->getErrorOutput(),
+            'baseDn' => $baseDn
+        ]);
     }
 
     $outputOUs = trim($processOUs->getOutput());
-    $ous = $outputOUs ? json_decode($outputOUs, true) : [];
+    $ous = [];
     
-    // Si c'est un seul objet, le mettre dans un tableau
-    if ($ous && !isset($ous[0])) {
-        $ous = [$ous];
+    if (!empty($outputOUs) && $outputOUs !== 'null') {
+        $decoded = json_decode($outputOUs, true);
+        if ($decoded) {
+            // Si c'est un seul objet, le mettre dans un tableau
+            $ous = isset($decoded[0]) ? $decoded : [$decoded];
+        }
     }
 
     // 2️⃣ Récupérer les utilisateurs directement dans cette OU (pas les sous-OU)
@@ -1351,38 +1365,64 @@ private function fetchAdOUsAndUsers($baseDn = null)
     $processUsers->run();
     
     if (!$processUsers->isSuccessful()) {
-        throw new ProcessFailedException($processUsers);
+        Log::warning('Erreur lors de la récupération des utilisateurs', [
+            'error' => $processUsers->getErrorOutput(),
+            'baseDn' => $baseDn
+        ]);
     }
 
     $outputUsers = trim($processUsers->getOutput());
-    $users = $outputUsers ? json_decode($outputUsers, true) : [];
+    $users = [];
     
-    // Si c'est un seul objet, le mettre dans un tableau
-    if ($users && !isset($users[0])) {
-        $users = [$users];
+    if (!empty($outputUsers) && $outputUsers !== 'null') {
+        $decoded = json_decode($outputUsers, true);
+        if ($decoded) {
+            // Si c'est un seul objet, le mettre dans un tableau
+            $users = isset($decoded[0]) ? $decoded : [$decoded];
+        }
     }
 
     // 3️⃣ Combiner OU et utilisateurs en 1 seule liste
     $combined = [];
 
-    foreach ($ous as $ou) {
-        $combined[] = [
-            'type' => 'ou',
-            'Name' => $ou['Name'],
-            'DistinguishedName' => $ou['DistinguishedName']
-        ];
+    // S'assurer que $ous est un tableau
+    if (is_array($ous)) {
+        foreach ($ous as $ou) {
+            if (isset($ou['Name']) && isset($ou['DistinguishedName'])) {
+                $combined[] = [
+                    'type' => 'ou',
+                    'Name' => $ou['Name'],
+                    'DistinguishedName' => $ou['DistinguishedName']
+                ];
+            }
+        }
     }
 
-    foreach ($users as $user) {
-        $combined[] = [
-            'type' => 'user',
-            'Name' => $user['Name'],
-            'SamAccountName' => $user['SamAccountName'] ?? '',
-            'EmailAddress' => $user['EmailAddress'] ?? null,
-            'DistinguishedName' => $user['DistinguishedName']
-        ];
+    // S'assurer que $users est un tableau
+    if (is_array($users)) {
+        foreach ($users as $user) {
+            if (isset($user['Name']) && isset($user['DistinguishedName'])) {
+                $combined[] = [
+                    'type' => 'user',
+                    'Name' => $user['Name'],
+                    'SamAccountName' => $user['SamAccountName'] ?? '',
+                    'EmailAddress' => $user['EmailAddress'] ?? null,
+                    'DistinguishedName' => $user['DistinguishedName']
+                ];
+            }
+        }
     }
+
+    Log::info('Données AD récupérées', [
+        'baseDn' => $baseDn,
+        'ous_count' => count($ous),
+        'users_count' => count($users),
+        'combined_count' => count($combined)
+    ]);
 
     return $combined;
 }
+
+
+
 }
