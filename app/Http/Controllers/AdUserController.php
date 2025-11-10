@@ -1182,7 +1182,7 @@ private function fetchUsersFromOU($ouDn)
     $keyPath = env('SSH_KEY_PATH');
 
     // 🔹 Commande PowerShell pour récupérer uniquement les utilisateurs directs de l'OU
-    $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress | Select-Object Name,SamAccountName,EmailAddress | ConvertTo-Json";
+    $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json";
     $adCommand = "powershell -Command \"$psCommand\"";
 
     $command = $keyPath && file_exists($keyPath)
