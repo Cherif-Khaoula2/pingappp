@@ -1269,13 +1269,15 @@ private function fetchUsersFromOU($ouDn)
     } catch (\Throwable $e) {
         return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
     }
-}public function showOuExplorer($baseOuDn = null)
+}
+
+public function showOuExplorer($baseOuDn = null)
 {
     $this->authorize('manageuserou');
 
     try {
-        // OU de base à afficher
-        $baseDn = $baseOuDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
+        // Décoder l'URL et utiliser l'OU de base
+        $baseDn = $baseOuDn ? urldecode($baseOuDn) : 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
 
         // Utiliser la méthode combinée qui existe
         $data = $this->fetchAdOUsAndUsers($baseDn);
@@ -1291,7 +1293,7 @@ private function fetchUsersFromOU($ouDn)
         return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => [],
             'baseOuDn' => $baseDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg',
-            'error' => 'Impossible de récupérer les unités organisationnelles et utilisateurs.'
+            'error' => 'Impossible de récupérer les unités organisationnelles et utilisateurs: ' . $e->getMessage()
         ]);
     }
 }
