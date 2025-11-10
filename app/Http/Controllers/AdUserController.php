@@ -1173,9 +1173,10 @@ public function showUsersByOU($ou_dn)
             'error' => 'Impossible de récupérer les utilisateurs.'
         ]);
     }
-}
-private function fetchUsersFromOU($ouDn)
-{$this->authorize('manageuserou');
+}private function fetchUsersFromOU($ouDn)
+{
+    $this->authorize('manageuserou');
+
     $host = env('SSH_HOST');
     $user = env('SSH_USER');
     $password = env('SSH_PASSWORD');
@@ -1189,17 +1190,39 @@ private function fetchUsersFromOU($ouDn)
         ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
         : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
 
+    // ✅ Log de la commande PowerShell exacte
+    Log::debug('🔹 Commande PowerShell exécutée', ['command' => implode(' ', $command)]);
+
     $process = new Process($command);
     $process->setTimeout(40);
     $process->run();
 
     if (!$process->isSuccessful()) {
+        Log::error('❌ Erreur PowerShell', [
+            'stderr' => $process->getErrorOutput(),
+            'stdout' => $process->getOutput(),
+        ]);
         throw new ProcessFailedException($process);
     }
 
     $output = trim($process->getOutput());
-    return json_decode($output, true);
+
+    // ✅ Log de la sortie brute PowerShell
+    Log::debug('🧩 Sortie PowerShell brute (fetchUsersFromOU)', ['output' => $output]);
+
+    // (Optionnel) si tu veux tester le nettoyage JSON
+    if (preg_match('/(\[.*\]|\{.*\})/s', $output, $matches)) {
+        $output = $matches[1];
+    }
+
+    $decoded = json_decode($output, true);
+
+    // ✅ Log du JSON décodé
+    Log::debug('📦 Résultat décodé', ['decoded' => $decoded]);
+
+    return $decoded ?: [];
 }
+
 public function moveUser(Request $request)
 {
     $this->authorize('moveaduser');
