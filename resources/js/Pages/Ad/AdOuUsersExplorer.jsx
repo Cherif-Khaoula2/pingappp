@@ -13,14 +13,21 @@ import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
+import axios from 'axios';
 
 export default function AdOuUsersExplorer() {
     const { props } = usePage();
     const data = props.data || [];
     const baseOuDn = props.baseOuDn || 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
     const error = props.error;
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredData, setFilteredData] = useState(data);
+
+    // ✅ Nouveaux états pour la sélection et déplacement
+    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [targetOuDn, setTargetOuDn] = useState('');
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (!searchTerm.trim()) {
@@ -39,52 +46,30 @@ export default function AdOuUsersExplorer() {
     const buildBreadcrumb = () => {
         const parts = baseOuDn.split(',').filter(p => p.startsWith('OU='));
         const items = [];
-        
-        // Ajouter la racine
-        items.push({
-            label: 'NewUsersOU',
-            command: () => router.get('/ad/ou-explorer')
-        });
+        items.push({ label: 'NewUsersOU', command: () => router.get('/ad/ou-explorer') });
 
-        // Construire le chemin progressivement
         let currentPath = '';
         parts.reverse().forEach((part, index) => {
             const ouName = part.replace('OU=', '');
             if (ouName !== 'NewUsersOU') {
-                if (index === 0) {
-                    currentPath = part + ',OU=NewUsersOU,DC=sarpi-dz,DC=sg';
-                } else {
-                    currentPath = part + ',' + currentPath;
-                }
-                
-                items.push({
-                    label: ouName,
-                    command: () => router.get(`/ad/ou-explorer/${encodeURIComponent(currentPath)}`)
-                });
+                if (index === 0) currentPath = part + ',OU=NewUsersOU,DC=sarpi-dz,DC=sg';
+                else currentPath = part + ',' + currentPath;
+                items.push({ label: ouName, command: () => router.get(`/ad/ou-explorer/${encodeURIComponent(currentPath)}`) });
             }
         });
-
         return items;
     };
 
-    const home = { 
-        icon: 'pi pi-home', 
-        command: () => router.get('/ad/ou-explorer')
-    };
+    const home = { icon: 'pi pi-home', command: () => router.get('/ad/ou-explorer') };
 
-    const handleOuClick = (ouDn) => {
-        // Ne pas encoder deux fois, juste passer le DN tel quel
-        router.get(`/ad/ou-explorer/${encodeURIComponent(ouDn)}`);
-    };
+    const handleOuClick = (ouDn) => router.get(`/ad/ou-explorer/${encodeURIComponent(ouDn)}`);
 
     const nameTemplate = (rowData) => {
         if(rowData.type === 'ou'){
             return (
                 <div className="flex align-items-center gap-2 cursor-pointer" onClick={() => handleOuClick(rowData.DistinguishedName)}>
                     <i className="pi pi-folder text-yellow-600 text-xl"></i>
-                    <span className="text-blue-600 hover:text-blue-800 font-semibold">
-                        {rowData.Name}
-                    </span>
+                    <span className="text-blue-600 hover:text-blue-800 font-semibold">{rowData.Name}</span>
                 </div>
             );
         } else {
@@ -97,8 +82,7 @@ export default function AdOuUsersExplorer() {
                     <div>
                         <div className="font-semibold text-900">{rowData.Name}</div>
                         <div className="text-sm text-600 flex align-items-center gap-1">
-                            <i className="pi pi-user text-xs"></i>
-                            {rowData.SamAccountName}
+                            <i className="pi pi-user text-xs"></i>{rowData.SamAccountName}
                         </div>
                     </div>
                 </div>
@@ -120,16 +104,30 @@ export default function AdOuUsersExplorer() {
         return null;
     };
 
-    const typeTemplate = (rowData) => {
-        if (rowData.type === 'ou') {
-            return <Tag value="Dossier" severity="warning" icon="pi pi-folder" />;
-        } else {
-            return <Tag value="Utilisateur" severity="info" icon="pi pi-user" />;
-        }
-    };
+    const typeTemplate = (rowData) => rowData.type === 'ou' 
+        ? <Tag value="Dossier" severity="warning" icon="pi pi-folder" /> 
+        : <Tag value="Utilisateur" severity="info" icon="pi pi-user" />;
 
     const ous = filteredData.filter(item => item.type === 'ou');
     const users = filteredData.filter(item => item.type === 'user');
+
+    // ✅ Fonction pour déplacer les utilisateurs sélectionnés
+    const handleMoveUsers = async () => {
+        if (!selectedUsers.length || !targetOuDn) return;
+        if (!confirm(`Voulez-vous déplacer ${selectedUsers.length} utilisateur(s) ?`)) return;
+
+        setLoading(true);
+        try {
+            const usersDn = selectedUsers.map(user => user.DistinguishedName);
+            await axios.post('/ad/move-user', { users_dn: usersDn, target_ou_dn: targetOuDn });
+            alert(`${selectedUsers.length} utilisateur(s) déplacé(s) avec succès !`);
+            router.reload();
+        } catch (err) {
+            alert('Erreur lors du déplacement : ' + (err.response?.data?.message || err.message));
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const header = (
         <div className="mb-4">
@@ -140,20 +138,12 @@ export default function AdOuUsersExplorer() {
                     <p className="text-600 m-0 mt-1">Navigation dans les unités organisationnelles</p>
                 </div>
             </div>
-            
-            <BreadCrumb 
-                model={buildBreadcrumb()} 
-                home={home} 
-                className="bg-blue-50 border-blue-200"
-            />
-            
+
+            <BreadCrumb model={buildBreadcrumb()} home={home} className="bg-blue-50 border-blue-200" />
+
             <div className="flex align-items-center gap-2 mt-3">
-                <Tag value={`${ous.length} dossier${ous.length > 1 ? 's' : ''}`} 
-                     severity="warning" 
-                     icon="pi pi-folder" />
-                <Tag value={`${users.length} utilisateur${users.length > 1 ? 's' : ''}`} 
-                     severity="info" 
-                     icon="pi pi-users" />
+                <Tag value={`${ous.length} dossier${ous.length > 1 ? 's' : ''}`} severity="warning" icon="pi pi-folder" />
+                <Tag value={`${users.length} utilisateur${users.length > 1 ? 's' : ''}`} severity="info" icon="pi pi-users" />
             </div>
         </div>
     );
@@ -167,15 +157,9 @@ export default function AdOuUsersExplorer() {
                         <Card className="shadow-3 border-round-xl">
                             {header}
 
-                            {error && (
-                                <Message 
-                                    severity="error" 
-                                    text={error} 
-                                    style={{ width: '100%' }} 
-                                    className="mb-4" 
-                                />
-                            )}
+                            {error && <Message severity="error" text={error} style={{ width: '100%' }} className="mb-4" />}
 
+                            {/* Recherche */}
                             <div className="mb-4">
                                 <span className="p-input-icon-left w-full md:w-20rem">
                                     <i className="pi pi-search" />
@@ -188,12 +172,48 @@ export default function AdOuUsersExplorer() {
                                 </span>
                             </div>
 
+                            {/* Déplacement d'utilisateurs */}
+                            <Card className="bg-blue-50 border-blue-200 mb-4">
+                                <div className="flex flex-wrap align-items-end gap-3">
+                                    <div className="flex-1" style={{ minWidth: '250px' }}>
+                                        <label className="block mb-2 font-semibold text-900">
+                                            <i className="pi pi-folder-open mr-2"></i> OU de destination
+                                        </label>
+                                        <select 
+                                            value={targetOuDn} 
+                                            onChange={(e) => setTargetOuDn(e.target.value)} 
+                                            disabled={loading}
+                                            className="w-full p-2 border border-gray-300 rounded"
+                                        >
+                                            <option value="">Sélectionner une OU cible</option>
+                                            {ous.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="flex align-items-center gap-2">
+                                        {selectedUsers.length > 0 && (
+                                            <Tag 
+                                                value={`${selectedUsers.length} sélectionné${selectedUsers.length > 1 ? 's' : ''}`}
+                                                severity="warning"
+                                                icon="pi pi-check-circle"
+                                            />
+                                        )}
+                                        <Button
+                                            label="Déplacer"
+                                            icon="pi pi-arrow-right"
+                                            severity="success"
+                                            onClick={handleMoveUsers}
+                                            disabled={!selectedUsers.length || !targetOuDn || loading}
+                                            loading={loading}
+                                            className="px-4"
+                                        />
+                                    </div>
+                                </div>
+                            </Card>
+
+                            {/* Table */}
                             {filteredData.length === 0 ? (
-                                <Message
-                                    severity="info"
-                                    text="Aucun résultat trouvé dans cette OU"
-                                    style={{ width: "100%" }}
-                                />
+                                <Message severity="info" text="Aucun résultat trouvé dans cette OU" style={{ width: "100%" }} />
                             ) : (
                                 <DataTable
                                     value={filteredData}
@@ -204,28 +224,15 @@ export default function AdOuUsersExplorer() {
                                     paginator
                                     rows={25}
                                     rowsPerPageOptions={[25, 50, 100]}
+                                    selectionMode="checkbox"
+                                    selection={selectedUsers}
+                                    onSelectionChange={(e) => setSelectedUsers(e.value)}
+                                    dataKey="DistinguishedName"
                                 >
-                                    <Column
-                                        field="type"
-                                        header="Type"
-                                        body={typeTemplate}
-                                        style={{ width: '120px' }}
-                                        sortable
-                                    />
-                                    <Column
-                                        field="Name"
-                                        header="Nom"
-                                        body={nameTemplate}
-                                        style={{ minWidth: '300px' }}
-                                        sortable
-                                    />
-                                    <Column
-                                        field="EmailAddress"
-                                        header="Email"
-                                        body={emailTemplate}
-                                        style={{ minWidth: '250px' }}
-                                        sortable
-                                    />
+                                    <Column selectionMode="multiple" headerStyle={{ width: '3rem' }} />
+                                    <Column field="type" header="Type" body={typeTemplate} style={{ width: '120px' }} sortable />
+                                    <Column field="Name" header="Nom" body={nameTemplate} style={{ minWidth: '300px' }} sortable />
+                                    <Column field="EmailAddress" header="Email" body={emailTemplate} style={{ minWidth: '250px' }} sortable />
                                 </DataTable>
                             )}
                         </Card>
