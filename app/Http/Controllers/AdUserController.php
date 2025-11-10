@@ -1173,7 +1173,8 @@ public function showUsersByOU($ou_dn)
             'error' => 'Impossible de récupérer les utilisateurs.'
         ]);
     }
-}private function fetchUsersFromOU($ouDn)
+}
+private function fetchUsersFromOU($ouDn)
 {
     $this->authorize('manageuserou');
 
@@ -1182,8 +1183,8 @@ public function showUsersByOU($ou_dn)
     $password = env('SSH_PASSWORD');
     $keyPath = env('SSH_KEY_PATH');
 
-    // 🔹 Commande PowerShell pour récupérer uniquement les utilisateurs directs de l'OU
-    $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json";
+    // ✅ Commande PowerShell compacte (évite les erreurs de json_decode)
+    $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json -Compress";
     $adCommand = "powershell -Command \"$psCommand\"";
 
     $command = $keyPath && file_exists($keyPath)
@@ -1210,18 +1211,22 @@ public function showUsersByOU($ou_dn)
     // ✅ Log de la sortie brute PowerShell
     Log::debug('🧩 Sortie PowerShell brute (fetchUsersFromOU)', ['output' => $output]);
 
-    // (Optionnel) si tu veux tester le nettoyage JSON
+    // 🔧 Nettoyage léger du JSON si nécessaire
     if (preg_match('/(\[.*\]|\{.*\})/s', $output, $matches)) {
         $output = $matches[1];
     }
 
     $decoded = json_decode($output, true);
 
-    // ✅ Log du JSON décodé
-    Log::debug('📦 Résultat décodé', ['decoded' => $decoded]);
+    // ✅ Log du JSON décodé + message d’erreur éventuel
+    Log::debug('📦 Résultat décodé', [
+        'decoded' => $decoded,
+        'json_error' => json_last_error_msg(),
+    ]);
 
     return $decoded ?: [];
 }
+
 
 public function moveUser(Request $request)
 {
