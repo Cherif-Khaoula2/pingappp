@@ -1183,15 +1183,26 @@ private function fetchUsersFromOU($ouDn)
     $password = env('SSH_PASSWORD');
     $keyPath = env('SSH_KEY_PATH');
 
-    // ✅ Commande PowerShell compacte (évite les erreurs de json_decode)
-    $psCommand = "Get-ADUser -Filter * -SearchBase '$ouDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress,DistinguishedName | Select-Object Name,SamAccountName,EmailAddress,DistinguishedName | ConvertTo-Json -Compress";
-    $adCommand = "powershell -Command \"$psCommand\"";
+    // 🔹 Script PowerShell avec forçage UTF-8 en sortie
+    $psScript = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+    Get-ADUser -Filter * -SearchBase '$ouDn' -SearchScope OneLevel -Properties Name,SamAccountName,EmailAddress,DistinguishedName |
+    Select-Object Name,SamAccountName,EmailAddress,DistinguishedName |
+    ConvertTo-Json -Compress";
+
+    // 🔹 Encodage UTF-16LE avant envoi
+    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
 
     $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
+        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
+        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
-    // ✅ Log de la commande PowerShell exacte
     Log::debug('🔹 Commande PowerShell exécutée', ['command' => implode(' ', $command)]);
 
     $process = new Process($command);
@@ -1207,18 +1218,12 @@ private function fetchUsersFromOU($ouDn)
     }
 
     $output = trim($process->getOutput());
+    Log::debug('🧩 Sortie PowerShell brute', ['output' => $output]);
 
-    // ✅ Log de la sortie brute PowerShell
-    Log::debug('🧩 Sortie PowerShell brute (fetchUsersFromOU)', ['output' => $output]);
+    // 🔹 Nettoyage et décodage robuste
+    $cleanOutput = str_replace(["\\u0027", "\r"], ["'", ""], $output);
+    $decoded = json_decode($cleanOutput, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
 
-    // 🔧 Nettoyage léger du JSON si nécessaire
-    if (preg_match('/(\[.*\]|\{.*\})/s', $output, $matches)) {
-        $output = $matches[1];
-    }
-
-    $decoded = json_decode($output, true);
-
-    // ✅ Log du JSON décodé + message d’erreur éventuel
     Log::debug('📦 Résultat décodé', [
         'decoded' => $decoded,
         'json_error' => json_last_error_msg(),
