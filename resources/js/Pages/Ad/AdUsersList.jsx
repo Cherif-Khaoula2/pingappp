@@ -27,7 +27,8 @@ const [targetOuDn, setTargetOuDn] = useState('');
 const ous = props.ous || []; // liste des OU que tu passes depuis Laravel
 const handleMoveUser = async () => {
     if (!selectedUserDn || !targetOuDn) return;
-
+console.log(selectedUserDn)
+console.log(targetOuDn)
     if (!confirm("Voulez-vous vraiment déplacer cet utilisateur ?")) return;
 
     try {
