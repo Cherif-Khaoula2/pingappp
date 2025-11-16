@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { router, Head } from '@inertiajs/react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
@@ -8,6 +8,7 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { Checkbox } from 'primereact/checkbox';
+import { Toast } from 'primereact/toast';
 import Layout from '@/Layouts/layout/layout.jsx';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
@@ -15,13 +16,18 @@ import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
 
 export default function MailboxIndex({ mailboxes = [] }) {
+  const toast = useRef(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [currentMailbox, setCurrentMailbox] = useState({ name: '', active: false, id: null });
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMailboxes, setFilteredMailboxes] = useState(mailboxes);
+
+  // Mettre à jour les mailboxes filtrées quand les mailboxes changent
+  useEffect(() => {
+    handleSearch(searchQuery);
+  }, [mailboxes]);
 
   // Filtrer les mailboxes en fonction de la recherche
   const handleSearch = (query) => {
@@ -64,46 +70,118 @@ export default function MailboxIndex({ mailboxes = [] }) {
   const handleConfirmedAction = () => {
     if (!confirmAction) return;
 
+    const successMessages = {
+      save: currentMailbox.id ? 'Mailbox modifiée avec succès' : 'Mailbox créée avec succès',
+      delete: 'Mailbox supprimée avec succès',
+      activate: 'Mailbox activée avec succès',
+      deactivate: 'Mailbox désactivée avec succès'
+    };
+
     switch (confirmAction.type) {
       case 'delete':
         router.delete(`/mailboxes/${confirmAction.data.id}`, { 
-          preserveState: true,
+          preserveScroll: true,
           onSuccess: () => {
-            setShowSuccessDialog(true);
+            toast.current.show({
+              severity: 'success',
+              summary: 'Succès',
+              detail: successMessages.delete,
+              life: 3000
+            });
+          },
+          onError: () => {
+            toast.current.show({
+              severity: 'error',
+              summary: 'Erreur',
+              detail: 'Une erreur est survenue lors de la suppression',
+              life: 3000
+            });
           }
         });
         break;
       case 'activate':
         router.put(`/mailboxes/${confirmAction.data.id}`, { active: true }, { 
-          preserveState: true,
+          preserveScroll: true,
           onSuccess: () => {
-            setShowSuccessDialog(true);
+            toast.current.show({
+              severity: 'success',
+              summary: 'Succès',
+              detail: successMessages.activate,
+              life: 3000
+            });
+          },
+          onError: () => {
+            toast.current.show({
+              severity: 'error',
+              summary: 'Erreur',
+              detail: 'Une erreur est survenue lors de l\'activation',
+              life: 3000
+            });
           }
         });
         break;
       case 'deactivate':
         router.put(`/mailboxes/${confirmAction.data.id}`, { active: false }, { 
-          preserveState: true,
+          preserveScroll: true,
           onSuccess: () => {
-            setShowSuccessDialog(true);
+            toast.current.show({
+              severity: 'success',
+              summary: 'Succès',
+              detail: successMessages.deactivate,
+              life: 3000
+            });
+          },
+          onError: () => {
+            toast.current.show({
+              severity: 'error',
+              summary: 'Erreur',
+              detail: 'Une erreur est survenue lors de la désactivation',
+              life: 3000
+            });
           }
         });
         break;
       case 'save':
         if (currentMailbox.id) {
           router.put(`/mailboxes/${currentMailbox.id}`, currentMailbox, { 
-            preserveState: true,
+            preserveScroll: true,
             onSuccess: () => {
-              setShowSuccessDialog(true);
+              toast.current.show({
+                severity: 'success',
+                summary: 'Succès',
+                detail: successMessages.save,
+                life: 3000
+              });
               closeDialog();
+            },
+            onError: () => {
+              toast.current.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Une erreur est survenue lors de la modification',
+                life: 3000
+              });
             }
           });
         } else {
           router.post('/mailboxes', currentMailbox, { 
-            preserveState: true,
+            preserveScroll: true,
             onSuccess: () => {
-              setShowSuccessDialog(true);
+              toast.current.show({
+                severity: 'success',
+                summary: 'Succès',
+                detail: successMessages.save,
+                life: 3000
+              });
               closeDialog();
+            },
+            onError: () => {
+              toast.current.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Une erreur est survenue lors de la création',
+                life: 3000
+              });
             }
           });
         }
@@ -406,20 +484,16 @@ export default function MailboxIndex({ mailboxes = [] }) {
     );
   };
 
-  const confirmDialogFooter = null;
-
   const editDialogFooter = (
     <div className="flex justify-content-end gap-2 mt-3 px-4 pb-4">
       <Button
         label="Annuler"
-        icon="pi pi-times"
         outlined
         onClick={closeDialog}
         className="p-button-sm md:p-button-md"
       />
       <Button
         label="Enregistrer"
-        icon="pi pi-save"
         onClick={handleSave}
         disabled={!currentMailbox.name.trim()}
         style={{
@@ -431,140 +505,11 @@ export default function MailboxIndex({ mailboxes = [] }) {
     </div>
   );
 
-  const getSuccessDialogContent = () => {
-    if (!confirmAction) return null;
-
-    const actionLabels = {
-      save: currentMailbox.id ? 'modifiée' : 'créée',
-      delete: 'supprimée',
-      activate: 'activée',
-      deactivate: 'désactivée'
-    };
-
-    const mailboxName = confirmAction.type === 'save' ? currentMailbox.name : confirmAction.data?.name;
-    const actionLabel = actionLabels[confirmAction.type];
-
-    return (
-      <div className="p-5">
-        <div className="text-center mb-4">
-          <div
-            className="inline-flex align-items-center justify-content-center border-circle mb-3"
-            style={{
-              width: "90px",
-              height: "90px",
-              background: confirmAction.type === 'delete' 
-                ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                : confirmAction.type === 'deactivate'
-                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              boxShadow: confirmAction.type === 'delete'
-                ? '0 8px 25px rgba(239, 68, 68, 0.35)'
-                : confirmAction.type === 'deactivate'
-                ? '0 8px 25px rgba(245, 158, 11, 0.35)'
-                : '0 8px 25px rgba(16, 185, 129, 0.35)',
-            }}
-          >
-            <i className="pi pi-check text-white" style={{ fontSize: "3rem" }}></i>
-          </div>
-          <h2 className="text-900 font-bold text-2xl mb-2">
-            Mailbox {actionLabel} !
-          </h2>
-          <p className="text-600 text-lg">
-            L'opération a été effectuée avec succès
-          </p>
-        </div>
-
-        <div className="surface-100 border-round-lg p-4 mb-4">
-          <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
-            <i className="pi pi-database text-primary text-xl mt-1"></i>
-            <div className="flex-1">
-              <div className="text-500 text-sm mb-1 font-medium">Nom de la mailbox</div>
-              <div className="text-900 font-semibold text-lg">{mailboxName}</div>
-            </div>
-          </div>
-
-          <div className="flex align-items-start gap-3">
-            <i className={`pi ${
-              confirmAction.type === 'delete' ? 'pi-trash' :
-              confirmAction.type === 'activate' ? 'pi-check-circle' :
-              confirmAction.type === 'deactivate' ? 'pi-ban' :
-              'pi-save'
-            } text-xl mt-1`}
-              style={{ 
-                color: confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
-                  ? '#ef4444' 
-                  : '#10b981' 
-              }}
-            ></i>
-            <div className="flex-1">
-              <div className="text-500 text-sm mb-1 font-medium">Action effectuée</div>
-              <Tag 
-                severity={
-                  confirmAction.type === 'delete' ? 'danger' :
-                  confirmAction.type === 'deactivate' ? 'warning' :
-                  'success'
-                }
-                value={`Mailbox ${actionLabel}`}
-                style={{ fontSize: "1rem", padding: "0.6rem 1.2rem" }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={`p-3 border-round-lg mb-4 ${
-          confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
-            ? 'bg-red-50' 
-            : 'bg-green-50'
-        }`}>
-          <div className="flex align-items-start gap-2">
-            <i className={`pi pi-info-circle mt-1`}
-              style={{ 
-                color: confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
-                  ? '#dc2626' 
-                  : '#059669' 
-              }}
-            ></i>
-            <small className="font-medium" style={{ 
-              color: confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
-                ? '#991b1b' 
-                : '#065f46' 
-            }}>
-              {confirmAction.type === 'delete'
-                ? 'La mailbox a été définitivement supprimée de la base de données.'
-                : confirmAction.type === 'deactivate'
-                ? 'La mailbox ne sera plus disponible pour les nouveaux utilisateurs.'
-                : confirmAction.type === 'activate'
-                ? 'La mailbox est maintenant disponible pour les nouveaux utilisateurs.'
-                : `La mailbox a été ${actionLabel} avec succès.`}
-            </small>
-          </div>
-        </div>
-
-        <Button
-          label="OK, j'ai compris"
-          onClick={() => {
-            setShowSuccessDialog(false);
-            setConfirmAction(null);
-          }}
-          severity={
-            confirmAction.type === 'delete' ? 'danger' :
-            confirmAction.type === 'deactivate' ? 'warning' :
-            'success'
-          }
-          className="w-full"
-          style={{ 
-            height: "55px", 
-            fontSize: "1.1rem",
-            fontWeight: "600"
-          }}
-        />
-      </div>
-    );
-  };
-
   return (
     <Layout>
       <Head title="Gestion des Mailboxes" />
+      
+      <Toast ref={toast} position="top-right" />
       
       <div className="grid">
         <div className="col-12">
@@ -696,24 +641,6 @@ export default function MailboxIndex({ mailboxes = [] }) {
         {getConfirmDialogContent()}
       </Dialog>
 
-      {/* Dialog de succès */}
-      <Dialog
-        visible={showSuccessDialog}
-        onHide={() => {
-          setShowSuccessDialog(false);
-          setConfirmAction(null);
-        }}
-        header={null}
-        footer={null}
-        style={{ width: '95vw', maxWidth: '550px' }}
-        modal
-        breakpoints={{ '960px': '90vw', '640px': '95vw' }}
-        dismissableMask
-        className="custom-dialog"
-      >
-        {getSuccessDialogContent()}
-      </Dialog>
-
       <style>{`
         :global(.p-card) {
           border-radius: 12px;
@@ -831,6 +758,34 @@ export default function MailboxIndex({ mailboxes = [] }) {
 
         :global(.custom-dialog .p-dialog-header) {
           display: none;
+        }
+
+        :global(.p-toast) {
+          opacity: 0.95;
+        }
+
+        :global(.p-toast .p-toast-message) {
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        :global(.p-toast .p-toast-message-success) {
+          background: #10b981;
+          border: none;
+          color: white;
+        }
+
+        :global(.p-toast .p-toast-message-error) {
+          background: #ef4444;
+          border: none;
+          color: white;
+        }
+
+        :global(.p-toast .p-toast-message-success .p-toast-message-icon),
+        :global(.p-toast .p-toast-message-success .p-toast-icon-close),
+        :global(.p-toast .p-toast-message-error .p-toast-message-icon),
+        :global(.p-toast .p-toast-message-error .p-toast-icon-close) {
+          color: white;
         }
 
         @media (max-width: 768px) {
