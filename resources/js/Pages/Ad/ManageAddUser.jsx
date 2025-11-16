@@ -154,7 +154,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
     const { name, value } = e.target;
     let newValue = value;
     
-    if (name === "sam") {
+     if (name === "sam") {
       newValue = newValue.slice(0, 25);
       const regex = /^[A-Za-z0-9._-]*$/;
       if (!regex.test(newValue)) {
@@ -178,18 +178,23 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
      };
 
   const handlePasswordChange = (value) => {
-    const filteredValue = value.replace(/[^A-Za-z0-9@$!%*?&]/g, '');
-    handleChange({ target: { name: "password", value: filteredValue } });
-    
-    const strength = calculatePasswordStrength(filteredValue);
-    setPasswordStrength(strength);
-    
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (filteredValue && !passwordRegex.test(filteredValue)) {
-    } else {
-      setError("");
-    }
-  };
+  // 🔹 Filtrer les caractères autorisés
+  const filteredValue = value.replace(/[^A-Za-z0-9@$!%*?&]/g, '');
+  handleChange({ target: { name: "password", value: filteredValue } });
+
+  // 🔹 Calcul de la force du mot de passe
+  const strength = calculatePasswordStrength(filteredValue);
+  setPasswordStrength(strength);
+
+  // 🔹 Validation du mot de passe
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (filteredValue && !passwordRegex.test(filteredValue)) {
+    setError("⚠️ Le mot de passe doit contenir au moins 8 caractères dont : une majuscule, une minuscule, un chiffre et un caractère spécial parmi @$!%*?&");
+  } else {
+    setError(""); // Pas d'erreur si le mot de passe est valide
+  }
+};
+
 
   const handleNameChange = (e) => {
     const { name, value } = e.target;
