@@ -683,9 +683,7 @@ public function createAdUser(Request $request)
 
     // 🔹 Infos SSH Exchange
     $exHost = env('SSH_HOST_EX');
-    $exUser = env('SSH_USER_EX');
-    $exPassword = env('SSH_PASSWORD_EX');
-    $exKeyPath = env('SSH_KEY_PATH_EX');
+   
 
     if (!$exHost || !$exUser) {
         return response()->json([
@@ -796,12 +794,18 @@ if (!$mailboxRecord) {
             }
         
             // 3️⃣ Commande création mailbox
-            $exchangeCommand = "Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpAddress '$escapedEmail'";
-        
+            $exchangeCommand = "
+powershell.exe -NoProfile -Command \"
+. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
+Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
+Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpAddress '$escapedEmail'
+\"
+";
+
             $exchangeProcess = new Process(
                 $exKeyPath && file_exists($exKeyPath)
-                    ? ['ssh', '-i', $exKeyPath, '-o', 'StrictHostKeyChecking=no', "{$exUser}@{$exHost}", $exchangeCommand]
-                    : ['sshpass', '-p', $exPassword, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$exUser}@{$exHost}", $exchangeCommand]
+                    ? ['ssh', '-i', $exKeyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
+                    : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
             );
         
             $exchangeProcess->setTimeout(60);
@@ -810,6 +814,7 @@ if (!$mailboxRecord) {
             // 4️⃣ Gestion des erreurs
             if (!$exchangeProcess->isSuccessful()) {
                 Log::error('createExchangeMailbox error: ' . $exchangeProcess->getErrorOutput());
+                Log::info('Exchange output: ' . $exchangeProcess->getOutput());
                 return response()->json([
                     'success' => false,
                     'message' => 'Erreur lors de la création de la mailbox Exchange : ',
