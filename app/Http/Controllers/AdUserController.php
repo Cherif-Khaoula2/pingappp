@@ -647,7 +647,6 @@ public function createAdUser(Request $request)
             'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
         ],
         'direction_id' => 'required|exists:dns,id',
-        'mailbox' => 'nullable|string|max:50',
     ]);
 
     $directionId = $request->input('direction_id');
@@ -701,14 +700,29 @@ public function createAdUser(Request $request)
     $userPassword = $request->input('password');
     $accountType = $request->input('accountType');
     $ouPath = $direction->path;
-    $mailbox = $request->input('mailbox');
+    // 🔹 Récupérer la mailbox active depuis la BDD
+$mailboxRecord = Mailbox::where('active', true)->first();
+
+if (!$mailboxRecord) {
+    return response()->json([
+        'success' => false,
+        'message' => "Aucune mailbox active trouvée."
+    ], 404);
+}
+Log::info('Mailbox active récupérée avant création utilisateur', [
+    'mailbox_id' => $mailboxRecord->id,
+    'mailbox_name' => $mailboxRecord->name,
+    'mailbox_active' => $mailboxRecord->active,
+    'user_sam' => $sam,
+    'user_email' => $email
+]);
     // 🔹 Échappement des valeurs pour PowerShell
     $escapedName = $this->escapePowerShellString($name);
     $escapedSam = $this->escapePowerShellString($sam);
     $escapedEmail = $this->escapePowerShellString($email ?? '');
     $escapedPassword = str_replace("'", "''", $userPassword);
     $escapedOuPath = $this->escapePowerShellString($ouPath);
-    $escapedmailbox = $this->escapePowerShellString($mailbox ?? '');
+    $escapedmailbox = $this->escapePowerShellString($mailboxRecord->name);
 
     $userPrincipalName = $accountType === "AD+Exchange" ? $escapedEmail : "$escapedSam@sarpi-dz.sg";
 

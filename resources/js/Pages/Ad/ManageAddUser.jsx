@@ -20,9 +20,9 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
     name: "",
     sam: "",
     email: "",
+    logmail: "",
     password: "",
     direction_id: "",
-    mailbox: "",
   });
 
   const [directions, setDirections] = useState(initialDirections);
@@ -119,19 +119,6 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
     return `S@rpi${randomDigits}`;
   };
 
-  const checkUserExists = async (firstName, lastName) => {
-    try {
-      const response = await axios.post("/ad/check-user-exists", {
-        firstName: formatFirstName(firstName),
-        lastName: formatLastName(lastName)
-      });
-      return response.data.exists;
-    } catch (err) {
-      console.error("Erreur lors de la vérification:", err);
-      return false;
-    }
-  };
-
   const handleDirectionChange = (e) => {
     const direction = directions.find(d => d.id === e.value);
     setSelectedDirection(direction);
@@ -177,13 +164,18 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
         setSamError("");
       }
     }
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: newValue,
-      email: name === "sam" ? `${newValue}@sarpi-dz.com` : prev.email,
-    }));
+ setForm((prev) => {
+  const newSam = name === "sam" ? newValue : prev.sam;
+  return {
+    ...prev,
+    [name]: newValue,
+    logmail: `${newSam}@sarpi-dz.sg`,   // logmail toujours basé sur sam
+    email: `${newSam}@sarpi-dz.com`,    // email basé sur sam
   };
+});
+
+
+     };
 
   const handlePasswordChange = (value) => {
     const filteredValue = value.replace(/[^A-Za-z0-9@$!%*?&]/g, '');
@@ -237,14 +229,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
       return;
     }
     
-    const exists = await checkUserExists(form.firstName, form.lastName);
-    if (exists) {
-      showError(
-        "Utilisateur existant",
-        `L'utilisateur ${form.firstName} ${form.lastName} existe déjà dans Active Directory !`
-      );
-      return;
-    }
+    
     
     setShowConfirmDialog(true);
   };
@@ -252,13 +237,13 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const confirmCreate = async () => {
     setLoading(true);
     try {
-      const selectedMailbox = mailboxes.find(m => m.id === form.mailbox);
+
 
       const payload = { 
         ...form, 
         accountType: "AD+Exchange",
-        mailbox: selectedMailbox ? selectedMailbox.name : null
       };
+     
       const res = await axios.post("/ad/create-user", payload);
 
       setCreatedUserDetails({
@@ -267,7 +252,6 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
         email: form.email,
         password: form.password,
         direction: selectedDirection?.nom || '',
-        mailbox: selectedMailbox ? selectedMailbox.name : ''
       });
 
       setShowConfirmDialog(false);
@@ -279,9 +263,9 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
         name: "",
         sam: "",
         email: "",
+        logmail: "",
         password: "",
         direction_id: "",
-        mailbox: "",
         confirmPassword: "",
       });
       setSelectedDirection(null);
@@ -497,22 +481,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                         </div>
                       </div>
 
-                      <div className="col-12 md:col-6">
-                        <div className="field">
-                          <label htmlFor="mailbox" className="block text-900 font-semibold mb-2 text-sm md:text-base">
-                            Mailbox <span className="text-red-500">*</span>
-                          </label>
-                          <Dropdown
-                            id="mailbox"
-                            value={form.mailbox}
-                            options={mailboxes.map(m => ({ label: m.name, value: m.id }))}
-                            onChange={(e) => setForm(prev => ({ ...prev, mailbox: e.value }))}
-                            placeholder="Sélectionner une mailbox"
-                            className="w-full text-sm md:text-base"
-                            required
-                          />
-                        </div>
-                      </div>
+                     
                     </div>
                   </div>
                 </div>
@@ -727,7 +696,6 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                           email: "",
                           password: "",
                           direction_id: "",
-                          mailbox: "",
                           confirmPassword: "",
                         });
                         setSelectedDirection(null);
@@ -898,15 +866,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                   </div>
                 </div>
 
-                <div className="col-12">
-                  <div className="flex align-items-start gap-3 mb-3 p-3 surface-0 border-round-lg">
-                    <i className="pi pi-database text-primary text-xl mt-1"></i>
-                    <div className="flex-1">
-                      <div className="text-500 text-xs md:text-sm mb-1">Mailbox</div>
-                      <div className="text-900 font-bold text-base">{createdUserDetails.mailbox}</div>
-                    </div>
-                  </div>
-                </div>
+              
 
                 <div className="col-12">
                   <div className="flex align-items-start gap-3 p-3 bg-yellow-50 border-round-lg border-1 border-yellow-300">
