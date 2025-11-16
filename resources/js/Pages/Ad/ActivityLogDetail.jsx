@@ -49,7 +49,13 @@ export default function ActivityLogDetail({ log }) {
         create_user: { 
             icon: 'pi-user-plus', 
             severity: 'help', 
-            label: 'Création utilisateur', 
+            label: 'Création utilisateurAD', 
+            color: '#7c3aed'
+        },
+        create_exchange_mailbox: { 
+            icon: 'pi-user-plus', 
+            severity: 'help', 
+            label: 'Création utilisateurExchange', 
             color: '#7c3aed'
         },
         search_user: { 

@@ -43,6 +43,7 @@ export default function UserActivityHistory({ user, logs }) {
         { label: ' Déblocage utilisateur', value: 'unblock_user' },
         { label: ' Reset mot de passe', value: 'reset_password' },
         { label: ' Création compte AD', value: 'create_user' },
+        { label: ' Création compte Exchange', value: 'create_exchange_mailbox' },
         { label: ' Recherche', value: 'search_user' },
         { label: ' Résultats recherche', value: 'search_user_result' },
         { label: ' Création DN', value: 'create_dn' },
@@ -96,6 +97,12 @@ const configs = {
         label: 'Création ', 
         color: '#7c3aed' // Violet professionnel
     },
+     create_exchange_mailbox: { 
+            icon: 'pi-user-plus', 
+            severity: 'help', 
+            label: 'Création utilisateurExchange', 
+            color: '#7c3aed'
+        },
     search_user: { 
         icon: 'pi-search', 
         severity: 'info', 

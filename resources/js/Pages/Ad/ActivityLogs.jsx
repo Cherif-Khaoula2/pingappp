@@ -29,6 +29,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
         { label: ' Déblocage utilisateur', value: 'unblock_user' },
         { label: ' Reset mot de passe', value: 'reset_password' },
         { label: ' Création compte AD', value: 'create_user' },
+         { label: ' Création compte Exchange', value: 'create_exchange_mailbox' },
         { label: ' Recherche', value: 'search_user' },
         { label: ' Résultats recherche', value: 'search_user_result' },
         { label: ' Création DN', value: 'create_dn' },
@@ -123,7 +124,13 @@ const configs = {
     create_user: { 
         icon: 'pi-user-plus', 
         severity: 'help', 
-        label: 'Création ', 
+        label: 'Création AD ', 
+        color: '#7c3aed' // Violet professionnel
+    },
+    create_exchange_mailbox: { 
+        icon: 'pi-user-plus', 
+        severity: 'help', 
+        label: 'Création Exchange ', 
         color: '#7c3aed' // Violet professionnel
     },
     search_user: { 
