@@ -8,26 +8,61 @@ import { Button } from 'primereact/button';
 import { Message } from 'primereact/message';
 import { BreadCrumb } from 'primereact/breadcrumb';
 import { Tag } from 'primereact/tag';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import Layout from '@/Layouts/layout/layout.jsx';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
-import axios from 'axios';
 
 export default function AdOuUsersExplorer() {
     const { props } = usePage();
-    const data = props.data || [];
     const baseOuDn = props.baseOuDn || 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
     const error = props.error;
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [filteredData, setFilteredData] = useState(data);
-
-    // ✅ Nouveaux états pour la sélection et déplacement
+    const [filteredData, setFilteredData] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [targetOuDn, setTargetOuDn] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // ✅ État pour les données et le chargement
+    const [data, setData] = useState([]);
+    const [allOus, setAllOus] = useState([]); // Renommé pour éviter le conflit
+    const [isLoadingData, setIsLoadingData] = useState(true);
+    const [errorMessage, setErrorMessage] = useState(null);
+
+    // ✅ Charger les données via API après le rendu initial
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const response = await fetch('/ad/fetch-ou-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ baseDn: baseOuDn })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    setData(result.data || []);
+                    setOus(result.ous || []);
+                } else {
+                    setErrorMessage(result.message || 'Erreur lors du chargement des données');
+                }
+            } catch (err) {
+                console.error('Erreur lors du chargement:', err);
+                setErrorMessage('Erreur de connexion au serveur');
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+
+        loadData();
+    }, [baseOuDn]);
 
     useEffect(() => {
         if (!searchTerm.trim()) {
@@ -42,7 +77,6 @@ export default function AdOuUsersExplorer() {
         }
     }, [searchTerm, data]);
 
-    // Construire le fil d'Ariane à partir du DN
     const buildBreadcrumb = () => {
         const parts = baseOuDn.split(',').filter(p => p.startsWith('OU='));
         const items = [];
@@ -109,10 +143,8 @@ export default function AdOuUsersExplorer() {
         : <Tag value="Utilisateur" severity="info" icon="pi pi-user" />;
 
     const ous = filteredData.filter(item => item.type === 'ou');
-    
     const users = filteredData.filter(item => item.type === 'user');
 
-    // ✅ Fonction pour déplacer les utilisateurs sélectionnés
     const handleMoveUsers = async () => {
         if (!selectedUsers.length || !targetOuDn) return;
         if (!confirm(`Voulez-vous déplacer ${selectedUsers.length} utilisateur(s) ?`)) return;
@@ -120,11 +152,21 @@ export default function AdOuUsersExplorer() {
         setLoading(true);
         try {
             const usersDn = selectedUsers.map(user => user.DistinguishedName);
-            await axios.post('/ad/move-user', { users_dn: usersDn, target_ou_dn: targetOuDn });
+            const response = await fetch('/ad/move-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ users_dn: usersDn, target_ou_dn: targetOuDn })
+            });
+            
+            if (!response.ok) throw new Error('Erreur lors du déplacement');
+            
             alert(`${selectedUsers.length} utilisateur(s) déplacé(s) avec succès !`);
             router.reload();
         } catch (err) {
-            alert('Erreur lors du déplacement : ' + (err.response?.data?.message || err.message));
+            alert('Erreur lors du déplacement : ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -158,7 +200,14 @@ export default function AdOuUsersExplorer() {
                         <Card className="shadow-3 border-round-xl">
                             {header}
 
-                            {error && <Message severity="error" text={error} style={{ width: '100%' }} className="mb-4" />}
+                            {(error || errorMessage) && (
+                                <Message 
+                                    severity="error" 
+                                    text={error || errorMessage} 
+                                    style={{ width: '100%' }} 
+                                    className="mb-4" 
+                                />
+                            )}
 
                             {/* Recherche */}
                             <div className="mb-4">
@@ -169,6 +218,7 @@ export default function AdOuUsersExplorer() {
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full"
+                                        disabled={isLoadingData}
                                     />
                                 </span>
                             </div>
@@ -183,12 +233,11 @@ export default function AdOuUsersExplorer() {
                                         <select 
                                             value={targetOuDn} 
                                             onChange={(e) => setTargetOuDn(e.target.value)} 
-                                            disabled={loading}
+                                            disabled={loading || isLoadingData}
                                             className="w-full p-2 border border-gray-300 rounded"
                                         >
                                             <option value="">Sélectionner une OU cible</option>
-                                          {props.ous.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
-
+                                            {ous?.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
                                         </select>
                                     </div>
 
@@ -205,7 +254,7 @@ export default function AdOuUsersExplorer() {
                                             icon="pi pi-arrow-right"
                                             severity="success"
                                             onClick={handleMoveUsers}
-                                            disabled={!selectedUsers.length || !targetOuDn || loading}
+                                            disabled={!selectedUsers.length || !targetOuDn || loading || isLoadingData}
                                             loading={loading}
                                             className="px-4"
                                         />
@@ -213,8 +262,13 @@ export default function AdOuUsersExplorer() {
                                 </div>
                             </Card>
 
-                            {/* Table */}
-                            {filteredData.length === 0 ? (
+                            {/* ✅ Zone de chargement ou Table */}
+                            {isLoadingData ? (
+                                <div className="flex flex-column align-items-center justify-content-center py-8">
+                                    <ProgressSpinner style={{ width: '50px', height: '50px' }} />
+                                    <p className="text-600 mt-3">Chargement des données...</p>
+                                </div>
+                            ) : filteredData.length === 0 ? (
                                 <Message severity="info" text="Aucun résultat trouvé dans cette OU" style={{ width: "100%" }} />
                             ) : (
                                 <DataTable

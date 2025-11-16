@@ -223,7 +223,9 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
     ->middleware('permission:manageuserou')
     ->where('baseOuDn', '.*')
     ->name('ad.ou.explorer');
-
+Route::post('/ad/fetch-ou-data', [AdUserController::class, 'fetchOuData'])
+     ->middleware('permission:manageuserou')
+    ->name('ad.fetch-ou-data');
 
 });
 
