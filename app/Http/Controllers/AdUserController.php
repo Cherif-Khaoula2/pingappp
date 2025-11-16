@@ -632,7 +632,6 @@ public function manageAddUser()
 }
 
 
-
 public function createAdUser(Request $request)
 {
     $this->authorize('addaduser');
@@ -683,7 +682,6 @@ public function createAdUser(Request $request)
 
     // 🔹 Infos SSH Exchange
     $exHost = env('SSH_HOST_EX');
-   
 
     if (!$exHost) {
         return response()->json([
@@ -699,15 +697,16 @@ public function createAdUser(Request $request)
     $userPassword = $request->input('password');
     $accountType = $request->input('accountType');
     $ouPath = $direction->path;
+    
     // 🔹 Récupérer la mailbox active depuis la BDD
-$mailboxRecord = Mailbox::where('active', true)->first();
+    $mailboxRecord = Mailbox::where('active', true)->first();
 
-if (!$mailboxRecord) {
-    return response()->json([
-        'success' => false,
-        'message' => "Aucune mailbox active trouvée."
-    ], 404);
-}
+    if (!$mailboxRecord) {
+        return response()->json([
+            'success' => false,
+            'message' => "Aucune mailbox active trouvée."
+        ], 404);
+    }
 
     // 🔹 Échappement des valeurs pour PowerShell
     $escapedName = $this->escapePowerShellString($name);
@@ -760,7 +759,31 @@ if (!$mailboxRecord) {
         $adProcess->run();
 
         if (!$adProcess->isSuccessful()) {
-            throw new ProcessFailedException($adProcess);
+            $errorOutput = $adProcess->getErrorOutput();
+            $standardOutput = $adProcess->getOutput();
+            
+            Log::error('Erreur lors de la création de l\'utilisateur AD', [
+                'sam' => $sam,
+                'name' => $name,
+                'direction' => $direction->nom,
+                'error_output' => $errorOutput,
+                'standard_output' => $standardOutput,
+                'exit_code' => $adProcess->getExitCode(),
+                'user_id' => auth()->id()
+            ]);
+
+            $this->logAdActivity(
+                action: 'create_user',
+                targetUser: $sam,
+                targetUserName: $name,
+                success: false,
+                errorMessage: $errorOutput
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création de l\'utilisateur dans Active Directory. Veuillez contacter l\'administrateur.',
+            ], 500);
         }
 
         $this->logAdActivity(
@@ -775,7 +798,7 @@ if (!$mailboxRecord) {
             ]
         );
 
-           // 🔹 Création Exchange si nécessaire
+        // 🔹 Création Exchange si nécessaire
         if ($accountType === "AD+Exchange") {
             // 1️⃣ Vérification si la mailbox existe déjà
             if ($this->doesExchangeMailboxExist($escapedSam)) {
@@ -784,9 +807,8 @@ if (!$mailboxRecord) {
                     'message' => "La mailbox Exchange pour '$escapedSam' existe déjà."
                 ], 409);
             }
-        
-        
-            // 3️⃣ Commande création mailbox
+
+            // 2️⃣ Commande création mailbox
             $exchangeCommand = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
@@ -800,23 +822,45 @@ Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpA
                     ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
                     : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
             );
-        
+
             $exchangeProcess->setTimeout(60);
             $exchangeProcess->run();
-        
-            // 4️⃣ Gestion des erreurs
+
+            // 3️⃣ Gestion des erreurs Exchange
             if (!$exchangeProcess->isSuccessful()) {
-                Log::error('createExchangeMailbox error: ' . $exchangeProcess->getErrorOutput());
-                Log::info('Exchange output: ' . $exchangeProcess->getOutput());
+                $errorOutput = $exchangeProcess->getErrorOutput();
+                $standardOutput = $exchangeProcess->getOutput();
+                
+                Log::error('Erreur lors de la création de la mailbox Exchange', [
+                    'sam' => $sam,
+                    'email' => $email,
+                    'mailbox_database' => $mailboxRecord->name,
+                    'error_output' => $errorOutput,
+                    'standard_output' => $standardOutput,
+                    'exit_code' => $exchangeProcess->getExitCode(),
+                    'user_id' => auth()->id()
+                ]);
+
+                $this->logAdActivity(
+                    action: 'create_exchange_mailbox',
+                    targetUser: $sam,
+                    targetUserName: $name,
+                    success: false,
+                    errorMessage: $errorOutput
+                );
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Erreur lors de la création de la mailbox Exchange : ',
+                    'message' => 'L\'utilisateur AD a été créé mais il y a eu une erreur lors de la création de la mailbox Exchange. Veuillez contacter l\'administrateur.',
                 ], 500);
             }
-        
-         
-        }
 
+            Log::info('Mailbox Exchange créée avec succès', [
+                'sam' => $sam,
+                'email' => $email,
+                'mailbox_database' => $mailboxRecord->name
+            ]);
+        }
 
         // 🔹 Notification création utilisateur
         $this->sendAdUserCreationNotification(
@@ -837,7 +881,16 @@ Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpA
         ]);
 
     } catch (\Throwable $e) {
-        Log::error('createUserAd error: ' . $e->getMessage());
+        Log::error('Erreur inattendue lors de la création de l\'utilisateur', [
+            'sam' => $sam,
+            'name' => $name,
+            'exception' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'user_id' => auth()->id(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+
         $this->logAdActivity(
             action: 'create_user',
             targetUser: $sam,
@@ -848,11 +901,10 @@ Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpA
 
         return response()->json([
             'success' => false,
-            'message' => 'Erreur lors de la création de l\'utilisateur : ',
+            'message' => 'Erreur lors de la création de l\'utilisateur. Veuillez contacter l\'administrateur.',
         ], 500);
     }
 }
-
 public function getDirections()
 {
     try {
