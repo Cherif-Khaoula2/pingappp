@@ -368,9 +368,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                 {/* Section infos utilisateur */}
                 <div className="col-12">
                             <div className="flex align-items-center gap-3 mb-3 md:mb-4">
-            <div className="bg-primary-100 border-round p-3 hidden md:inline-flex">
-              <i className="pi pi-users text-primary text-4xl"></i>
-            </div>
+          
             <div className="flex-1">
               <h1 className="text-900 text-xl md:text-3xl font-bold m-0 mb-1">
                 Créer un utilisateur AD / Exchange

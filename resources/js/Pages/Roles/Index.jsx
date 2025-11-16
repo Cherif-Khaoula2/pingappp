@@ -123,64 +123,6 @@ const RolesIndex = ({ roles: rolesPaginated = {}, search = '' }) => {
     );
   };
 
-  // actions (edit / delete / restore)
-  const handleDelete = (id) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce rôle ?')) {
-      router.delete(route('roles.destroy', id), {
-        preserveState: true,
-      });
-    }
-  };
-
-  const handleRestore = (id) => {
-    if (confirm('Êtes-vous sûr de vouloir restaurer ce rôle ?')) {
-      router.put(route('roles.restore', id), {}, {
-        preserveState: true,
-      });
-    }
-  };
-
-  const actionsTemplate = (rowData) => {
-    return (
-      <div className="flex gap-2">
-        {canupdate && !rowData.deleted_at && (
-          <Button
-            icon="pi pi-pencil"
-            rounded
-            text
-            severity="info"
-            tooltip="Modifier"
-            tooltipOptions={{ position: 'top' }}
-            onClick={() => router.visit(route('roles.edit', rowData.id))}
-          />
-        )}
-
-        {candelete && !rowData.deleted_at && (
-          <Button
-            icon="pi pi-trash"
-            rounded
-            text
-            severity="danger"
-            tooltip="Supprimer"
-            tooltipOptions={{ position: 'top' }}
-            onClick={() => handleDelete(rowData.id)}
-          />
-        )}
-
-        {rowData.deleted_at && (
-          <Button
-            icon="pi pi-replay"
-            rounded
-            text
-            severity="success"
-            tooltip="Restaurer"
-            tooltipOptions={{ position: 'top' }}
-            onClick={() => handleRestore(rowData.id)}
-          />
-        )}
-      </div>
-    );
-  };
 
   // header du tableau
   const tableHeader = (
@@ -327,11 +269,7 @@ const RolesIndex = ({ roles: rolesPaginated = {}, search = '' }) => {
                 style={{ minWidth: '160px' }}
               />
 
-              <Column
-                header="Actions"
-                body={actionsTemplate}
-                style={{ minWidth: '140px', textAlign: 'center' }}
-              />
+            
             </DataTable>
           </Card>
         </div>
