@@ -66,7 +66,7 @@ const AppMenu = () => {
              hasPermission('manageuserou') && {
                 label: 'Unités Organisationnelles',
                 icon: 'pi pi-sitemap',
-                to: safeRoute('ad.ou'),
+                to: safeRoute('ad.ou.explorer'),
             },
          
         ].filter(Boolean);

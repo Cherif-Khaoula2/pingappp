@@ -7,6 +7,21 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { LayoutProvider } from "@/Layouts/layout/context/layoutcontext.jsx";
 import { PrimeReactProvider } from "primereact/api";
+import axios from "axios";
+
+// 🔁 Interception globale des erreurs HTTP
+axios.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response && error.response.status === 419) {
+            console.warn("Session expirée — rechargement automatique...");
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000); // recharge après 1 seconde
+        }
+        return Promise.reject(error);
+    }
+);
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

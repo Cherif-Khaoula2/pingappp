@@ -187,7 +187,8 @@ export default function AdOuUsersExplorer() {
                                             className="w-full p-2 border border-gray-300 rounded"
                                         >
                                             <option value="">Sélectionner une OU cible</option>
-                                            {ous.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
+                                          {props.ous.map(o => <option key={o.DistinguishedName} value={o.DistinguishedName}>{o.Name}</option>)}
+
                                         </select>
                                     </div>
 

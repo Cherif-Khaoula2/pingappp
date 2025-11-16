@@ -226,7 +226,6 @@ useEffect(() => {
         accountType,
         mailbox: selectedMailbox ? selectedMailbox.name : null
       };
-
       const res = await axios.post("/ad/create-user", payload);
 
       setCreatedUserDetails({
@@ -514,7 +513,22 @@ useEffect(() => {
                   </div>
                 )}
 
-               
+                {accountType === "AD+Exchange" && (
+                  <div className="col-12 md:col-6">
+                    <div className="field">
+                      <label htmlFor="mailbox" className="block text-900 font-medium mb-2 text-sm md:text-base">
+                        Mailbox <span className="text-red-500">*</span>
+                      </label>
+                      <Dropdown
+                        value={form.mailbox}
+                        options={mailboxes.map(m => ({ label: m.name, value: m.id }))}
+                        onChange={(e) => setForm(prev => ({ ...prev, mailbox: e.value }))}
+                        placeholder="Sélectionner une mailbox"
+                        className="w-full text-sm md:text-base"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Section Sécurité */}
                 <div className="col-12 mt-3">

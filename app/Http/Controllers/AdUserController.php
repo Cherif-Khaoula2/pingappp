@@ -629,79 +629,91 @@ public function manageAddUser()
         'directions' => $directions
     ]);
 }
+
+
+
 public function createAdUser(Request $request)
-    { 
-        $this->authorize('addaduser'); 
-        
-        $request->validate([
-            'name' => 'required|string|max:100',
-            'sam' => [
-                'required',
-                'max:25',
-                'regex:/^[A-Za-z0-9._-]+$/',
-            ],
-            'email' => 'nullable|email',
-            'logmail' => 'required|string',
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'max:128',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
-            ],
-            'direction_id' => 'required|exists:dns,id',
+{
+    $this->authorize('addaduser');
+
+    // 🔹 Validation
+    $request->validate([
+        'name' => 'required|string|max:100',
+        'sam' => ['required','max:25','regex:/^[A-Za-z0-9._-]+$/'],
+        'email' => 'nullable|email',
+        'logmail' => 'required|string',
+        'password' => [
+            'required','string','min:8','max:128',
+            'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+        ],
+        'direction_id' => 'required|exists:dns,id',
+        'mailbox' => 'nullable|string|max:50',
+    ]);
+
+    $directionId = $request->input('direction_id');
+
+    // 🔹 Vérification d'accès à la direction
+    $validation = $this->validateDirectionAccess($directionId);
+    if (!$validation['authorized']) {
+        Log::warning('Tentative de création dans une direction non autorisée', [
+            'direction_id' => $directionId,
+            'user_id' => auth()->id(),
+            'ip' => request()->ip()
         ]);
 
-        $directionId = $request->input('direction_id');
+        return response()->json([
+            'success' => false,
+            'message' => $validation['error']
+        ], 403);
+    }
+    $direction = $validation['direction'];
 
-        // 🔒 VALIDATION CRITIQUE : Vérifier l'accès à la direction
-        $validation = $this->validateDirectionAccess($directionId);
-        
-        if (!$validation['authorized']) {
-            Log::warning('Tentative de création dans une direction non autorisée', [
-                'direction_id' => $directionId,
-                'user_id' => auth()->id(),
-                'ip' => request()->ip()
-            ]);
+    // 🔹 Infos SSH AD
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
 
-            return response()->json([
-                'success' => false,
-                'message' => $validation['error']
-            ], 403);
-        }
+    if (!$host || !$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Configuration SSH AD manquante'
+        ], 500);
+    }
 
-        $direction = $validation['direction'];
+    // 🔹 Infos SSH Exchange
+    $exHost = env('SSH_HOST_EX');
+    $exUser = env('SSH_USER_EX');
+    $exPassword = env('SSH_PASSWORD_EX');
+    $exKeyPath = env('SSH_KEY_PATH_EX');
 
-        $host = env('SSH_HOST');
-        $user = env('SSH_USER');
-        $password = env('SSH_PASSWORD');
-        $keyPath = env('SSH_KEY_PATH');
+    if (!$exHost || !$exUser) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Configuration SSH Exchange manquante'
+        ], 500);
+    }
 
-        if (!$host || !$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Configuration SSH manquante'
-            ], 500);
-        }
+    // 🔹 Inputs
+    $name = $request->input('name');
+    $sam = $request->input('sam');
+    $email = $request->input('email');
+    $userPassword = $request->input('password');
+    $accountType = $request->input('accountType');
+    $ouPath = $direction->path;
+    $mailbox = $request->input('mailbox');
+    // 🔹 Échappement des valeurs pour PowerShell
+    $escapedName = $this->escapePowerShellString($name);
+    $escapedSam = $this->escapePowerShellString($sam);
+    $escapedEmail = $this->escapePowerShellString($email ?? '');
+    $escapedPassword = str_replace("'", "''", $userPassword);
+    $escapedOuPath = $this->escapePowerShellString($ouPath);
+    $escapedmailbox = $this->escapePowerShellString($mailbox ?? '');
 
-        $name = $request->input('name');
-        $sam = $request->input('sam');
-        $email = $request->input('email');
-        $userPassword = $request->input('password');
-        $accountType = $request->input('accountType');
-        $ouPath = $direction->path;
+    $userPrincipalName = $accountType === "AD+Exchange" ? $escapedEmail : "$escapedSam@sarpi-dz.sg";
 
-        // ✅ Échapper toutes les entrées
-        $escapedName = $this->escapePowerShellString($name);
-        $escapedSam = $this->escapePowerShellString($sam);
-        $escapedEmail = $this->escapePowerShellString($email ?? '');
-        $escapedPassword = str_replace("'", "''", $userPassword);
-        $escapedOuPath = $this->escapePowerShellString($ouPath);
-
-        $userPrincipalName = $accountType === "AD+Exchange" ? $escapedEmail : "$escapedSam@sarpi-dz.sg";
-        $emailAddress = $accountType === "AD+Exchange" ? $escapedEmail : 'null';
-
-        // ✅ Vérification existence
+    try {
+        // 🔹 Vérification existence AD
         $checkCommand = "powershell -NoProfile -NonInteractive -Command \"Import-Module ActiveDirectory; Get-ADUser -Filter {SamAccountName -eq '$escapedSam'} | Select-Object SamAccountName\"";
 
         $sshOptions = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'LogLevel=ERROR'];
@@ -710,7 +722,6 @@ public function createAdUser(Request $request)
                 ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $checkCommand])
                 : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $checkCommand])
         );
-
         $checkProcess->setTimeout(30);
         $checkProcess->run();
 
@@ -720,80 +731,121 @@ public function createAdUser(Request $request)
                 'message' => "Un utilisateur avec le SamAccountName '$sam' existe déjà."
             ], 409);
         }
-$adCommand = "New-ADUser -Name '$escapedName' `
-    -SamAccountName '$escapedSam' `
-    -UserPrincipalName '$userPrincipalName' ";
 
-// Ajouter Email seulement si c’est AD+Exchange
-if ($accountType === "AD+Exchange") {
-    $adCommand .= " -EmailAddress '$escapedEmail' ";
+        // 🔹 Commande création AD
+        $adCommand = "New-ADUser -Name '$escapedName' `
+            -SamAccountName '$escapedSam' `
+            -UserPrincipalName '$userPrincipalName' ";
+        if ($accountType === "AD+Exchange") {
+            $adCommand .= " -EmailAddress '$escapedEmail' ";
+        }
+        $adCommand .= " -Path '$escapedOuPath' `
+            -AccountPassword (ConvertTo-SecureString '$escapedPassword' -AsPlainText -Force) `
+            -Enabled \$true;
+            Write-Output 'User created successfully';";
+
+        $adProcess = new Process(
+            $keyPath && file_exists($keyPath)
+                ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+                : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
+        );
+        $adProcess->setTimeout(60);
+        $adProcess->run();
+
+        if (!$adProcess->isSuccessful()) {
+            throw new ProcessFailedException($adProcess);
+        }
+
+        $this->logAdActivity(
+            action: 'create_user',
+            targetUser: $sam,
+            targetUserName: $name,
+            success: true,
+            additionalDetails: [
+                'email' => $email,
+                'direction' => $direction->nom,
+                'method' => 'Direct AD over SSH'
+            ]
+        );
+
+           // 🔹 Création Exchange si nécessaire
+        if ($accountType === "AD+Exchange") {
+            // 1️⃣ Vérification si la mailbox existe déjà
+            if ($this->doesExchangeMailboxExist($escapedSam)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "La mailbox Exchange pour '$escapedSam' existe déjà."
+                ], 409);
+            }
+        
+            // 2️⃣ Vérification si la base de données Exchange existe
+            if (!$this->doesExchangeDatabaseExist($escapedmailbox)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "La base de données Exchange '$escapedmailbox' n'existe pas."
+                ], 404);
+            }
+        
+            // 3️⃣ Commande création mailbox
+            $exchangeCommand = "Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpAddress '$escapedEmail'";
+        
+            $exchangeProcess = new Process(
+                $exKeyPath && file_exists($exKeyPath)
+                    ? ['ssh', '-i', $exKeyPath, '-o', 'StrictHostKeyChecking=no', "{$exUser}@{$exHost}", $exchangeCommand]
+                    : ['sshpass', '-p', $exPassword, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$exUser}@{$exHost}", $exchangeCommand]
+            );
+        
+            $exchangeProcess->setTimeout(60);
+            $exchangeProcess->run();
+        
+            // 4️⃣ Gestion des erreurs
+            if (!$exchangeProcess->isSuccessful()) {
+                Log::error('createExchangeMailbox error: ' . $exchangeProcess->getErrorOutput());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur lors de la création de la mailbox Exchange : ',
+                ], 500);
+            }
+        
+         
+        }
+
+
+        // 🔹 Notification création utilisateur
+        $this->sendAdUserCreationNotification(
+            $request->user(),
+            [
+                'name' => $name,
+                'sam' => $sam,
+                'email' => $email,
+                'ouPath' => $ouPath,
+                'directionName' => $direction->nom,
+                'accountType' => $accountType
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Utilisateur créé avec succès.'
+        ]);
+
+    } catch (\Throwable $e) {
+        Log::error('createUserAd error: ' . $e->getMessage());
+        $this->logAdActivity(
+            action: 'create_user',
+            targetUser: $sam,
+            targetUserName: $name,
+            success: false,
+            errorMessage: $e->getMessage()
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la création de l\'utilisateur : ',
+        ], 500);
+    }
 }
 
-$adCommand .= " -Path '$escapedOuPath' `
-    -AccountPassword (ConvertTo-SecureString '$escapedPassword' -AsPlainText -Force) `
-    -Enabled \$true;
-Write-Output 'User created successfully';";
-
-
-        $command = $keyPath && file_exists($keyPath)
-            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand]
-            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $adCommand];
-
-        try {
-            $process = new Process($command);
-            $process->setTimeout(60);
-            $process->run();
-
-            if (!$process->isSuccessful()) {
-                throw new ProcessFailedException($process);
-            }
-
-            $this->logAdActivity(
-                action: 'create_user',
-                targetUser: $sam,
-                targetUserName: $name,
-                success: true,
-                additionalDetails: [
-                    'email' => $email,
-                    'direction' => $direction->nom,
-                    'method' => 'Direct AD over SSH'
-                ]
-            );
-            
-            $this->sendAdUserCreationNotification(
-                $request->user(),
-                [
-                    'name' => $name,
-                    'sam' => $sam,
-                    'email' => $email,
-                    'ouPath' => $ouPath,
-                    'directionName' => $direction->nom,
-                    'accountType' => $accountType
-                ]
-            );
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Utilisateur créé avec succès.'
-            ]);
-
-        } catch (\Throwable $e) {
-            Log::error('createUserAd error: ' . $e->getMessage());
-
-            $this->logAdActivity(
-                action: 'create_user',
-                targetUser: $sam,
-                targetUserName: $name,
-                success: false,
-                errorMessage: $e->getMessage()
-            );
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la création de l\'utilisateur : ' . $e->getMessage(),
-            ], 500);
-        }
-    }
 public function getDirections()
 {
     try {
@@ -1084,9 +1136,7 @@ protected function extractOuName($ouPath)
     {
         // Exemple statique, tu peux remplacer par une requête DB si nécessaire
         $mailboxes = [
-            ['id' => 1, 'name' => 'mailbox.A'],
-            ['id' => 2, 'name' => 'mailbox.B'],
-            ['id' => 3, 'name' => 'mailbox.C'],
+            ['id' => 1, 'name' => 'DB05'],
         ];
 
         return response()->json([
@@ -1279,17 +1329,21 @@ public function showOuExplorer($baseOuDn = null)
     $this->authorize('manageuserou');
 
     try {
-        // Décoder l'URL et utiliser l'OU de base
+        // OU de base actuelle (celle où on est)
         $baseDn = $baseOuDn ? urldecode($baseOuDn) : 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
 
         Log::info('Accès explorateur AD', ['baseDn' => $baseDn]);
 
-        // Utiliser la méthode combinée qui existe
+        // 🔹 Données du dossier courant (OUs + utilisateurs)
         $data = $this->fetchAdOUsAndUsers($baseDn);
+
+        // 🔹 Liste complète de toutes les OUs (pour la liste cible)
+        $allOUs = $this->fetchAdOUs('OU=NewUsersOU,DC=sarpi-dz,DC=sg');
 
         return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => $data,
-            'baseOuDn' => $baseDn
+            'baseOuDn' => $baseDn,
+            'ous' => $allOUs, // ✅ ici tu envoies toutes les OUs
         ]);
 
     } catch (\Throwable $e) {
@@ -1302,10 +1356,12 @@ public function showOuExplorer($baseOuDn = null)
         return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => [],
             'baseOuDn' => $baseDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg',
+            'ous' => [],
             'error' => 'Impossible de récupérer les données: ' . $e->getMessage()
         ]);
     }
 }
+
 
 private function fetchAdOUsAndUsers($baseDn = null)
 {

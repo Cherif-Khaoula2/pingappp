@@ -282,4 +282,92 @@ protected function isDnAuthorized(string $dn, array $authorizedDns): bool
             'error' => null
         ];
     }
+
+
+    protected function doesExchangeMailboxExist(string $samAccountName): bool
+{
+    $exHost = env('SSH_HOST_EX');
+    $exUser = env('SSH_USER_EX');
+    $exPassword = env('SSH_PASSWORD_EX');
+    $exKeyPath = env('SSH_KEY_PATH_EX');
+
+    if (!$exHost || !$exUser) {
+        Log::error('Configuration SSH Exchange manquante');
+        return false;
+    }
+
+    $escapedSam = $this->escapePowerShellString($samAccountName);
+
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \"try { Get-Mailbox -Identity '$escapedSam' -ErrorAction Stop | Select-Object Name } catch { exit 1 }\"";
+
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
+
+    $command = $exKeyPath && file_exists($exKeyPath)
+        ? array_merge(['ssh', '-i', $exKeyPath], $sshOptions, ["{$exUser}@{$exHost}", $psCommand])
+        : array_merge(['sshpass', '-p', $exPassword, 'ssh'], $sshOptions, ["{$exUser}@{$exHost}", $psCommand]);
+
+    try {
+        $process = new Process($command);
+        $process->setTimeout(30);
+        $process->run();
+
+        // Si le code de sortie est 0, la mailbox existe
+        return $process->isSuccessful();
+
+    } catch (\Throwable $e) {
+        Log::error('Erreur vérification mailbox Exchange', [
+            'sam' => $samAccountName,
+            'error' => $e->getMessage()
+        ]);
+        return false;
+    }
+}
+
+protected function doesExchangeDatabaseExist(string $dbName): bool
+{
+    $exHost = env('SSH_HOST_EX');
+    $exUser = env('SSH_USER_EX');
+    $exPassword = env('SSH_PASSWORD_EX');
+    $exKeyPath = env('SSH_KEY_PATH_EX');
+
+    if (!$exHost || !$exUser) {
+        Log::error('Configuration SSH Exchange manquante');
+        return false;
+    }
+
+    $escapedDb = $this->escapePowerShellString($dbName);
+
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \"try { Get-MailboxDatabase -Identity '$escapedDb' -ErrorAction Stop | Select-Object Name } catch { exit 1 }\"";
+
+    $sshOptions = [
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'LogLevel=ERROR'
+    ];
+
+    $command = $exKeyPath && file_exists($exKeyPath)
+        ? array_merge(['ssh', '-i', $exKeyPath], $sshOptions, ["{$exUser}@{$exHost}", $psCommand])
+        : array_merge(['sshpass', '-p', $exPassword, 'ssh'], $sshOptions, ["{$exUser}@{$exHost}", $psCommand]);
+
+    try {
+        $process = new Process($command);
+        $process->setTimeout(30);
+        $process->run();
+
+        // Si le code de sortie est 0, la DB existe
+        return $process->isSuccessful();
+
+    } catch (\Throwable $e) {
+        Log::error('Erreur vérification DB Exchange', [
+            'db' => $dbName,
+            'error' => $e->getMessage()
+        ]);
+        return false;
+    }
+}
+
 }

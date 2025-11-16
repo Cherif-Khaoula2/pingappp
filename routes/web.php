@@ -46,18 +46,8 @@ Route::middleware('auth')->group(function () {
 
 use App\Http\Controllers\PingController;
 
-Route::get('/ping', [PingController::class, 'index'])->name('ping');
-Route::post('/ping', [PingController::class, 'ping'])->name('ping.execute');
-
 
 use App\Http\Controllers\EmployeeRequestController;
-
-
-Route::get('/employees', [EmployeeRequestController::class, 'index'])->name('employees.index'); // Liste
-Route::get('/employees/create', [EmployeeRequestController::class, 'create'])->name('employees.create'); // Formulaire
-Route::post('/employees', [EmployeeRequestController::class, 'store'])->name('employees.store'); // Création
-Route::patch('/employees/{id}/status', [EmployeeRequestController::class, 'updateStatus'])->name('employees.updateStatus'); // Valider/Rejeter
-Route::delete('/employees/{id}', [EmployeeRequestController::class, 'destroy'])->name('employees.destroy'); // Supprimer
 
 // user 
 
@@ -169,13 +159,6 @@ Route::middleware(['auth'])->group(function () {
 });
 use App\Http\Controllers\AdUserController;
 
-Route::get('/ad/search', [AdUserController::class, 'index'])->name('ad.search');
-Route::post('/ad-user', [AdUserController::class, 'getUser']);
-
-
-Route::get('/ad/ipconfig', [AdUserController::class, 'index']);
-Route::post('/ad/user/ipconfig', [AdUserController::class, 'ipConfig'])->name('ad.user.ipconfig');
-
 
 
 
@@ -214,7 +197,7 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
         ->name('ad.users.reset-password');
 
 
-    // 🔑 Ajouter un utilisateur AD
+    // 🔑 Ajouter un utilisateur AD 
     Route::get('/ad/add-user', [AdUserController::class, 'manageAddUser'])
     ->middleware('permission:addaduser')
     ->name('ad.add-user');
