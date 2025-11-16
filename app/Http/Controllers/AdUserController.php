@@ -810,12 +810,12 @@ public function createAdUser(Request $request)
 
             // 2️⃣ Commande création mailbox
             $exchangeCommand = "
-powershell.exe -NoProfile -Command \"
-. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
-Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpAddress '$escapedEmail'
-\"
-";
+                powershell.exe -NoProfile -Command \"
+                . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
+                Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
+                Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpAddress '$escapedEmail'
+                \"
+                ";
 
             $exchangeProcess = new Process(
                 $keyPath && file_exists($keyPath)
@@ -854,7 +854,16 @@ Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpA
                     'message' => 'L\'utilisateur AD a été créé mais il y a eu une erreur lors de la création de la mailbox Exchange. Veuillez contacter l\'administrateur.',
                 ], 500);
             }
-
+              $this->logAdActivity(
+                      action: 'create_exchange_mailbox',
+                      targetUser: $sam,
+                      targetUserName: $name,
+                      success: true,
+                      additionalDetails: [
+                          'email' => $email,
+                          'mailbox_database' => $mailboxRecord->name
+                      ]
+                  );
             Log::info('Mailbox Exchange créée avec succès', [
                 'sam' => $sam,
                 'email' => $email,
