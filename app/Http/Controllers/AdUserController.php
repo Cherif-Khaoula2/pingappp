@@ -685,7 +685,7 @@ public function createAdUser(Request $request)
     $exHost = env('SSH_HOST_EX');
    
 
-    if (!$exHost || !$user) {
+    if (!$exHost) {
         return response()->json([
             'success' => false,
             'message' => 'Configuration SSH Exchange manquante'
