@@ -785,13 +785,6 @@ if (!$mailboxRecord) {
                 ], 409);
             }
         
-            // 2️⃣ Vérification si la base de données Exchange existe
-            if (!$this->doesExchangeDatabaseExist($escapedmailbox)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "La base de données Exchange '$escapedmailbox' n'existe pas."
-                ], 404);
-            }
         
             // 3️⃣ Commande création mailbox
             $exchangeCommand = "
