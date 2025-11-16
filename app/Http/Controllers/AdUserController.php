@@ -796,8 +796,8 @@ Enable-Mailbox -Identity '$escapedSam' -Database '$escapedmailbox' -PrimarySmtpA
 ";
 
             $exchangeProcess = new Process(
-                $exKeyPath && file_exists($exKeyPath)
-                    ? ['ssh', '-i', $exKeyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
+                $keyPath && file_exists($keyPath)
+                    ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
                     : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $exchangeCommand]
             );
         
