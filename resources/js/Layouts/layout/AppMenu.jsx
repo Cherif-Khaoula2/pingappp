@@ -68,6 +68,11 @@ const AppMenu = () => {
                 icon: 'pi pi-sitemap',
                 to: safeRoute('ad.ou.explorer'),
             },
+             hasPermission('managemailbox') && {
+                label: 'Gestions des Mailbox',
+                icon: 'pi pi-server',
+                to: safeRoute('mailboxes.index'),
+            },
          
         ].filter(Boolean);
 

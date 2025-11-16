@@ -28,8 +28,8 @@ return [
 'connections' => [
     'default' => [
         'hosts' => ['10.16.100.1'],
-        'username' => 'khaoula.cherif@sarpi-dz.sg', 
-        'password' => 'BekkoucheR@2003',
+        'username' => 'RxP_admin@sarpi-dz.sg', 
+        'password' => 'sAyS84$55z01',
         'port' => 389,
         'base_dn' => 'DC=sarpi-dz,DC=sg',
         'timeout' => 5,

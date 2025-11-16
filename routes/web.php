@@ -323,3 +323,33 @@ Route::middleware(['auth'])->group(function() {
 Route::get('/ad/directions', [AdUserController::class, 'getDirections'])
     ->middleware('auth')
     ->name('ad.directions');
+
+    use App\Http\Controllers\MailboxController;
+Route::middleware(['auth'])->group(function() {
+Route::get('/mailboxes', [MailboxController::class, 'index'])
+ ->middleware('permission:managemailbox')
+    ->name('mailboxes.index');
+
+
+Route::get('/mailboxes/active', [MailboxController::class, 'active'])
+ ->middleware('permission:managemailbox')
+    ->name('mailboxes.active');
+
+
+Route::post('/mailboxes', [MailboxController::class, 'store'])
+ ->middleware('permission:managemailbox')
+    ->name('mailboxes.store');
+
+
+Route::put('/mailboxes/{id}', [MailboxController::class, 'update'])
+ ->middleware('permission:managemailbox')
+    ->name('mailboxes.update');
+
+
+Route::delete('/mailboxes/{id}', [MailboxController::class, 'destroy'])
+ ->middleware('permission:managemailbox')
+    ->name('mailboxes.destroy');
+
+
+
+});
