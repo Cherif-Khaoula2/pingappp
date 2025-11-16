@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\AdHiddenAccount;
 use App\Models\Dn;
+use App\Models\Mailbox;
 use App\Traits\ValidatesAdUsers;
 class AdUserController extends Controller
 {
@@ -709,13 +710,7 @@ if (!$mailboxRecord) {
         'message' => "Aucune mailbox active trouvée."
     ], 404);
 }
-Log::info('Mailbox active récupérée avant création utilisateur', [
-    'mailbox_id' => $mailboxRecord->id,
-    'mailbox_name' => $mailboxRecord->name,
-    'mailbox_active' => $mailboxRecord->active,
-    'user_sam' => $sam,
-    'user_email' => $email
-]);
+
     // 🔹 Échappement des valeurs pour PowerShell
     $escapedName = $this->escapePowerShellString($name);
     $escapedSam = $this->escapePowerShellString($sam);
