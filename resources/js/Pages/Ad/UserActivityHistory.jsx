@@ -94,13 +94,13 @@ const configs = {
     create_user: { 
         icon: 'pi-user-plus', 
         severity: 'help', 
-        label: 'Création ', 
+        label: 'Création utilisateur AD ', 
         color: '#7c3aed' // Violet professionnel
     },
      create_exchange_mailbox: { 
             icon: 'pi-user-plus', 
             severity: 'help', 
-            label: 'Création utilisateurExchange', 
+            label: 'Création utilisateur Exchange', 
             color: '#7c3aed'
         },
     search_user: { 
