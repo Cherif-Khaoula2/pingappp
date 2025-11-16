@@ -1381,33 +1381,17 @@ public function moveUsers(Request $request)
     } catch (\Throwable $e) {
         return response()->json(['message' => 'Erreur lors du déplacement: ' . $e->getMessage()], 500);
     }
-}// ✅ 1️⃣ Afficher la page immédiatement (sans données)
+}
+
 public function showOuExplorer($baseOuDn = null)
 {
     $this->authorize('manageuserou');
 
-    $baseDn = $baseOuDn ? urldecode($baseOuDn) : 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
-
-    Log::info('Accès explorateur AD', ['baseDn' => $baseDn]);
-
-    // ✅ Renvoyer la page VIDE immédiatement
-    return Inertia::render('Ad/AdOuUsersExplorer', [
-        'data' => [],           // Vide au départ
-        'baseOuDn' => $baseDn,
-        'ous' => [],            // Vide au départ
-        'error' => null
-    ]);
-}
-
-// ✅ 2️⃣ Nouvelle route API pour charger les données
-public function fetchOuData(Request $request)
-{
-    $this->authorize('manageuserou');
-
     try {
-        $baseDn = $request->input('baseDn', 'OU=NewUsersOU,DC=sarpi-dz,DC=sg');
+        // OU de base actuelle (celle où on est)
+        $baseDn = $baseOuDn ? urldecode($baseOuDn) : 'OU=NewUsersOU,DC=sarpi-dz,DC=sg';
 
-        Log::info('Chargement asynchrone des données AD', ['baseDn' => $baseDn]);
+        Log::info('Accès explorateur AD', ['baseDn' => $baseDn]);
 
         // 🔹 Données du dossier courant (OUs + utilisateurs)
         $data = $this->fetchAdOUsAndUsers($baseDn);
@@ -1415,29 +1399,29 @@ public function fetchOuData(Request $request)
         // 🔹 Liste complète de toutes les OUs (pour la liste cible)
         $allOUs = $this->fetchAdOUs('OU=NewUsersOU,DC=sarpi-dz,DC=sg');
 
-        return response()->json([
-            'success' => true,
+        return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => $data,
-            'ous' => $allOUs
+            'baseOuDn' => $baseDn,
+            'ous' => $allOUs, // ✅ ici tu envoies toutes les OUs
         ]);
 
     } catch (\Throwable $e) {
-        Log::error('Erreur lors du chargement asynchrone des données AD', [
+        Log::error('Erreur lors de la récupération des OUs ou utilisateurs', [
             'message' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
             'baseDn' => $baseDn ?? 'non défini'
         ]);
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Impossible de récupérer les données: ' . $e->getMessage(),
+        return Inertia::render('Ad/AdOuUsersExplorer', [
             'data' => [],
-            'ous' => []
-        ], 500);
+            'baseOuDn' => $baseDn ?? 'OU=NewUsersOU,DC=sarpi-dz,DC=sg',
+            'ous' => [],
+            'error' => 'Impossible de récupérer les données: ' . $e->getMessage()
+        ]);
     }
 }
 
-// ✅ Garder la fonction existante fetchAdOUsAndUsers
+
 private function fetchAdOUsAndUsers($baseDn = null)
 {
     $this->authorize('manageuserou');
@@ -1487,7 +1471,7 @@ private function fetchAdOUsAndUsers($baseDn = null)
     $ous = json_decode($outputOUs, true, 512, JSON_INVALID_UTF8_SUBSTITUTE) ?: [];
 
     if (isset($ous['Name'])) {
-        $ous = [$ous];
+        $ous = [$ous]; // si un seul OU, le mettre dans un tableau
     }
 
     // 🔹 2️⃣ Script PowerShell pour récupérer les utilisateurs directs
@@ -1518,7 +1502,7 @@ private function fetchAdOUsAndUsers($baseDn = null)
     $users = json_decode($outputUsers, true, 512, JSON_INVALID_UTF8_SUBSTITUTE) ?: [];
 
     if (isset($users['Name'])) {
-        $users = [$users];
+        $users = [$users]; // si un seul utilisateur
     }
 
     // 🔹 3️⃣ Combiner OU et utilisateurs
@@ -1551,6 +1535,7 @@ private function fetchAdOUsAndUsers($baseDn = null)
 
     return $combined;
 }
+
 
 
 }
