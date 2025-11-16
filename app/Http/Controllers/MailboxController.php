@@ -56,7 +56,6 @@ public function destroy($id)
     $mailbox = Mailbox::findOrFail($id);
     $mailbox->delete();
 
-    return response()->json(['success' => true, 'message' => 'Mailbox supprimée']);
 }
 
 public function active()

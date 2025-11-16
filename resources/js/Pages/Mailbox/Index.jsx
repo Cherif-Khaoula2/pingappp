@@ -1,98 +1,849 @@
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react'; // <-- ici
+import { router, Head } from '@inertiajs/react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { Card } from 'primereact/card';
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Tag } from 'primereact/tag';
+import { Checkbox } from 'primereact/checkbox';
 import Layout from '@/Layouts/layout/layout.jsx';
-export default function MailboxIndex({ mailboxes }) {
+import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
+
+export default function MailboxIndex({ mailboxes = [] }) {
   const [showDialog, setShowDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
   const [currentMailbox, setCurrentMailbox] = useState({ name: '', active: false, id: null });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredMailboxes, setFilteredMailboxes] = useState(mailboxes);
+
+  // Filtrer les mailboxes en fonction de la recherche
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredMailboxes(mailboxes);
+    } else {
+      const filtered = mailboxes.filter(mailbox =>
+        mailbox.name.toLowerCase().includes(query.toLowerCase()) ||
+        mailbox.id.toString().includes(query)
+      );
+      setFilteredMailboxes(filtered);
+    }
+  };
 
   const openDialog = (mailbox = null) => {
     if (mailbox) {
       setCurrentMailbox({ ...mailbox });
     } else {
-      setCurrentMailbox({ name: '', active: false, id: null });
+      setCurrentMailbox({ name: '', active: true, id: null });
     }
     setShowDialog(true);
   };
-const handleDeactivate = (id) => {
-  router.put(`/mailboxes/${id}`, { active: false }, { preserveState: true });
-};
 
-  const closeDialog = () => setShowDialog(false);
+  const closeDialog = () => {
+    setShowDialog(false);
+    setCurrentMailbox({ name: '', active: false, id: null });
+  };
+
+  const openConfirmDialog = (action, mailbox) => {
+    setConfirmAction({ type: action, data: mailbox });
+    setShowConfirmDialog(true);
+  };
+
+  const closeConfirmDialog = () => {
+    setShowConfirmDialog(false);
+    setConfirmAction(null);
+  };
+
+  const handleConfirmedAction = () => {
+    if (!confirmAction) return;
+
+    switch (confirmAction.type) {
+      case 'delete':
+        router.delete(`/mailboxes/${confirmAction.data.id}`, { 
+          preserveState: true,
+          onSuccess: () => {
+            setShowSuccessDialog(true);
+          }
+        });
+        break;
+      case 'activate':
+        router.put(`/mailboxes/${confirmAction.data.id}`, { active: true }, { 
+          preserveState: true,
+          onSuccess: () => {
+            setShowSuccessDialog(true);
+          }
+        });
+        break;
+      case 'deactivate':
+        router.put(`/mailboxes/${confirmAction.data.id}`, { active: false }, { 
+          preserveState: true,
+          onSuccess: () => {
+            setShowSuccessDialog(true);
+          }
+        });
+        break;
+      case 'save':
+        if (currentMailbox.id) {
+          router.put(`/mailboxes/${currentMailbox.id}`, currentMailbox, { 
+            preserveState: true,
+            onSuccess: () => {
+              setShowSuccessDialog(true);
+              closeDialog();
+            }
+          });
+        } else {
+          router.post('/mailboxes', currentMailbox, { 
+            preserveState: true,
+            onSuccess: () => {
+              setShowSuccessDialog(true);
+              closeDialog();
+            }
+          });
+        }
+        break;
+    }
+    closeConfirmDialog();
+  };
 
   const handleSave = () => {
-    if (currentMailbox.id) {
-      router.put(`/mailboxes/${currentMailbox.id}`, currentMailbox, { preserveState: true });
-    } else {
-      router.post('/mailboxes', currentMailbox, { preserveState: true });
-    }
-    closeDialog();
+    openConfirmDialog('save', currentMailbox);
   };
 
-  const handleDelete = (id) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer cette mailbox ?')) return;
-    router.delete(`/mailboxes/${id}`, { preserveState: true });
+  const nameTemplate = (rowData) => {
+    const initial = rowData.name ? rowData.name.charAt(0).toUpperCase() : 'M';
+    
+    return (
+      <div className="flex align-items-center gap-3">
+        <div
+          className="inline-flex align-items-center justify-content-center border-circle text-white font-bold"
+          style={{
+            width: '40px',
+            height: '40px',
+            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+          }}
+        >
+          {initial}
+        </div>
+        <div>
+          <div className="font-medium text-900">{rowData.name}</div>
+        </div>
+      </div>
+    );
   };
 
-  const handleActivate = (id) => {
-    router.put(`/mailboxes/${id}`, { active: true }, { preserveState: true });
+  const statusTemplate = (rowData) => {
+    return rowData.active ? (
+      <Tag 
+        severity="success" 
+        value="Active" 
+        icon="pi pi-check-circle"
+        className="font-medium"
+      />
+    ) : (
+      <Tag 
+        severity="danger" 
+        value="Inactive" 
+        icon="pi pi-times-circle"
+        className="font-medium"
+      />
+    );
+  };
+
+  const actionsTemplate = (rowData) => {
+    return (
+      <div className="flex gap-2 justify-content-center">
+        <Button
+          icon="pi pi-pencil"
+          rounded
+          outlined
+          severity="info"
+          onClick={(e) => {
+            e.stopPropagation();
+            openDialog(rowData);
+          }}
+          tooltip="Modifier"
+          tooltipOptions={{ position: 'top' }}
+        />
+        
+        {rowData.active ? (
+          <Button
+            icon="pi pi-ban"
+            rounded
+            outlined
+            severity="warning"
+            onClick={(e) => {
+              e.stopPropagation();
+              openConfirmDialog('deactivate', rowData);
+            }}
+            tooltip="Désactiver"
+            tooltipOptions={{ position: 'top' }}
+          />
+        ) : (
+          <Button
+            icon="pi pi-check"
+            rounded
+            outlined
+            severity="success"
+            onClick={(e) => {
+              e.stopPropagation();
+              openConfirmDialog('activate', rowData);
+            }}
+            tooltip="Activer"
+            tooltipOptions={{ position: 'top' }}
+          />
+        )}
+        
+        <Button
+          icon="pi pi-trash"
+          rounded
+          outlined
+          severity="danger"
+          onClick={(e) => {
+            e.stopPropagation();
+            openConfirmDialog('delete', rowData);
+          }}
+          tooltip="Supprimer"
+          tooltipOptions={{ position: 'top' }}
+        />
+      </div>
+    );
+  };
+
+  const tableHeader = (
+    <div className="flex flex-column gap-3">
+      <div className="flex align-items-center justify-content-between flex-wrap gap-3">
+        <div className="flex align-items-center gap-3">
+          <div className="flex-1">
+            <h1 className="text-900 text-2xl md:text-3xl font-bold m-0 mb-1">
+              Gestion des Mailboxes
+            </h1>
+            <p className="text-600 text-sm md:text-base m-0">
+              {filteredMailboxes.length} mailbox{filteredMailboxes.length > 1 ? 'es' : ''} {searchQuery ? 'trouvée(s)' : 'au total'}
+            </p>
+          </div>
+        </div>
+
+        <Button
+          label="Nouvelle Mailbox"
+          icon="pi pi-plus"
+          onClick={() => openDialog()}
+          style={{
+            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+            border: 'none',
+          }}
+          className="w-full md:w-auto"
+        />
+      </div>
+
+      {/* Barre de recherche */}
+      <div className="p-inputgroup" style={{ height: '52px' }}>
+        <span className="p-inputgroup-addon">
+          <i className="pi pi-search"></i>
+        </span>
+        <InputText
+          placeholder="Rechercher une mailbox par nom..."
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          style={{ height: '52px' }}
+        />
+        {searchQuery && (
+          <Button
+            icon="pi pi-times"
+            outlined
+            onClick={() => handleSearch('')}
+            style={{
+              borderColor: '#6b7280',
+              color: '#374151',
+              height: '52px'
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  const getConfirmDialogContent = () => {
+    if (!confirmAction) return null;
+
+    const titles = {
+      save: currentMailbox.id ? 'Modifier la mailbox' : 'Créer une mailbox',
+      delete: 'Supprimer la mailbox',
+      activate: 'Activer la mailbox',
+      deactivate: 'Désactiver la mailbox'
+    };
+
+    const messages = {
+      save: currentMailbox.id 
+        ? 'Confirmez-vous la modification de cette mailbox ?'
+        : 'Confirmez-vous la création de cette mailbox ?',
+      delete: `Êtes-vous sûr de vouloir supprimer cette mailbox ? Cette action est irréversible.`,
+      activate: 'Confirmez-vous l\'activation de cette mailbox ?',
+      deactivate: 'Confirmez-vous la désactivation de cette mailbox ?'
+    };
+
+    const mailboxName = confirmAction.type === 'save' ? currentMailbox.name : confirmAction.data.name;
+    const isActive = confirmAction.type === 'activate' || (confirmAction.type === 'save' && currentMailbox.active);
+    const actionColor = confirmAction.type === 'delete' ? 'danger' : 
+                       confirmAction.type === 'deactivate' ? 'warning' : 'success';
+
+    return (
+      <div className="p-4">
+        <div className="text-center mb-4">
+          <div
+            className="inline-flex align-items-center justify-content-center border-circle mb-3"
+            style={{
+              width: "70px",
+              height: "70px",
+              background: confirmAction.type === 'delete' 
+                ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                : confirmAction.type === 'deactivate'
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              boxShadow: confirmAction.type === 'delete'
+                ? '0 8px 20px rgba(239, 68, 68, 0.3)'
+                : confirmAction.type === 'deactivate'
+                ? '0 8px 20px rgba(245, 158, 11, 0.3)'
+                : '0 8px 20px rgba(16, 185, 129, 0.3)',
+            }}
+          >
+            <i 
+              className={`pi ${
+                confirmAction.type === 'delete' ? 'pi-trash' :
+                confirmAction.type === 'activate' ? 'pi-check' :
+                confirmAction.type === 'deactivate' ? 'pi-ban' :
+                'pi-save'
+              } text-white`}
+              style={{ fontSize: "2rem" }}
+            />
+          </div>
+          <h2 className="text-900 font-bold text-2xl mb-2">
+            {titles[confirmAction.type]}
+          </h2>
+          <p className="text-600 text-lg">
+            {messages[confirmAction.type]}
+          </p>
+        </div>
+
+        <div className={`p-3 border-round-lg mb-4 border-1 ${
+          confirmAction.type === 'delete' ? 'bg-red-50 border-red-200' :
+          confirmAction.type === 'deactivate' ? 'bg-orange-50 border-orange-200' :
+          'bg-green-50 border-green-200'
+        }`}>
+          <div className="flex align-items-center gap-2 mb-2">
+            <i className={`pi pi-database ${
+              confirmAction.type === 'delete' ? 'text-red-600' :
+              confirmAction.type === 'deactivate' ? 'text-orange-600' :
+              'text-green-600'
+            }`}></i>
+            <span className="font-semibold text-900 text-lg">{mailboxName}</span>
+          </div>
+          <div className="flex align-items-center gap-2">
+            <i className={`pi pi-info-circle ${
+              confirmAction.type === 'delete' ? 'text-red-600' :
+              confirmAction.type === 'deactivate' ? 'text-orange-600' :
+              'text-green-600'
+            }`}></i>
+            <span className="text-600">
+              Statut : {isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        </div>
+
+        {confirmAction.type !== 'save' && (
+          <div className={`p-3 border-round-lg mb-4 ${
+            confirmAction.type === 'delete' ? 'bg-orange-50' :
+            confirmAction.type === 'deactivate' ? 'bg-blue-50' :
+            'bg-blue-50'
+          }`}>
+            <div className="flex align-items-start gap-2">
+              <i className={`pi ${
+                confirmAction.type === 'delete' ? 'pi-exclamation-triangle text-orange-600' :
+                'pi-info-circle text-blue-600'
+              } mt-1`}></i>
+              <div>
+                <div className={`font-semibold mb-1 ${
+                  confirmAction.type === 'delete' ? 'text-orange-900' : 'text-blue-900'
+                }`}>
+                  {confirmAction.type === 'delete' ? 'Attention !' : 'Information'}
+                </div>
+                <small className={confirmAction.type === 'delete' ? 'text-orange-700' : 'text-blue-700'}>
+                  {confirmAction.type === 'delete'
+                    ? 'Cette mailbox sera définitivement supprimée et ne pourra pas être récupérée.'
+                    : confirmAction.type === 'deactivate'
+                    ? 'Cette mailbox ne sera plus disponible pour les nouveaux utilisateurs.'
+                    : 'Cette mailbox sera disponible pour les nouveaux utilisateurs.'}
+                </small>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3 mt-4">
+          <Button
+            label="Annuler"
+            outlined
+            severity="secondary"
+            onClick={closeConfirmDialog}
+            className="flex-1"
+            style={{ height: "50px" }}
+          />
+          <Button
+            label="Confirmer"
+            onClick={handleConfirmedAction}
+            severity={actionColor}
+            className="flex-1"
+            style={{ height: "50px" }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const confirmDialogFooter = null;
+
+  const editDialogFooter = (
+    <div className="flex justify-content-end gap-2 mt-3 px-4 pb-4">
+      <Button
+        label="Annuler"
+        icon="pi pi-times"
+        outlined
+        onClick={closeDialog}
+        className="p-button-sm md:p-button-md"
+      />
+      <Button
+        label="Enregistrer"
+        icon="pi pi-save"
+        onClick={handleSave}
+        disabled={!currentMailbox.name.trim()}
+        style={{
+          background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+          border: 'none',
+        }}
+        className="p-button-sm md:p-button-md"
+      />
+    </div>
+  );
+
+  const getSuccessDialogContent = () => {
+    if (!confirmAction) return null;
+
+    const actionLabels = {
+      save: currentMailbox.id ? 'modifiée' : 'créée',
+      delete: 'supprimée',
+      activate: 'activée',
+      deactivate: 'désactivée'
+    };
+
+    const mailboxName = confirmAction.type === 'save' ? currentMailbox.name : confirmAction.data?.name;
+    const actionLabel = actionLabels[confirmAction.type];
+
+    return (
+      <div className="p-5">
+        <div className="text-center mb-4">
+          <div
+            className="inline-flex align-items-center justify-content-center border-circle mb-3"
+            style={{
+              width: "90px",
+              height: "90px",
+              background: confirmAction.type === 'delete' 
+                ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                : confirmAction.type === 'deactivate'
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              boxShadow: confirmAction.type === 'delete'
+                ? '0 8px 25px rgba(239, 68, 68, 0.35)'
+                : confirmAction.type === 'deactivate'
+                ? '0 8px 25px rgba(245, 158, 11, 0.35)'
+                : '0 8px 25px rgba(16, 185, 129, 0.35)',
+            }}
+          >
+            <i className="pi pi-check text-white" style={{ fontSize: "3rem" }}></i>
+          </div>
+          <h2 className="text-900 font-bold text-2xl mb-2">
+            Mailbox {actionLabel} !
+          </h2>
+          <p className="text-600 text-lg">
+            L'opération a été effectuée avec succès
+          </p>
+        </div>
+
+        <div className="surface-100 border-round-lg p-4 mb-4">
+          <div className="flex align-items-start gap-3 mb-3 pb-3 border-bottom-1 surface-border">
+            <i className="pi pi-database text-primary text-xl mt-1"></i>
+            <div className="flex-1">
+              <div className="text-500 text-sm mb-1 font-medium">Nom de la mailbox</div>
+              <div className="text-900 font-semibold text-lg">{mailboxName}</div>
+            </div>
+          </div>
+
+          <div className="flex align-items-start gap-3">
+            <i className={`pi ${
+              confirmAction.type === 'delete' ? 'pi-trash' :
+              confirmAction.type === 'activate' ? 'pi-check-circle' :
+              confirmAction.type === 'deactivate' ? 'pi-ban' :
+              'pi-save'
+            } text-xl mt-1`}
+              style={{ 
+                color: confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
+                  ? '#ef4444' 
+                  : '#10b981' 
+              }}
+            ></i>
+            <div className="flex-1">
+              <div className="text-500 text-sm mb-1 font-medium">Action effectuée</div>
+              <Tag 
+                severity={
+                  confirmAction.type === 'delete' ? 'danger' :
+                  confirmAction.type === 'deactivate' ? 'warning' :
+                  'success'
+                }
+                value={`Mailbox ${actionLabel}`}
+                style={{ fontSize: "1rem", padding: "0.6rem 1.2rem" }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className={`p-3 border-round-lg mb-4 ${
+          confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
+            ? 'bg-red-50' 
+            : 'bg-green-50'
+        }`}>
+          <div className="flex align-items-start gap-2">
+            <i className={`pi pi-info-circle mt-1`}
+              style={{ 
+                color: confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
+                  ? '#dc2626' 
+                  : '#059669' 
+              }}
+            ></i>
+            <small className="font-medium" style={{ 
+              color: confirmAction.type === 'delete' || confirmAction.type === 'deactivate' 
+                ? '#991b1b' 
+                : '#065f46' 
+            }}>
+              {confirmAction.type === 'delete'
+                ? 'La mailbox a été définitivement supprimée de la base de données.'
+                : confirmAction.type === 'deactivate'
+                ? 'La mailbox ne sera plus disponible pour les nouveaux utilisateurs.'
+                : confirmAction.type === 'activate'
+                ? 'La mailbox est maintenant disponible pour les nouveaux utilisateurs.'
+                : `La mailbox a été ${actionLabel} avec succès.`}
+            </small>
+          </div>
+        </div>
+
+        <Button
+          label="OK, j'ai compris"
+          onClick={() => {
+            setShowSuccessDialog(false);
+            setConfirmAction(null);
+          }}
+          severity={
+            confirmAction.type === 'delete' ? 'danger' :
+            confirmAction.type === 'deactivate' ? 'warning' :
+            'success'
+          }
+          className="w-full"
+          style={{ 
+            height: "55px", 
+            fontSize: "1.1rem",
+            fontWeight: "600"
+          }}
+        />
+      </div>
+    );
   };
 
   return (
-         <Layout>
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Gestion des Mailboxes</h2>
-      <Button label="Nouvelle Mailbox" icon="pi pi-plus" onClick={() => openDialog()} className="mb-3" />
+    <Layout>
+      <Head title="Gestion des Mailboxes" />
+      
+      <div className="grid">
+        <div className="col-12">
+          <Card className="shadow-3 border-round-xl">
+            <DataTable
+              value={filteredMailboxes}
+              header={tableHeader}
+              emptyMessage={
+                <div className="text-center py-6">
+                  <i className="pi pi-database text-400 mb-3" style={{ fontSize: '3rem' }}></i>
+                  <h3 className="text-900 text-xl font-medium mb-2">
+                    {searchQuery ? 'Aucune mailbox trouvée' : 'Aucune mailbox'}
+                  </h3>
+                  <p className="text-600 mb-4">
+                    {searchQuery 
+                      ? 'Essayez de modifier votre recherche'
+                      : 'Commencez par créer votre première mailbox'}
+                  </p>
+                  {!searchQuery && (
+                    <Button
+                      label="Créer une mailbox"
+                      icon="pi pi-plus"
+                      onClick={() => openDialog()}
+                      style={{
+                        background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        border: 'none'
+                      }}
+                    />
+                  )}
+                </div>
+              }
+              stripedRows
+              responsiveLayout="scroll"
+              paginator
+              rows={10}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+              currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} mailboxes"
+            >
+              <Column
+                field="name"
+                header="Mailbox"
+                body={nameTemplate}
+                sortable
+                style={{ minWidth: '250px' }}
+              />
 
-      <table className="min-w-full border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="px-4 py-2 border">Nom</th>
-            <th className="px-4 py-2 border">Active</th>
-            <th className="px-4 py-2 border">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mailboxes.map((mailbox) => (
-            <tr key={mailbox.id} className="border-t">
-              <td className="px-4 py-2 border">{mailbox.name}</td>
-              <td className="px-4 py-2 border">{mailbox.active ? 'Oui' : 'Non'}</td>
-              <td className="px-4 py-2 border">
-                <Button icon="pi pi-pencil" className="p-button-text p-mr-2" onClick={() => openDialog(mailbox)} />
-                <Button icon="pi pi-trash" className="p-button-text p-button-danger p-mr-2" onClick={() => handleDelete(mailbox.id)} />
-                {mailbox.active ? (
-    <Button
-      icon="pi pi-ban"
-      className="p-button-text p-button-warning"
-      onClick={() => handleDeactivate(mailbox.id)}
-    />
-  ) : (
-    <Button
-      icon="pi pi-check"
-      className="p-button-text p-button-success"
-      onClick={() => handleActivate(mailbox.id)}
-    />
-  )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <Column
+                field="active"
+                header="Statut"
+                body={statusTemplate}
+                sortable
+                style={{ minWidth: '150px', textAlign: 'center' }}
+              />
 
-      <Dialog header={currentMailbox.id ? "Modifier Mailbox" : "Nouvelle Mailbox"} visible={showDialog} onHide={closeDialog} style={{ width: '400px' }}>
-        <div className="p-field mb-3">
-          <label>Nom</label>
-          <InputText value={currentMailbox.name} onChange={(e) => setCurrentMailbox({ ...currentMailbox, name: e.target.value })} className="w-full" />
+              <Column
+                header="Actions"
+                body={actionsTemplate}
+                style={{ minWidth: '200px', textAlign: 'center' }}
+              />
+            </DataTable>
+          </Card>
         </div>
-        <div className="p-field-checkbox mb-3">
-          <input type="checkbox" checked={currentMailbox.active} onChange={(e) => setCurrentMailbox({ ...currentMailbox, active: e.target.checked })} />
-          <label className="ml-2">Active</label>
+      </div>
+
+      {/* Dialog d'édition/création */}
+      <Dialog
+        visible={showDialog}
+        onHide={closeDialog}
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className={`pi ${currentMailbox.id ? 'pi-pencil' : 'pi-plus'} text-primary text-xl`}></i>
+            <span className="text-base md:text-lg font-semibold">
+              {currentMailbox.id ? 'Modifier la mailbox' : 'Nouvelle mailbox'}
+            </span>
+          </div>
+        }
+        footer={editDialogFooter}
+        style={{ width: '95vw', maxWidth: '500px' }}
+        modal
+        breakpoints={{ '960px': '90vw', '640px': '95vw' }}
+        dismissableMask
+      >
+        <div className="py-2 px-4 pt-4">
+          <div className="field mb-4">
+            <label htmlFor="mailboxName" className="block text-900 font-semibold mb-2 text-sm md:text-base">
+              Nom de la mailbox <span className="text-red-500">*</span>
+            </label>
+            <InputText
+              id="mailboxName"
+              value={currentMailbox.name}
+              onChange={(e) => setCurrentMailbox({ ...currentMailbox, name: e.target.value })}
+              className="w-full text-sm md:text-base"
+              placeholder="Ex: Mailbox Principal"
+              required
+            />
+          </div>
+
+          <div className="field">
+            <div className="flex align-items-center gap-2">
+              <Checkbox
+                inputId="mailboxActive"
+                checked={currentMailbox.active}
+                onChange={(e) => setCurrentMailbox({ ...currentMailbox, active: e.checked })}
+              />
+              <label htmlFor="mailboxActive" className="text-900 font-medium text-sm md:text-base cursor-pointer">
+                Mailbox active
+              </label>
+            </div>
+            <small className="text-600 block mt-1">
+              Les mailboxes inactives ne seront pas disponibles pour les nouveaux utilisateurs
+            </small>
+          </div>
         </div>
-        <Button label="Sauvegarder" icon="pi pi-check" onClick={handleSave} className="mt-2" />
       </Dialog>
-    </div>
+
+      {/* Dialog de confirmation */}
+      <Dialog
+        visible={showConfirmDialog}
+        onHide={closeConfirmDialog}
+        header={null}
+        footer={null}
+        style={{ width: '95vw', maxWidth: '500px' }}
+        modal
+        breakpoints={{ '960px': '90vw', '640px': '95vw' }}
+        dismissableMask
+        className="custom-dialog"
+      >
+        {getConfirmDialogContent()}
+      </Dialog>
+
+      {/* Dialog de succès */}
+      <Dialog
+        visible={showSuccessDialog}
+        onHide={() => {
+          setShowSuccessDialog(false);
+          setConfirmAction(null);
+        }}
+        header={null}
+        footer={null}
+        style={{ width: '95vw', maxWidth: '550px' }}
+        modal
+        breakpoints={{ '960px': '90vw', '640px': '95vw' }}
+        dismissableMask
+        className="custom-dialog"
+      >
+        {getSuccessDialogContent()}
+      </Dialog>
+
+      <style>{`
+        :global(.p-card) {
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+        }
+
+        :global(.p-card .p-card-body) {
+          padding: 0;
+        }
+
+        :global(.p-card .p-card-content) {
+          padding: 0;
+        }
+
+        :global(.p-datatable .p-datatable-header) {
+          background: white;
+          border-bottom: 1px solid #e5e7eb;
+          padding: 1.5rem;
+        }
+
+        :global(.p-datatable .p-datatable-thead > tr > th) {
+          background: #f9fafb;
+          color: #374151;
+          font-weight: 600;
+          padding: 1rem;
+          border-bottom: 2px solid #e5e7eb;
+        }
+
+        :global(.p-datatable .p-datatable-tbody > tr) {
+          transition: all 0.2s ease;
+        }
+
+        :global(.p-datatable .p-datatable-tbody > tr:hover) {
+          background: #f9fafb;
+        }
+
+        :global(.p-datatable .p-datatable-tbody > tr > td) {
+          padding: 1rem;
+        }
+
+        :global(.p-inputtext) {
+          border-radius: 8px;
+          border: 1px solid #e5e7eb;
+          transition: all 0.2s ease;
+        }
+
+        :global(.p-inputtext:focus) {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        :global(.p-inputgroup-addon) {
+          background: #f9fafb;
+          border-radius: 8px 0 0 8px;
+          border: 1px solid #e5e7eb;
+          border-right: none;
+        }
+
+        :global(.p-button) {
+          border-radius: 8px;
+          font-weight: 600;
+          transition: all 0.2s ease;
+        }
+
+        :global(.p-button:not(.p-button-outlined):not(:disabled):hover) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        :global(.p-button-outlined) {
+          border-width: 2px;
+        }
+
+        :global(.p-button-rounded) {
+          width: 2.5rem;
+          height: 2.5rem;
+        }
+
+        :global(.p-tag) {
+          border-radius: 6px;
+          padding: 0.35rem 0.7rem;
+          font-size: 0.875rem;
+        }
+
+        :global(.shadow-3) {
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        :global(.p-paginator) {
+          background: #f9fafb;
+          border-top: 1px solid #e5e7eb;
+          padding: 1rem 1.5rem;
+        }
+
+        :global(.p-checkbox .p-checkbox-box) {
+          border-radius: 4px;
+          border: 2px solid #d1d5db;
+          width: 1.25rem;
+          height: 1.25rem;
+        }
+
+        :global(.p-checkbox .p-checkbox-box.p-highlight) {
+          background: #6366f1;
+          border-color: #6366f1;
+        }
+
+        :global(.border-round-xl) {
+          border-radius: 12px;
+        }
+
+        :global(.custom-dialog .p-dialog-content) {
+          padding: 0 !important;
+          border-radius: 12px;
+        }
+
+        :global(.custom-dialog .p-dialog-header) {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          :global(.p-datatable .p-datatable-header) {
+            padding: 1rem;
+          }
+
+          :global(.p-button-rounded) {
+            width: 2rem;
+            height: 2rem;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
