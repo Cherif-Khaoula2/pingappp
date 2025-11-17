@@ -93,15 +93,13 @@ export default function ActivityLogs({ logs, stats, filters }) {
 const configs = {
     login: { 
         icon: 'pi-sign-in', 
-        severity: 'info', 
+        severity: 'success', 
         label: 'Connexion', 
-        color: '#2563eb' // Bleu royal vif
     },
     logout: { 
         icon: 'pi-sign-out', 
-        severity: null, 
+        severity: 'warning', 
         label: 'Déconnexion', 
-        color: '#64748b' // Gris bleuté neutre
     },
     block_user: { 
         icon: 'pi-lock', 
@@ -139,12 +137,7 @@ const configs = {
         label: 'Recherche ', 
         color: '#0284c7' // Bleu ciel profond
     },
-    search_user_result: { 
-        icon: 'pi-list', 
-        severity: 'info', 
-        label: 'Résultats', 
-        color: '#0ea5e9' // Bleu clair
-    },
+  
     create_dn: { 
         icon: 'pi-folder-plus', 
         severity: 'success', 
@@ -165,7 +158,7 @@ const configs = {
     },
     assign_dns_to_user: { 
         icon: 'pi-link', 
-        severity: 'info', 
+        severity: 'primary', 
         label: 'Affectation', 
         color: '#2563eb' // Bleu royal
     },
@@ -189,7 +182,7 @@ const configs = {
     },
     unhide_account: { 
         icon: 'pi-eye', 
-        severity: 'success', 
+        severity: null, 
         label: 'Démasquage', 
         color: '#22c55e' // Vert vif
     },

@@ -116,7 +116,7 @@ class DashboardController extends Controller
                 ->select('performed_by_id', DB::raw('COUNT(*) as count'))
                 ->where('created_at', '>=', $startDate)
                 ->whereNotNull('performed_by_id')
-                ->whereNotIn('action', ['login', 'logout' , 'search_user'])
+                ->whereNotIn('action', ['login', 'logout' , 'search_user' , 'create_exchange_mailbox'])
                 ->groupBy('performed_by_id')
                 ->orderByDesc('count')
                 ->limit(10)
@@ -141,7 +141,7 @@ class DashboardController extends Controller
                 ->select('performed_by_id', DB::raw('COUNT(*) as count'))
                 ->where('created_at', '>=', $startDate)
                 ->whereNotNull('performed_by_id')
-                ->whereNotIn('action', ['login', 'logout' , 'search_user'])
+                ->whereNotIn('action', ['login', 'logout' , 'search_user' , 'create_exchange_mailbox'])
                 ->groupBy('performed_by_id')
                 ->get()
                 ->filter(function ($log) {

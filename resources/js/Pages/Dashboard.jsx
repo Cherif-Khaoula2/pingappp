@@ -167,8 +167,8 @@ export default function Dashboard({
         datasets: [{
             data: filteredActionBreakdown.map(a => a.count),
             backgroundColor: [
-                '#10b981',
-                '#f59e0b', 
+                '#11ce49ff',
+                '#acacaaff', 
                 '#06b6d4', 
                 '#ef4444', 
                 '#14b8a6', 
@@ -271,19 +271,17 @@ export default function Dashboard({
             'login': 'success',
             'logout': 'warning',
             'block_user': 'danger',
-            'unblock_user': 'info',
-            'create_user': 'info', 
+            'unblock_user': 'warning',
+            'create_user': 'help', 
             'reset_password': 'warning',
-            'change_password': 'info',
             'search_user': 'info',
-            'search_user_result': 'secondary',
             'create_dn': 'success',
             'update_dn': 'warning',
             'delete_dn': 'danger',
             'assign_dns_to_user': 'primary',
-            'assign_dn_to_users': 'primary',
-            'unassign_dn_from_users': 'warning',
-            'hide_account': 'secondary',
+            'assign_dn_to_users': 'success',
+            'unassign_dn_from_users': 'danger',
+            'hide_account': 'warning',
             'unhide_account': 'success',
             'authorize_ldap_user': 'success',
             'unauthorize_ldap_user': 'danger'
@@ -297,9 +295,7 @@ export default function Dashboard({
             'create_user': 'Création AD',
             'create_exchange_mailbox': 'Création Exchange',
             'reset_password': 'Reset MDP',
-            'change_password': 'Change MDP',
             'search_user': 'Recherche utilisateur',
-            'search_user_result': 'Résultats recherche',
             'create_dn': 'Création DN',
             'update_dn': 'Modification DN',
             'delete_dn': 'Suppression DN',
@@ -323,9 +319,7 @@ export default function Dashboard({
     const filteredTopPerformers = safeTopPerformers.filter(user => {
         const name = user.name?.trim() || "";
         return name !== "" && 
-               name !== "Système" && 
-               name !== "Khaoula HAMADOUCHE" &&
-               name !== "Khaoula HAMADOUCHE.";
+               name !== "Système" 
     });
 
     const totalActivities = safeStats.total_logs || 0;
