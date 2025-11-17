@@ -162,21 +162,23 @@ export default function Dashboard({
     const includedActions = [ 'Création', 'Blocage', 'Déblocage', 'Reset MDP'];
     const filteredActionBreakdown = safeActionBreakdown.filter(a => includedActions.includes(a.action));
     
-    const actionChartData = {
+const actionChartData = {
         labels: filteredActionBreakdown.map(a => a.action),
         datasets: [{
             data: filteredActionBreakdown.map(a => a.count),
-            backgroundColor: [
-                '#06b6d4', 
-                '#ef4444', 
-                '#14b8a6', 
-                '#f97316'
-            ],
+            backgroundColor: filteredActionBreakdown.map(a => {
+                switch(a.action) {
+                    case 'Création': return '#06b6d4'; // Bleu cyan
+                    case 'Blocage': return '#ef4444';  // Rouge
+                    case 'Déblocage': return '#14b8a6'; // Bleu-vert (teal)
+                    case 'Reset MDP': return '#f97316'; // Orange
+                    default: return '#6b7280'; // Gris par défaut
+                }
+            }),
             borderWidth: 0,
             hoverOffset: 8
         }]
     };
-
     const pieChartOptions = {
         maintainAspectRatio: false,
         responsive: true,
