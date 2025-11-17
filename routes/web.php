@@ -196,6 +196,14 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
     ->middleware('permission:resetpswaduser')
         ->name('ad.users.reset-password');
 
+    Route::get('/ad/users/manage-update', [AdUserController::class, 'manageUpdate'])
+    ->middleware('permission:updateaduser')
+        ->name('ad.users.manage-update');
+
+    Route::post('/ad/users/update-user', [AdUserController::class, 'updateAdUser'])
+    ->middleware('permission:updateaduser')
+        ->name('ad.users.update-user');
+
 
     // 🔑 Ajouter un utilisateur AD 
     Route::get('/ad/add-user', [AdUserController::class, 'manageAddUser'])

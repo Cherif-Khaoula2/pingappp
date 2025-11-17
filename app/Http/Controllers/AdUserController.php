@@ -914,6 +914,119 @@ public function createAdUser(Request $request)
         ], 500);
     }
 }
+public function manageUpdate()
+{
+    return inertia('Ad/ManageUpdateUser'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
+}
+public function updateAdUser(Request $request)
+{
+    $this->authorize('editaduser');
+
+    // 🔹 Validation des champs autorisés
+    $request->validate([
+        'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
+        'name' => 'nullable|string|max:100',
+        'samAccountName' => 'nullable|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
+        'emailAddress' => 'nullable|email|max:100',
+    ]);
+
+    $sam = $request->input('sam');
+
+    // 🔒 Vérifier l'accès à l'utilisateur AD
+    $validation = $this->validateAdUserAccess($sam);
+    if (!$validation['authorized']) {
+        Log::warning('Tentative de modification non autorisée', [
+            'sam' => $sam,
+            'user_id' => auth()->id(),
+            'ip' => request()->ip(),
+            'error' => $validation['error']
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => $validation['error']
+        ], 403);
+    }
+
+    $adUser = $validation['user'];
+    $updates = [];
+
+    // Préparer les champs à mettre à jour
+    if ($request->filled('name')) {
+        $updates['Name'] = str_replace("'", "''", $request->input('name'));
+    }
+    if ($request->filled('samAccountName')) {
+        $updates['SamAccountName'] = str_replace("'", "''", $request->input('samAccountName'));
+    }
+    if ($request->filled('emailAddress')) {
+        $email = str_replace("'", "''", $request->input('emailAddress'));
+        $updates['EmailAddress'] = $email;
+        // Synchroniser UserPrincipalName avec l'email
+        $updates['UserPrincipalName'] = $email;
+    }
+
+    if (empty($updates)) {
+        return response()->json(['success' => false, 'message' => 'Aucune donnée à mettre à jour'], 400);
+    }
+
+    // 🔹 Construire les commandes PowerShell
+    $escapedSam = $this->escapePowerShellString($sam);
+    $psCommands = [];
+    foreach ($updates as $key => $value) {
+        $psCommands[] = "Set-ADUser -Identity '$escapedSam' -$key '$value'";
+    }
+
+    $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $psCommands) . "; Write-Output 'Update successful'\"";
+
+    // 🔹 Préparer la commande SSH
+    $host = env('SSH_HOST');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
+    $keyPath = env('SSH_KEY_PATH');
+
+    $command = $keyPath && file_exists($keyPath)
+        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+
+    // 🔹 Exécuter la commande et gérer les erreurs
+    try {
+        $process = new Process($command);
+        $process->setTimeout(30);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        $this->logAdActivity(
+            action: 'update_user',
+            targetUser: $sam,
+            targetUserName: $adUser['name'],
+            success: true,
+            additionalDetails: $updates
+        );
+
+        return response()->json(['success' => true, 'message' => 'Utilisateur mis à jour avec succès']);
+
+    } catch (\Throwable $e) {
+        Log::error('updateAdUser error: ' . $e->getMessage());
+
+        $this->logAdActivity(
+            action: 'update_user',
+            targetUser: $sam,
+            targetUserName: $adUser['name'],
+            success: false,
+            errorMessage: $e->getMessage()
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur lors de la mise à jour de l’utilisateur : ' . $e->getMessage(),
+        ], 500);
+    }
+}
+
+
 public function getDirections()
 {
     try {

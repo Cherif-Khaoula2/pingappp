@@ -37,7 +37,8 @@ class PermissionSeeder extends Seeder
             'managedn',
             'manageuserou',
             'moveaduser',
-            'managemailbox'
+            'managemailbox',
+            'updateaduser'
         ];
 
         foreach ($permissions as $permission) {

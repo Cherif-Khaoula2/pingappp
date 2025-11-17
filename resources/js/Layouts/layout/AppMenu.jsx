@@ -92,6 +92,11 @@ const AppMenu = () => {
                 icon: 'pi pi-fw pi-user-plus',
                 to: safeRoute('ad.add-user'),
             },
+             hasPermission('updateaduser') && {
+                label: 'Modifier utilisateur',
+                icon: 'pi pi-fw pi-pencil', 
+                to: safeRoute('ad.users.manage-update'),
+            },
             hasPermission('blockaduser') && {
                 label: 'Bloquer/Débloquer utilisateur',
                 icon: 'pi pi-ban',
