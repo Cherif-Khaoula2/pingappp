@@ -159,7 +159,7 @@ export default function Dashboard({
         }
     };
 
-    const includedActions = ['Connexion', 'Déconnexion', 'Création', 'Blocage', 'Déblocage', 'Reset MDP'];
+    const includedActions = [ 'Création', 'Blocage', 'Déblocage', 'Reset MDP'];
     const filteredActionBreakdown = safeActionBreakdown.filter(a => includedActions.includes(a.action));
     
     const actionChartData = {
@@ -167,8 +167,6 @@ export default function Dashboard({
         datasets: [{
             data: filteredActionBreakdown.map(a => a.count),
             backgroundColor: [
-                '#11ce49ff',
-                '#acacaaff', 
                 '#06b6d4', 
                 '#ef4444', 
                 '#14b8a6', 
