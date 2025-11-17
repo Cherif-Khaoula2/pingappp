@@ -111,11 +111,12 @@ class DashboardController extends Controller
                 ])
                 ->toArray();
 
-            // ==================== 4️⃣ TOP UTILISATEURS ACTIFS ====================
+// ==================== 4️⃣ TOP UTILISATEURS ACTIFS (sans connexion/déconnexion) ====================
             $topPerformers = AdActivityLog::with('performer:id,first_name,last_name,email')
                 ->select('performed_by_id', DB::raw('COUNT(*) as count'))
                 ->where('created_at', '>=', $startDate)
                 ->whereNotNull('performed_by_id')
+                ->whereNotIn('action', ['login', 'logout'])
                 ->groupBy('performed_by_id')
                 ->orderByDesc('count')
                 ->limit(10)
