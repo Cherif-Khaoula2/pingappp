@@ -996,10 +996,11 @@ protected function sendAdUserCreationNotification($creator, $newUser)
                                 " . htmlspecialchars(strtoupper($newUser['accountType'] ?? '-')) . "
                             </td>
                         </tr>
-                        <tr>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>
-                        </tr>
+                       <tr>
+    <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+    <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now('Africa/Algiers')->format('d/m/Y à H:i') . "</td>
+</tr>
+
                     </table>
 
                     <div style='background-color: #eaf1ff; border-left: 4px solid #4B6CB7; padding: 15px; margin: 20px 0;'>
@@ -1087,9 +1088,10 @@ protected function sendBlockNotification($creator, $userData, $action)
 </tr>
 
                         <tr>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>
-                        </tr>
+    <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+    <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now('Africa/Algiers')->format('d/m/Y à H:i') . "</td>
+</tr>
+
                     </table>
 
                     <hr style='margin-top: 30px; border: none; border-top: 1px solid #ccc;'>
@@ -1167,10 +1169,11 @@ protected function sendPasswordResetNotification($creator, $userData)
                             <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Compte déverrouillé :</strong></td>
                             <td style='padding: 10px; border: 1px solid #dee2e6;'>✅ Oui</td>
                         </tr>
-                        <tr style='background-color: #f8f9fa;'>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
-                            <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now()->format('d/m/Y à H:i') . "</td>
-                        </tr>
+                       <tr>
+    <td style='padding: 10px; border: 1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+    <td style='padding: 10px; border: 1px solid #dee2e6;'>" . now('Africa/Algiers')->format('d/m/Y à H:i') . "</td>
+</tr>
+
                     </table>
 
                     <div style='background-color: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin: 20px 0;'>
