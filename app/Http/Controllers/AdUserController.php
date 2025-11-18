@@ -1006,27 +1006,24 @@ public function updateAdUser(Request $request)
             throw new ProcessFailedException($process);
         }
 
-        // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress + DisplayName)
-        if ($request->filled('samAccountName') || $request->filled('emailAddress') || $request->filled('name')) {
-            // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
-            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];  // ← Changé ici
+               // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress)
+        if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
+            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['samAccountName'];
             $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
-            $displayName = $request->filled('name') ? $request->name : $adUser['name'];
 
             $escapedAlias = $this->escapePowerShellString($alias);
             $escapedEmail = $this->escapePowerShellString($primaryEmail);
-            $escapedDisplayName = $this->escapePowerShellString($displayName);
    
             $exHost = env('SSH_HOST_EX');
-            
-            $psExchange = "
+              $psExchange = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -DisplayName '$escapedDisplayName' -EmailAddresses 'SMTP:$escapedEmail';
+Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
 Write-Output 'OK'
 \"
 ";
+
 
             $commandEx = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psExchange];
 
@@ -1038,7 +1035,6 @@ Write-Output 'OK'
                 throw new ProcessFailedException($processEx);
             }
         }
-
         $this->logAdActivity(
             action: 'update_user',
             targetUser: $sam,
