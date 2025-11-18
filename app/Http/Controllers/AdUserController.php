@@ -1056,11 +1056,7 @@ Write-Output 'OK'
             $oldData,
             $newData
         );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur mis à jour avec succès'
-        ], 200);
+  
 
     } catch (\Throwable $e) {
         Log::error("updateAdUser() - GLOBAL ERROR", [
