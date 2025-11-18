@@ -510,8 +510,9 @@ export default function ResetUserPassword() {
               onClick={() => setConfirmDialog({ visible: false, changes: [] })}
               disabled={isUpdating}
             />
-            <Button
+           <Button
               label={isUpdating ? "Modification en cours..." : "Confirmer la modification"}
+              icon={isUpdating ? "pi pi-spin pi-spinner" : ""}
               severity="warning"
               className="flex-1 p-3"
               onClick={confirmUpdateUser}
