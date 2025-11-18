@@ -176,6 +176,12 @@ const configs = {
         label: 'Désautorisation', 
         color: '#2a1de1ff' // Rouge rosé
     },
+    update_user: { 
+         icon: ' pi-pencil', 
+         severity: null, 
+         label: 'Modification utilisateur', 
+         color: '#2a1de1ff'
+            },
         };
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
