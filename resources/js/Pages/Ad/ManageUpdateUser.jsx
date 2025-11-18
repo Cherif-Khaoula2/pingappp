@@ -59,7 +59,6 @@ const handleSearch = async () => {
         sam: user.sam,
         email: user.email,
         enabled: user.enabled,
-        lastLogon: user.last_logon,
         dn: user.dn,
       }));
       setUsers(mappedUsers);
@@ -83,7 +82,7 @@ const handleEditClick = (user) => {
       visible: true,
       sam: user.sam,
       name: user.name || "",
-      samAccountName: user.samAccountName || "",
+      samAccountName: user.sam || "",
       emailAddress: user.email || "",
     });
 
