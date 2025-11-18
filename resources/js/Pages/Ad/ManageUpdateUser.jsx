@@ -37,9 +37,8 @@ const emailTemplate = (rowData) => <span>{rowData.email || "N/A"}</span>;
 };
  
 // 🔹 Recherche d'un utilisateur
-
+// 🔹 Recherche d'un utilisateur
 const handleSearch = async () => {
-  // ✅ Autoriser "." ou vide (on laisse le backend gérer)
   if (!search.trim() && search.trim() !== ".") {
     setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
     return;
@@ -52,14 +51,15 @@ const handleSearch = async () => {
   try {
     const response = await axios.post("/ad/users/find", { search });
 
-    // ✅ Afficher les utilisateurs même si success = false
     if (Array.isArray(response.data.users) && response.data.users.length > 0) {
       const mappedUsers = response.data.users.map((user) => ({
         name: user.name || user.sam,
         sam: user.sam,
+        samAccountName: user.sam,      // <-- ajout ici
         email: user.email,
         enabled: user.enabled,
         dn: user.dn,
+        lastLogon: user.last_logon,
       }));
       setUsers(mappedUsers);
       setError(null);
@@ -75,19 +75,22 @@ const handleSearch = async () => {
     setLoading(false);
   }
 };
+
+// 🔹 Ouverture du dialogue de modification
 const handleEditClick = (user) => {
-    console.log("🟦 handleEditClick() → utilisateur sélectionné :", user);
+  console.log("🟦 handleEditClick() → utilisateur sélectionné :", user);
 
-    setEditDialog({
-      visible: true,
-      sam: user.sam,
-      name: user.name || "",
-      samAccountName: user.sam || "",
-      emailAddress: user.email || "",
-    });
+  setEditDialog({
+    visible: true,
+    sam: user.sam,
+    name: user.name || "",
+    samAccountName: user.samAccountName || "",  // maintenant existant
+    emailAddress: user.email || "",
+  });
 
-    setEditError(null);
+  setEditError(null);
 };
+
 
 const confirmUpdateUser = () => {
     console.log("🟨 confirmUpdateUser() → données avant validation :", editDialog);
