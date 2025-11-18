@@ -12,61 +12,66 @@ class AdActivityLogController extends Controller
     /**
      * 🧭 Affiche la liste des logs avec filtres et statistiques
      */
-    public function index(Request $request)
-    {
-        $query = AdActivityLog::with('performer')->latest();
+   public function index(Request $request)
+{
+    $query = AdActivityLog::with('performer')->latest();
 
-        // 🔍 Filtres
-        if ($request->filled('action')) {
+    // 🔍 Filtres
+    // ✅ Modification pour gérer les actions multiples
+    if ($request->filled('action')) {
+        if (is_array($request->action)) {
+            $query->whereIn('action', $request->action);
+        } else {
             $query->where('action', $request->action);
         }
-
-        if ($request->filled('target_user')) {
-            $query->where('target_user', 'like', '%' . $request->target_user . '%');
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
-        }
-
-        // 📊 Résultats paginés
-        $logs = $query->paginate(50)->withQueryString();
-
-        // 📈 Statistiques rapides
-        $stats = [
-            'total_today' => AdActivityLog::whereDate('created_at', today())->count(),
-            'logins_today' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'login')
-                ->where('status', 'success')
-                ->count(),
-            'failed_today' => AdActivityLog::whereDate('created_at', today())
-                ->where('status', 'failed')
-                ->count(),
-            'blocks_today' => AdActivityLog::whereDate('created_at', today())
-                ->whereIn('action', ['block_user', 'unblock_user'])
-                ->count(),
-            'searches_today' => AdActivityLog::whereDate('created_at', today())
-                ->where('action', 'search_user')
-                ->count(),
-            'dn_operations_today' => AdActivityLog::whereDate('created_at', today())
-                ->whereIn('action', ['create_dn', 'update_dn', 'delete_dn', 'assign_dns_to_user', 'assign_dn_to_users', 'unassign_dn_from_users'])
-                ->count(),
-        ];
-
-        return Inertia::render('Ad/ActivityLogs', [
-            'logs' => $logs,
-            'stats' => $stats,
-            'filters' => $request->only(['action', 'target_user', 'status', 'start_date', 'end_date']),
-        ]);
     }
+
+    if ($request->filled('target_user')) {
+        $query->where('target_user', 'like', '%' . $request->target_user . '%');
+    }
+
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+
+    if ($request->filled('start_date')) {
+        $query->whereDate('created_at', '>=', $request->start_date);
+    }
+
+    if ($request->filled('end_date')) {
+        $query->whereDate('created_at', '<=', $request->end_date);
+    }
+
+    // 📊 Résultats paginés
+    $logs = $query->paginate(50)->withQueryString();
+
+    // 📈 Statistiques rapides
+    $stats = [
+        'total_today' => AdActivityLog::whereDate('created_at', today())->count(),
+        'logins_today' => AdActivityLog::whereDate('created_at', today())
+            ->where('action', 'login')
+            ->where('status', 'success')
+            ->count(),
+        'failed_today' => AdActivityLog::whereDate('created_at', today())
+            ->where('status', 'failed')
+            ->count(),
+        'blocks_today' => AdActivityLog::whereDate('created_at', today())
+            ->whereIn('action', ['block_user', 'unblock_user'])
+            ->count(),
+        'searches_today' => AdActivityLog::whereDate('created_at', today())
+            ->where('action', 'search_user')
+            ->count(),
+        'dn_operations_today' => AdActivityLog::whereDate('created_at', today())
+            ->whereIn('action', ['create_dn', 'update_dn', 'delete_dn', 'assign_dns_to_user', 'assign_dn_to_users', 'unassign_dn_from_users'])
+            ->count(),
+    ];
+
+    return Inertia::render('Ad/ActivityLogs', [
+        'logs' => $logs,
+        'stats' => $stats,
+        'filters' => $request->only(['action', 'target_user', 'status', 'start_date', 'end_date']),
+    ]);
+}
 
     /**
      * 👁️ Détail d'un log précis

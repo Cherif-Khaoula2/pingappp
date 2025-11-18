@@ -3,7 +3,7 @@ import { Head, router, Link, usePage } from '@inertiajs/react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { Dropdown } from 'primereact/dropdown';
+import { MultiSelect } from 'primereact/multiselect';
 import { Calendar } from 'primereact/calendar';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -15,47 +15,48 @@ export default function ActivityLogs({ logs, stats, filters }) {
     const { auth } = usePage().props;
 
     const [localFilters, setLocalFilters] = useState({
-        action: filters.action || '',
+        action: filters.action ? (Array.isArray(filters.action) ? filters.action : (typeof filters.action === 'string' ? [filters.action] : [])) : [],
         target_user: filters.target_user || '',
         start_date: filters.start_date ? new Date(filters.start_date) : null,
         end_date: filters.end_date ? new Date(filters.end_date) : null,
     });
 
     const actionOptions = [
-        { label: 'Toutes les actions', value: '' },
-        { label: ' Connexion', value: 'login' },
-        { label: ' Déconnexion', value: 'logout' },
-        { label: ' Blocage utilisateur', value: 'block_user' },
-        { label: ' Déblocage utilisateur', value: 'unblock_user' },
-        { label: ' Reset mot de passe', value: 'reset_password' },
-        { label: ' Création compte AD', value: 'create_user' },
-         { label: ' Création compte Exchange', value: 'create_exchange_mailbox' },
-        { label: ' Recherche', value: 'search_user' },
-        { label: ' Résultats recherche', value: 'search_user_result' },
-        { label: ' Création DN', value: 'create_dn' },
-        { label: ' Modification DN', value: 'update_dn' },
-        { label: ' Suppression DN', value: 'delete_dn' },
-        { label: ' Affectation DNs', value: 'assign_dns_to_user' },
-        { label: ' Ajout utilisateurs DN', value: 'assign_dn_to_users' },
-        { label: ' Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
-        { label: ' Masquage des utilisateurs', value: 'hide_account' },
-        { label: ' Démasquage des utilisateurs ', value: 'unhide_account' },        
-        { label: ' Autorisation des utilisateurs ', value: 'authorize_ldap_user' },
-        { label: ' Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
-        
+        { label: 'Connexion', value: 'login' },
+        { label: 'Déconnexion', value: 'logout' },
+        { label: 'Blocage utilisateur', value: 'block_user' },
+        { label: 'Déblocage utilisateur', value: 'unblock_user' },
+        { label: 'Reset mot de passe', value: 'reset_password' },
+        { label: 'Création compte AD', value: 'create_user' },
+        { label: 'Création compte Exchange', value: 'create_exchange_mailbox' },
+        { label: 'Recherche', value: 'search_user' },
+        { label: 'Résultats recherche', value: 'search_user_result' },
+        { label: 'Création DN', value: 'create_dn' },
+        { label: 'Modification DN', value: 'update_dn' },
+        { label: 'Suppression DN', value: 'delete_dn' },
+        { label: 'Affectation DNs', value: 'assign_dns_to_user' },
+        { label: 'Ajout utilisateurs DN', value: 'assign_dn_to_users' },
+        { label: 'Retrait utilisateurs DN', value: 'unassign_dn_from_users' },
+        { label: 'Masquage des utilisateurs', value: 'hide_account' },
+        { label: 'Démasquage des utilisateurs', value: 'unhide_account' },        
+        { label: 'Autorisation des utilisateurs', value: 'authorize_ldap_user' },
+        { label: 'Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
     ];
-
 
     const handleFilterChange = (key, value) => {
         const newFilters = { ...localFilters, [key]: value };
         setLocalFilters(newFilters);
         
         const queryParams = {
-            action: newFilters.action,
             target_user: newFilters.target_user,
             start_date: newFilters.start_date ? formatDateForQuery(newFilters.start_date) : '',
             end_date: newFilters.end_date ? formatDateForQuery(newFilters.end_date) : '',
         };
+        
+        // ✅ Ajouter chaque action comme paramètre séparé pour Laravel
+        if (Array.isArray(newFilters.action) && newFilters.action.length > 0) {
+            queryParams['action'] = newFilters.action;
+        }
         
         router.get('/ad/activity-logs', queryParams, {
             preserveState: true,
@@ -71,7 +72,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
 
     const resetFilters = () => {
         setLocalFilters({
-            action: '',
+            action: [],
             target_user: '',
             start_date: null,
             end_date: null,
@@ -80,129 +81,141 @@ export default function ActivityLogs({ logs, stats, filters }) {
     };
 
     const exportLogs = () => {
-        const params = new URLSearchParams({
-            action: localFilters.action,
-            target_user: localFilters.target_user,
-            start_date: localFilters.start_date ? formatDateForQuery(localFilters.start_date) : '',
-            end_date: localFilters.end_date ? formatDateForQuery(localFilters.end_date) : '',
-        });
+        const params = new URLSearchParams();
+        
+        if (localFilters.target_user) {
+            params.append('target_user', localFilters.target_user);
+        }
+        if (localFilters.start_date) {
+            params.append('start_date', formatDateForQuery(localFilters.start_date));
+        }
+        if (localFilters.end_date) {
+            params.append('end_date', formatDateForQuery(localFilters.end_date));
+        }
+        
+        // Ajouter chaque action séparément
+        if (Array.isArray(localFilters.action) && localFilters.action.length > 0) {
+            localFilters.action.forEach(action => {
+                params.append('action[]', action);
+            });
+        }
+        
         window.location.href = `/ad/activity-logs-export?${params.toString()}`;
     };
 
     const getActionConfig = (action) => {
-const configs = {
-    login: { 
-        icon: 'pi-sign-in', 
-        severity: 'success', 
-        label: 'Connexion', 
-    },
-    logout: { 
-        icon: 'pi-sign-out', 
-        severity: 'warning', 
-        label: 'Déconnexion', 
-    },
-    block_user: { 
-        icon: 'pi-lock', 
-        severity: 'danger', 
-        label: 'Blocage ', 
-        color: '#dc2626' // Rouge foncé élégant
-    },
-    unblock_user: { 
-        icon: 'pi-unlock', 
-        severity: 'success', 
-        label: 'Déblocage ', 
-        color: '#16a34a' // Vert moyen naturel
-    },
-    reset_password: { 
-        icon: 'pi-refresh', 
-        severity: 'warning', 
-        label: 'Réinitialisation mdp', 
-        color: '#d97706' // Orange doré
-    },
-    create_user: { 
-        icon: 'pi-user-plus', 
-        severity: 'help', 
-        label: 'Création AD ', 
-        color: '#7c3aed' // Violet professionnel
-    },
-    create_exchange_mailbox: { 
-        icon: 'pi-user-plus', 
-        severity: 'help', 
-        label: 'Création Exchange ', 
-        color: '#7c3aed' // Violet professionnel
-    },
-    search_user: { 
-        icon: 'pi-search', 
-        severity: 'info', 
-        label: 'Recherche ', 
-        color: '#0284c7' // Bleu ciel profond
-    },
-  
-    create_dn: { 
-        icon: 'pi-folder-plus', 
-        severity: 'success', 
-        label: 'Création DN', 
-        color: '#059669' // Vert émeraude
-    },
-    update_dn: { 
-        icon: 'pi-pencil', 
-        severity: 'warning', 
-        label: 'Modification DN', 
-        color: '#f59e0b' // Jaune doré
-    },
-    delete_dn: { 
-        icon: 'pi-trash', 
-        severity: 'danger', 
-        label: 'Suppression DN', 
-        color: '#b91c1c' // Rouge profond
-    },
-    assign_dns_to_user: { 
-        icon: 'pi-link', 
-        severity: 'primary', 
-        label: 'Affectation', 
-        color: '#2563eb' // Bleu royal
-    },
-    assign_dn_to_users: { 
-        icon: 'pi-user-plus', 
-        severity: 'success', 
-        label: 'Ajout DN', 
-        color: '#10b981' // Vert menthe
-    },
-    unassign_dn_from_users: { 
-        icon: 'pi-user-minus', 
-        severity: 'danger', 
-        label: 'Retrait DN', 
-        color: '#dc2626' // Rouge standard
-    },
-    hide_account: { 
-        icon: 'pi-eye-slash', 
-        severity: 'warning', 
-        label: 'Masquage', 
-        color: '#fbbf24' // Jaune chaud
-    },
-    unhide_account: { 
-        icon: 'pi-eye', 
-        severity: null, 
-        label: 'Démasquage', 
-        color: '#22c55e' // Vert vif
-    },
-    authorize_ldap_user: { 
-        icon: 'pi-user-plus', 
-        severity: 'success', 
-        label: 'Autorisation', 
-        color: '#0d9488' // Vert sarcelle
-    },
-    unauthorize_ldap_user: { 
-        icon: 'pi-user-minus', 
-        severity: 'danger', 
-        label: 'Désautorisation', 
-        color: '#2a1de1ff' // Rouge rosé
-    },
-};
+        const configs = {
+            login: { 
+                icon: 'pi-sign-in', 
+                severity: 'success', 
+                label: 'Connexion', 
+            },
+            logout: { 
+                icon: 'pi-sign-out', 
+                severity: 'warning', 
+                label: 'Déconnexion', 
+            },
+            block_user: { 
+                icon: 'pi-lock', 
+                severity: 'danger', 
+                label: 'Blocage', 
+                color: '#dc2626'
+            },
+            unblock_user: { 
+                icon: 'pi-unlock', 
+                severity: 'success', 
+                label: 'Déblocage', 
+                color: '#16a34a'
+            },
+            reset_password: { 
+                icon: 'pi-refresh', 
+                severity: 'warning', 
+                label: 'Réinitialisation mdp', 
+                color: '#d97706'
+            },
+            create_user: { 
+                icon: 'pi-user-plus', 
+                severity: 'help', 
+                label: 'Création AD', 
+                color: '#7c3aed'
+            },
+            create_exchange_mailbox: { 
+                icon: 'pi-user-plus', 
+                severity: 'help', 
+                label: 'Création Exchange', 
+                color: '#7c3aed'
+            },
+            search_user: { 
+                icon: 'pi-search', 
+                severity: 'info', 
+                label: 'Recherche', 
+                color: '#0284c7'
+            },
+            create_dn: { 
+                icon: 'pi-folder-plus', 
+                severity: 'success', 
+                label: 'Création DN', 
+                color: '#059669'
+            },
+            update_dn: { 
+                icon: 'pi-pencil', 
+                severity: 'warning', 
+                label: 'Modification DN', 
+                color: '#f59e0b'
+            },
+            delete_dn: { 
+                icon: 'pi-trash', 
+                severity: 'danger', 
+                label: 'Suppression DN', 
+                color: '#b91c1c'
+            },
+            assign_dns_to_user: { 
+                icon: 'pi-link', 
+                severity: 'primary', 
+                label: 'Affectation', 
+                color: '#2563eb'
+            },
+            assign_dn_to_users: { 
+                icon: 'pi-user-plus', 
+                severity: 'success', 
+                label: 'Ajout DN', 
+                color: '#10b981'
+            },
+            unassign_dn_from_users: { 
+                icon: 'pi-user-minus', 
+                severity: 'danger', 
+                label: 'Retrait DN', 
+                color: '#dc2626'
+            },
+            hide_account: { 
+                icon: 'pi-eye-slash', 
+                severity: 'warning', 
+                label: 'Masquage', 
+                color: '#fbbf24'
+            },
+            unhide_account: { 
+                icon: 'pi-eye', 
+                severity: null, 
+                label: 'Démasquage', 
+                color: '#22c55e'
+            },
+            authorize_ldap_user: { 
+                icon: 'pi-user-plus', 
+                severity: 'success', 
+                label: 'Autorisation', 
+                color: '#0d9488'
+            },
+            unauthorize_ldap_user: { 
+                icon: 'pi-user-minus', 
+                severity: 'danger', 
+                label: 'Désautorisation', 
+                color: '#2a1de1ff'
+            },
+        };
 
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
     };
-    // Templates
+
     const dateTemplate = (rowData) => {
         return (
             <div className="flex align-items-center gap-2">
@@ -231,77 +244,73 @@ const configs = {
         );
     };
 
-const targetUserTemplate = (rowData) => {
-    const formatName = (name) => {
-        if (!name) return '';
-        // Enlever le point à la fin s'il existe
-        name = name.trim().replace(/\.$/, '');
-        const parts = name.split(' ');
-        if (parts.length >= 2) {
-            const firstName = parts[0];
-            const lastName = parts.slice(1).join(' ').toUpperCase();
-            return `${firstName} ${lastName}`;
+    const targetUserTemplate = (rowData) => {
+        const formatName = (name) => {
+            if (!name) return '';
+            name = name.trim().replace(/\.$/, '');
+            const parts = name.split(' ');
+            if (parts.length >= 2) {
+                const firstName = parts[0];
+                const lastName = parts.slice(1).join(' ').toUpperCase();
+                return `${firstName} ${lastName}`;
+            }
+            return name;
+        };
+
+        if (rowData.action === 'search_user') {
+            return (
+                <div>
+                    <div className="font-medium text-700">
+                        Recherche : <span className="text-900">"{rowData.target_user}"</span>
+                    </div>
+                </div>
+            );
         }
-        return name;
-    };
 
-    // 🔍 Pour l'action "Recherche" (search_user) - Afficher ce qui a été tapé
-    if (rowData.action === 'search_user') {
+        if (rowData.action === 'search_user_result' && rowData.target_user_name) {
+            const names = rowData.target_user_name.split(', ');
+            return (
+                <div>
+                    <div className="font-semibold text-900 mb-2">
+                        {names.length} résultat{names.length > 1 ? 's' : ''} trouvé{names.length > 1 ? 's' : ''}
+                    </div>
+                    {names.slice(0, 3).map((name, idx) => (
+                        <div key={idx} className="text-sm text-700">
+                            • {formatName(name)}
+                        </div>
+                    ))}
+                    {names.length > 3 && (
+                        <div className="text-xs text-500 mt-1 font-medium">
+                            +{names.length - 3} autre(s)
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
         return (
             <div>
-                <div className="font-medium text-700">
-                 Recherche : <span className="text-900">"{rowData.target_user}"</span>
-                </div>
-            </div>
-        );
-    }
-
-    if (rowData.action === 'search_user_result' && rowData.target_user_name) {
-        const names = rowData.target_user_name.split(', ');
-        return (
-            <div>
-                <div className="font-semibold text-900 mb-2">
-                     {names.length} résultat{names.length > 1 ? 's' : ''} trouvé{names.length > 1 ? 's' : ''}
-                </div>
-                {names.slice(0, 3).map((name, idx) => (
-                    <div key={idx} className="text-sm text-700">
-                        • {formatName(name)}
-                    </div>
-                ))}
-                {names.length > 3 && (
-                    <div className="text-xs text-500 mt-1 font-medium">
-                        +{names.length - 3} autre(s)
-                    </div>
+                {rowData.target_user_name && (
+                    <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
                 )}
+                <div className="text-sm text-600">{rowData.target_user}</div>
             </div>
         );
-    }
-
-    // 👤 Gestion normale pour les autres actions
-    return (
-        <div>
-            {rowData.target_user_name && (
-                <div className="font-semibold text-900">{formatName(rowData.target_user_name)}</div>
-            )}
-            <div className="text-sm text-600">{rowData.target_user}</div>
-        </div>
-    );
-};
-const performedByTemplate = (rowData) => {
-    const formatName = (name) => {
-        if (!name) return '';
-        // Enlever le point à la fin s'il existe
-        return name.trim().replace(/\.$/, '');
     };
 
-    return (
-        <div className="flex align-items-center gap-2">
-            <i className="pi pi-user text-600"></i>
-            <span className="text-900">{formatName(rowData.performed_by_name)}</span>
-        </div>
-    );
-};
-    
+    const performedByTemplate = (rowData) => {
+        const formatName = (name) => {
+            if (!name) return '';
+            return name.trim().replace(/\.$/, '');
+        };
+
+        return (
+            <div className="flex align-items-center gap-2">
+                <i className="pi pi-user text-600"></i>
+                <span className="text-900">{formatName(rowData.performed_by_name)}</span>
+            </div>
+        );
+    };
 
     const ipTemplate = (rowData) => {
         return (
@@ -337,17 +346,18 @@ const performedByTemplate = (rowData) => {
         );
     };
 
-    // Header avec statistiques
+    const getActionLabels = (actions) => {
+        if (!Array.isArray(actions) || actions.length === 0) return '';
+        return actions
+            .map(action => actionOptions.find(opt => opt.value === action)?.label.replace(/[🔐🚪🔒🔓🔄➕📧🔍📋📁✏️🗑️🔗👥👤👁️✅❌]/g, '').trim())
+            .join(', ');
+    };
+
     const tableHeader = (
         <div className="flex flex-column gap-4">
-            {/* Titre et export */}
             <div className="flex align-items-center justify-content-between flex-wrap gap-3">
                 <div className="flex align-items-center gap-3">
-                    <div 
-                        className="inline-flex align-items-center justify-content-center border-circle" 
-                       
-                    >
-                    </div>
+                    <div className="inline-flex align-items-center justify-content-center border-circle"></div>
                     <div>
                         <h1 className="text-900 text-3xl font-bold m-0">
                             Logs d'activité Active Directory
@@ -357,24 +367,23 @@ const performedByTemplate = (rowData) => {
                         </p>
                     </div>
                 </div>
-            
             </div>
 
-
-            {/* Filtres */}
             <Card className="shadow-1">
                 <div className="grid">
                     <div className="col-12 md:col-3">
                         <label className="block text-900 font-medium mb-2">
                             <i className="pi pi-filter mr-2"></i>
-                            Action
+                            Actions
                         </label>
-                        <Dropdown
+                        <MultiSelect
                             value={localFilters.action}
                             options={actionOptions}
                             onChange={(e) => handleFilterChange('action', e.value)}
-                            placeholder="Toutes les actions"
+                            placeholder="Sélectionnez des actions"
                             className="w-full"
+                            display="chip"
+                            maxSelectedLabels={2}
                         />
                     </div>
 
@@ -437,17 +446,31 @@ const performedByTemplate = (rowData) => {
                     </div>
                 </div>
 
-                {/* Filtres actifs */}
-                {(localFilters.action || localFilters.target_user || localFilters.start_date || localFilters.end_date) && (
+                {(localFilters.action.length > 0 || localFilters.target_user || localFilters.start_date || localFilters.end_date) && (
                     <div className="mt-3 flex align-items-center gap-2 flex-wrap">
                         <span className="text-600 font-medium">Filtres actifs:</span>
-                        {localFilters.action && (
-                            <Chip 
-                                label={`Action: ${actionOptions.find(o => o.value === localFilters.action)?.label}`}
-                                removable
-                                onRemove={() => handleFilterChange('action', '')}
-                            />
-                        )}
+                        
+                        {/* Afficher chaque action comme un chip séparé */}
+                        {localFilters.action.length > 0 && localFilters.action.map(action => {
+                            const actionLabel = actionOptions.find(opt => opt.value === action)?.label.replace(/[🔐🚪🔒🔓🔄➕📧🔍📋📁✏️🗑️🔗👥👤👁️✅❌]/g, '').trim();
+                            return (
+                                <Chip 
+                                    key={action}
+                                   label={`Action: ${actionLabel}`}
+                                    removable
+                                    onRemove={() => {
+                                        const newActions = localFilters.action.filter(a => a !== action);
+                                        handleFilterChange('action', newActions);
+                                    }}
+                                    style={{ 
+                                        background: '#e0e7ff', 
+                                        color: '#4338ca',
+                                        fontWeight: 500
+                                    }}
+                                />
+                            );
+                        })}
+                        
                         {localFilters.target_user && (
                             <Chip 
                                 label={`Utilisateur: ${localFilters.target_user}`}
@@ -497,12 +520,17 @@ const performedByTemplate = (rowData) => {
                             onPage={(e) => {
                                 const page = (e.first / e.rows) + 1;
                                 const queryParams = {
-                                    action: localFilters.action,
                                     target_user: localFilters.target_user,
                                     start_date: localFilters.start_date ? formatDateForQuery(localFilters.start_date) : '',
                                     end_date: localFilters.end_date ? formatDateForQuery(localFilters.end_date) : '',
                                     page
                                 };
+                                
+                                // Ajouter les actions comme tableau
+                                if (Array.isArray(localFilters.action) && localFilters.action.length > 0) {
+                                    queryParams['action'] = localFilters.action;
+                                }
+                                
                                 router.get('/ad/activity-logs', queryParams, {
                                     preserveState: true,
                                     preserveScroll: true
@@ -524,10 +552,10 @@ const performedByTemplate = (rowData) => {
                             responsiveLayout="scroll"
                             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                             currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} logs"
-                            >
+                        >
                             <Column
                                 field="performed_by_name"
-                                header="Administrateur (Effectuer par) "
+                                header="Administrateur (Effectuer par)"
                                 body={performedByTemplate}
                                 sortable
                                 style={{ minWidth: '180px' }}
@@ -544,9 +572,8 @@ const performedByTemplate = (rowData) => {
                                 header="Cible"
                                 body={targetUserTemplate}
                                 sortable
-                                 style={{ width: '260px', minWidth: '260px', maxWidth: '260px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                                style={{ width: '260px', minWidth: '260px', maxWidth: '260px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                             />
-
                             <Column
                                 field="created_at"
                                 header="Date/Heure"
@@ -554,7 +581,7 @@ const performedByTemplate = (rowData) => {
                                 sortable
                                 style={{ minWidth: '180px' }}
                             />
-                             <Column
+                            <Column
                                 field="status"
                                 header="Statut"
                                 body={statusTemplate}
@@ -567,7 +594,6 @@ const performedByTemplate = (rowData) => {
                                 body={ipTemplate}
                                 style={{ minWidth: '160px' }}
                             />
-                           
                             <Column
                                 header="Détails"
                                 body={actionsTemplate}
@@ -579,7 +605,6 @@ const performedByTemplate = (rowData) => {
             </div>
 
             <style>{`
-                /* Card styling */
                 :global(.p-card) {
                     border-radius: 12px;
                     border: 1px solid #e5e7eb;
@@ -593,7 +618,6 @@ const performedByTemplate = (rowData) => {
                     padding: 0;
                 }
 
-                /* DataTable styling */
                 :global(.p-datatable .p-datatable-header) {
                     background: white;
                     border-bottom: 1px solid #e5e7eb;
@@ -620,25 +644,24 @@ const performedByTemplate = (rowData) => {
                     padding: 1rem;
                 }
 
-                /* Input & Dropdown styling */
                 :global(.p-inputtext),
-                :global(.p-dropdown) {
+                :global(.p-dropdown),
+                :global(.p-multiselect) {
                     border-radius: 8px;
                     border: 1px solid #e5e7eb;
                 }
 
                 :global(.p-inputtext:focus),
-                :global(.p-dropdown:not(.p-disabled).p-focus) {
+                :global(.p-dropdown:not(.p-disabled).p-focus),
+                :global(.p-multiselect:not(.p-disabled).p-focus) {
                     border-color: #6366f1;
                     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
                 }
 
-                /* Calendar */
                 :global(.p-calendar .p-inputtext) {
                     border-radius: 8px;
                 }
 
-                /* Button styling */
                 :global(.p-button) {
                     border-radius: 8px;
                     font-weight: 600;
@@ -650,21 +673,18 @@ const performedByTemplate = (rowData) => {
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
                 }
 
-                /* Tag styling */
                 :global(.p-tag) {
                     border-radius: 6px;
                     padding: 0.35rem 0.7rem;
                     font-size: 0.875rem;
                 }
 
-                /* Chip styling */
                 :global(.p-chip) {
                     background: #f3f4f6;
                     color: #374151;
                     border-radius: 6px;
                 }
 
-                /* Shadow */
                 :global(.shadow-1) {
                     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
                 }
@@ -673,7 +693,6 @@ const performedByTemplate = (rowData) => {
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
                 }
 
-                /* Paginator */
                 :global(.p-paginator) {
                     background: #f9fafb;
                     border-top: 1px solid #e5e7eb;
@@ -691,7 +710,6 @@ const performedByTemplate = (rowData) => {
                     border-color: #667eea;
                 }
 
-                /* Responsive */
                 @media (max-width: 768px) {
                     :global(.p-datatable .p-datatable-header) {
                         padding: 1rem;
