@@ -215,9 +215,9 @@ export default function ActivityLogs({ logs, stats, filters }) {
                 color: '#2a1de1ff'
             },
                update_user: { 
-                icon: 'pi-user-minus', 
+                icon: ' pi-pencil', 
                 severity: null, 
-                label: 'Désautorisation', 
+                label: 'Modification utilisateur', 
                 color: '#2a1de1ff'
             },
 
