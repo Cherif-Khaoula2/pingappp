@@ -1015,11 +1015,11 @@ public function updateAdUser(Request $request)
             $escapedEmail = $this->escapePowerShellString($primaryEmail);
    
             $exHost = env('SSH_HOST_EX');
-              $psExchange = "
+            $psExchange = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
+Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -EmailAddresses \"SMTP:$escapedEmail\";
 Write-Output 'OK'
 \"
 ";
