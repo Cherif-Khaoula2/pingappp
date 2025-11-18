@@ -926,14 +926,13 @@ public function updateAdUser(Request $request)
     ]);
 
     try {
-        // 🚨 Validation + log des erreurs
+        // 🚨 Validation
         try {
             $request->validate([
                 'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
                 'name' => 'nullable|string|max:100',
                 'samAccountName' => 'nullable|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
                 'emailAddress' => 'nullable|email|max:100',
-                
             ]);
         } catch (\Throwable $e) {
             Log::error("updateAdUser() - VALIDATION ERROR", [
@@ -953,7 +952,6 @@ public function updateAdUser(Request $request)
                 'sam' => $sam,
                 'reason' => $validation['error']
             ]);
-
             return response()->json([
                 'success' => false,
                 'message' => $validation['error']
@@ -964,12 +962,12 @@ public function updateAdUser(Request $request)
         $updates = [];
 
         if ($request->filled('name')) $updates['DisplayName'] = $request->name;
-       
         if ($request->filled('emailAddress')) {
             $updates['EmailAddress'] = $request->emailAddress;
             $updates['UserPrincipalName'] = $request->emailAddress;
         }
         if ($request->filled('samAccountName')) $updates['SamAccountName'] = $request->samAccountName;
+
         if (empty($updates)) {
             Log::warning("updateAdUser() - Aucun champ à mettre à jour", ['sam' => $sam]);
             return response()->json(['success' => false, 'message' => 'Aucune donnée à mettre à jour'], 400);
@@ -977,27 +975,36 @@ public function updateAdUser(Request $request)
 
         Log::info("updateAdUser() - Champs détectés pour mise à jour", ['updates' => $updates]);
 
-       // Récupérer le DN complet de l’utilisateur depuis $adUser
-$escapedDn = $this->escapePowerShellString($adUser['dn']);
+        // 🔹 Récupérer le DN complet de l’utilisateur
+        $escapedDn = $this->escapePowerShellString($adUser['dn']);
+        $ps = [];
 
-// Construire les commandes PowerShell
-$ps = [];
+        // 🔹 Renommer l'objet AD si le nom change
+        if ($request->filled('name') && $request->name !== $adUser['name']) {
+            $escapedNewName = $this->escapePowerShellString($request->name);
+            $ps[] = "Rename-ADObject -Identity '$escapedDn' -NewName '$escapedNewName'";
+            // Mettre à jour le DN pour les commandes suivantes
+            $dnParts = explode(',', $adUser['dn']);
+            $dnParts[0] = 'CN=' . $request->name;
+            $newDn = implode(',', $dnParts);
+            $escapedDn = $this->escapePowerShellString($newDn);
+        }
 
-// Mettre à jour tout sauf SamAccountName
-foreach ($updates as $key => $value) {
-    if ($key !== 'SamAccountName') {
-        $ps[] = "Set-ADUser -Identity '$escapedDn' -$key '$value'";
-    }
-}
+        // 🔹 Mettre à jour tous les autres champs sauf SamAccountName
+        foreach ($updates as $key => $value) {
+            if ($key !== 'SamAccountName') {
+                $escapedValue = $this->escapePowerShellString($value);
+                $ps[] = "Set-ADUser -Identity '$escapedDn' -$key '$escapedValue'";
+            }
+        }
 
-// SamAccountName en dernier
-if (isset($updates['SamAccountName'])) {
-    $ps[] = "Set-ADUser -Identity '$escapedDn' -SamAccountName '{$updates['SamAccountName']}'";
-}
+        // 🔹 SamAccountName en dernier
+        if (isset($updates['SamAccountName'])) {
+            $escapedSamAccount = $this->escapePowerShellString($updates['SamAccountName']);
+            $ps[] = "Set-ADUser -Identity '$escapedDn' -SamAccountName '$escapedSamAccount'";
+        }
 
-$psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
-
-       
+        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
         Log::info("updateAdUser() - PS command", ['cmd' => $psCommand]);
 
         // 🔹 SSH
@@ -1012,10 +1019,9 @@ $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ",
 
         Log::info("updateAdUser() - SSH command", ['ssh' => $command]);
 
-        // 🏁 Execution
+        // 🔹 Execution
         $process = new Process($command);
         $process->setTimeout(30);
-
         $process->run();
 
         Log::info("updateAdUser() - Process output", [
@@ -1025,13 +1031,11 @@ $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ",
             'successful' => $process->isSuccessful()
         ]);
 
-        // ❌ Erreur PowerShell ou SSH
         if (!$process->isSuccessful()) {
             Log::error("updateAdUser() - PROCESS FAILED", [
                 'exit_code' => $process->getExitCode(),
                 'error_output' => $process->getErrorOutput()
             ]);
-
             throw new ProcessFailedException($process);
         }
 
@@ -1050,10 +1054,7 @@ $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ",
 
         return response()->json(['success' => true, 'message' => 'Utilisateur mis à jour avec succès']);
     }
-
-    // 🟥 Catch global (toutes exceptions AD, SSH, PS, Laravel, etc.)
     catch (\Throwable $e) {
-
         Log::error("updateAdUser() - GLOBAL ERROR", [
             'exception' => $e->getMessage(),
             'trace' => $e->getTraceAsString(),
@@ -1062,10 +1063,11 @@ $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ",
 
         return response()->json([
             'success' => false,
-            'message' => 'Erreur lors de la mise à jour : ' 
+            'message' => 'Erreur lors de la mise à jour : '
         ], 500);
     }
 }
+
 
 public function getDirections()
 {
