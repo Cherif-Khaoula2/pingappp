@@ -918,7 +918,6 @@ public function manageUpdate()
 {
     return inertia('Ad/ManageUpdateUser'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
 }
-
 public function updateAdUser(Request $request)
 {
     try {
@@ -942,11 +941,13 @@ public function updateAdUser(Request $request)
 
         $adUser = $validation['user'];
         $updates = [];
-$oldData = [
-    'sam'   => $adUser['samAccountName'],
-    'name'  => $adUser['name'],
-    'email' => $adUser['email'],
-];
+        
+        // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
+        $oldData = [
+            'sam'   => $adUser['sam'],  // ← Changé ici
+            'name'  => $adUser['name'],
+            'email' => $adUser['email'],
+        ];
 
         if ($request->filled('name')) $updates['DisplayName'] = $request->name;
         if ($request->filled('emailAddress')) {
@@ -1005,21 +1006,24 @@ $oldData = [
             throw new ProcessFailedException($process);
         }
 
-        // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress)
-        if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
-            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['samAccountName'];
+        // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress + DisplayName)
+        if ($request->filled('samAccountName') || $request->filled('emailAddress') || $request->filled('name')) {
+            // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
+            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];  // ← Changé ici
             $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
+            $displayName = $request->filled('name') ? $request->name : $adUser['name'];
 
             $escapedAlias = $this->escapePowerShellString($alias);
             $escapedEmail = $this->escapePowerShellString($primaryEmail);
+            $escapedDisplayName = $this->escapePowerShellString($displayName);
    
             $exHost = env('SSH_HOST_EX');
             
-$psExchange = "
+            $psExchange = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -EmailAddresses 'SMTP:$escapedEmail';
+Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -DisplayName '$escapedDisplayName' -EmailAddresses 'SMTP:$escapedEmail';
 Write-Output 'OK'
 \"
 ";
@@ -1042,18 +1046,25 @@ Write-Output 'OK'
             success: true,
             additionalDetails: $updates
         );
+        
+        // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
         $newData = [
-    'sam'   => $request->samAccountName ?? $adUser['samAccountName'],
-    'name'  => $request->name ?? $adUser['name'],
-    'email' => $request->emailAddress ?? $adUser['email'],
-];
+            'sam'   => $request->samAccountName ?? $adUser['sam'],  // ← Changé ici
+            'name'  => $request->name ?? $adUser['name'],
+            'email' => $request->emailAddress ?? $adUser['email'],
+        ];
 
-
-// 🔹 Notification création utilisateur
+        // 🔹 Notification création utilisateur
         $this->sendAdUserUpdateNotification(
-            $request->user()
-           , $oldData, $newData
+            $request->user(),
+            $oldData,
+            $newData
         );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Utilisateur mis à jour avec succès'
+        ], 200);
 
     } catch (\Throwable $e) {
         Log::error("updateAdUser() - GLOBAL ERROR", [
@@ -1064,11 +1075,10 @@ Write-Output 'OK'
 
         return response()->json([
             'success' => false,
-            'message' => 'Erreur lors de la mise à jour : '
+            'message' => 'Erreur lors de la mise à jour : ' . $e->getMessage()
         ], 500);
     }
 }
-
 
 public function getDirections()
 {
