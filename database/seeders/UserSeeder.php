@@ -20,7 +20,7 @@ class UserSeeder extends Seeder
             [
                 'first_name' => 'khaoula',
                 'last_name'  => 'hamadouche',
-                'password'   => '123456789',
+                'password'   => '12345678',
                 'account_id' => 1,
                 
             ]
