@@ -920,83 +920,113 @@ public function manageUpdate()
 }
 public function updateAdUser(Request $request)
 {
-    $this->authorize('editaduser');
-
-    // 🔹 Validation des champs autorisés
-    $request->validate([
-        'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
-        'name' => 'nullable|string|max:100',
-        'samAccountName' => 'nullable|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
-        'emailAddress' => 'nullable|email|max:100',
+    Log::info("updateAdUser() - START", [
+        'input' => $request->all(),
+        'user_id' => auth()->id(),
     ]);
 
-    $sam = $request->input('sam');
-
-    // 🔒 Vérifier l'accès à l'utilisateur AD
-    $validation = $this->validateAdUserAccess($sam);
-    if (!$validation['authorized']) {
-        Log::warning('Tentative de modification non autorisée', [
-            'sam' => $sam,
-            'user_id' => auth()->id(),
-            'ip' => request()->ip(),
-            'error' => $validation['error']
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => $validation['error']
-        ], 403);
-    }
-
-    $adUser = $validation['user'];
-    $updates = [];
-
-    // Préparer les champs à mettre à jour
-    if ($request->filled('name')) {
-        $updates['Name'] = str_replace("'", "''", $request->input('name'));
-    }
-    if ($request->filled('samAccountName')) {
-        $updates['SamAccountName'] = str_replace("'", "''", $request->input('samAccountName'));
-    }
-    if ($request->filled('emailAddress')) {
-        $email = str_replace("'", "''", $request->input('emailAddress'));
-        $updates['EmailAddress'] = $email;
-        // Synchroniser UserPrincipalName avec l'email
-        $updates['UserPrincipalName'] = $email;
-    }
-
-    if (empty($updates)) {
-        return response()->json(['success' => false, 'message' => 'Aucune donnée à mettre à jour'], 400);
-    }
-
-    // 🔹 Construire les commandes PowerShell
-    $escapedSam = $this->escapePowerShellString($sam);
-    $psCommands = [];
-    foreach ($updates as $key => $value) {
-        $psCommands[] = "Set-ADUser -Identity '$escapedSam' -$key '$value'";
-    }
-
-    $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $psCommands) . "; Write-Output 'Update successful'\"";
-
-    // 🔹 Préparer la commande SSH
-    $host = env('SSH_HOST');
-    $user = env('SSH_USER');
-    $password = env('SSH_PASSWORD');
-    $keyPath = env('SSH_KEY_PATH');
-
-    $command = $keyPath && file_exists($keyPath)
-        ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
-        : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
-
-    // 🔹 Exécuter la commande et gérer les erreurs
     try {
+        // 🚨 Validation + log des erreurs
+        try {
+            $request->validate([
+                'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
+                'name' => 'nullable|string|max:100',
+                'samAccountName' => 'nullable|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
+                'emailAddress' => 'nullable|email|max:100',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("updateAdUser() - VALIDATION ERROR", [
+                'error' => $e->getMessage(),
+                'input' => $request->all()
+            ]);
+            throw $e;
+        }
+
+        $sam = $request->sam;
+
+        Log::info("updateAdUser() - Vérification accès AD", ['sam' => $sam]);
+        $validation = $this->validateAdUserAccess($sam);
+
+        if (!$validation['authorized']) {
+            Log::error("updateAdUser() - ACCÈS REFUSÉ", [
+                'sam' => $sam,
+                'reason' => $validation['error']
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $validation['error']
+            ], 403);
+        }
+
+        $adUser = $validation['user'];
+        $updates = [];
+
+        if ($request->filled('name')) $updates['Name'] = $request->name;
+        if ($request->filled('samAccountName')) $updates['SamAccountName'] = $request->samAccountName;
+
+        if ($request->filled('emailAddress')) {
+            $updates['EmailAddress'] = $request->emailAddress;
+            $updates['UserPrincipalName'] = $request->emailAddress;
+        }
+
+        if (empty($updates)) {
+            Log::warning("updateAdUser() - Aucun champ à mettre à jour", ['sam' => $sam]);
+            return response()->json(['success' => false, 'message' => 'Aucune donnée à mettre à jour'], 400);
+        }
+
+        Log::info("updateAdUser() - Champs détectés pour mise à jour", ['updates' => $updates]);
+
+        // 🔹 Construire PowerShell
+        $escapedSam = $this->escapePowerShellString($sam);
+        $ps = [];
+
+        foreach ($updates as $key => $value) {
+            $ps[] = "Set-ADUser -Identity '$escapedSam' -$key '$value'";
+        }
+
+        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
+        Log::info("updateAdUser() - PS command", ['cmd' => $psCommand]);
+
+        // 🔹 SSH
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
+
+        $command = $keyPath && file_exists($keyPath)
+            ? ['ssh', '-i', $keyPath, '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand]
+            : ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$host}", $psCommand];
+
+        Log::info("updateAdUser() - SSH command", ['ssh' => $command]);
+
+        // 🏁 Execution
         $process = new Process($command);
         $process->setTimeout(30);
+
         $process->run();
 
+        Log::info("updateAdUser() - Process output", [
+            'output' => $process->getOutput(),
+            'error_output' => $process->getErrorOutput(),
+            'exit_code' => $process->getExitCode(),
+            'successful' => $process->isSuccessful()
+        ]);
+
+        // ❌ Erreur PowerShell ou SSH
         if (!$process->isSuccessful()) {
+            Log::error("updateAdUser() - PROCESS FAILED", [
+                'exit_code' => $process->getExitCode(),
+                'error_output' => $process->getErrorOutput()
+            ]);
+
             throw new ProcessFailedException($process);
         }
+
+        Log::info("updateAdUser() - SUCCESS", [
+            'sam' => $sam,
+            'updates' => $updates
+        ]);
 
         $this->logAdActivity(
             action: 'update_user',
@@ -1007,25 +1037,23 @@ public function updateAdUser(Request $request)
         );
 
         return response()->json(['success' => true, 'message' => 'Utilisateur mis à jour avec succès']);
+    }
 
-    } catch (\Throwable $e) {
-        Log::error('updateAdUser error: ' . $e->getMessage());
+    // 🟥 Catch global (toutes exceptions AD, SSH, PS, Laravel, etc.)
+    catch (\Throwable $e) {
 
-        $this->logAdActivity(
-            action: 'update_user',
-            targetUser: $sam,
-            targetUserName: $adUser['name'],
-            success: false,
-            errorMessage: $e->getMessage()
-        );
+        Log::error("updateAdUser() - GLOBAL ERROR", [
+            'exception' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'sam' => $request->sam
+        ]);
 
         return response()->json([
             'success' => false,
-            'message' => 'Erreur lors de la mise à jour de l’utilisateur : ' . $e->getMessage(),
+            'message' => 'Erreur lors de la mise à jour : ' 
         ], 500);
     }
 }
-
 
 public function getDirections()
 {

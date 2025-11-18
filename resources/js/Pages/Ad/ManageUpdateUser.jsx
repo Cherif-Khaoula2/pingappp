@@ -76,7 +76,9 @@ const handleSearch = async () => {
     setLoading(false);
   }
 };
- const handleEditClick = (user) => {
+const handleEditClick = (user) => {
+    console.log("🟦 handleEditClick() → utilisateur sélectionné :", user);
+
     setEditDialog({
       visible: true,
       sam: user.sam,
@@ -84,18 +86,43 @@ const handleSearch = async () => {
       samAccountName: user.samAccountName || "",
       emailAddress: user.email || "",
     });
-    setEditError(null);
-  };
 
-  const confirmUpdateUser = () => {
+    setEditError(null);
+};
+
+const confirmUpdateUser = () => {
+    console.log("🟨 confirmUpdateUser() → données avant validation :", editDialog);
+
+    // Vérifier les champs
     if (!editDialog.name.trim() || !editDialog.samAccountName.trim() || !editDialog.emailAddress.trim()) {
       setEditError("Tous les champs sont obligatoires.");
       return;
     }
+
+    const originalUser = users.find(u => u.sam === editDialog.sam);
+    console.log("🟦 Données utilisateur original :", originalUser);
+
+    if (
+      originalUser &&
+      originalUser.name === editDialog.name &&
+      originalUser.samAccountName === editDialog.samAccountName &&
+      originalUser.email === editDialog.emailAddress
+    ) {
+      setEditError("Aucune modification détectée.");
+      return;
+    }
+
+    console.log("🟩 Envoi des données au backend :", {
+        sam: editDialog.sam,
+        name: editDialog.name,
+        samAccountName: editDialog.samAccountName,
+        emailAddress: editDialog.emailAddress,
+    });
+
     setIsUpdating(true);
     setEditError(null);
 
-    router.post(
+        router.post(
       "/ad/users/update-user",
       {
         sam: editDialog.sam,
@@ -105,6 +132,8 @@ const handleSearch = async () => {
       },
       {
         onSuccess: () => {
+          console.log("🟩 SUCCESS backend → L’utilisateur a été modifié !");
+
           setUsers((prev) =>
             prev.map((u) =>
               u.sam === editDialog.sam
@@ -116,12 +145,15 @@ const handleSearch = async () => {
           setIsUpdating(false);
         },
         onError: (errors) => {
+          console.error("🟥 ERREUR backend :", errors);
           setEditError(errors?.message || "Erreur lors de la modification.");
           setIsUpdating(false);
         },
+
       }
     );
-  };
+};
+
 
   const actionTemplate = (rowData) => (
     <Button
