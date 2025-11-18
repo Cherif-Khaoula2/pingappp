@@ -1008,7 +1008,7 @@ public function updateAdUser(Request $request)
 
                // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress)
         if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
-            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['samAccountName'];
+            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
             $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
 
             $escapedAlias = $this->escapePowerShellString($alias);
@@ -1057,11 +1057,7 @@ Write-Output 'OK'
             $newData
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Utilisateur mis à jour avec succès'
-        ], 200);
-
+       
     } catch (\Throwable $e) {
         Log::error("updateAdUser() - GLOBAL ERROR", [
             'exception' => $e->getMessage(),
