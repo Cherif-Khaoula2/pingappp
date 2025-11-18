@@ -1171,18 +1171,12 @@ protected function sendAdUserUpdateNotification($creator, $oldData, $newData)
 
                     <p>Bonjour <strong>" . htmlspecialchars($user->first_name) . " " . htmlspecialchars($user->last_name) . "</strong>,</p>
 
-                    <div style='background-color: #182848; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                        <p style='margin: 0; font-size: 16px;'>🛠️ <strong>Modification d'un utilisateur Active Directory</strong></p>
+                    <div style='background-color:#2563EB; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                        <p style='margin: 0; font-size: 16px;'>✏️ <strong>Modification d'un utilisateur Active Directory</strong></p>
                     </div>
 
                     <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a modifié les informations du compte AD suivant :</p>
 
-                    <table style='border-collapse: collapse; margin: 15px 0; width:100%; max-width:600px;'>
-                        <tr style='background-color:#f8f9fa;'>
-                            <td style='padding:10px;border:1px solid #dee2e6;'><strong>SamAccountName :</strong></td>
-                            <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($oldData['sam']) . "</td>
-                        </tr>
-                    </table>
 
                     <h4 style='margin-top:25px;'>📌 Détails des modifications :</h4>
 
