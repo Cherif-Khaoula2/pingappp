@@ -1007,34 +1007,75 @@ public function updateAdUser(Request $request)
         }
 
                // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress)
-        if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
-            $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['samAccountName'];
-            $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
+      if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
 
-            $escapedAlias = $this->escapePowerShellString($alias);
-            $escapedEmail = $this->escapePowerShellString($primaryEmail);
-   
-            $exHost = env('SSH_HOST_EX');
-            $psExchange = "
+    $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
+    $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
+
+    $escapedAlias = $this->escapePowerShellString($alias);
+    $escapedEmail = $this->escapePowerShellString($primaryEmail);
+
+    $exHost = env('SSH_HOST_EX');
+
+    // -------------------------
+    // 1️⃣ Commande : set Alias + PrimarySmtpAddress
+    // -------------------------
+    $psAliasPrimary = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -EmailAddresses \"SMTP:$escapedEmail\";
+Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
 Write-Output 'OK'
 \"
 ";
 
+    // -------------------------
+    // 2️⃣ Commande : set EmailAddresses
+    // -------------------------
+    $psEmailAddresses = "
+powershell.exe -NoProfile -Command \"
+. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
+Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
+Set-Mailbox -Identity '$escapedDn' -EmailAddresses 'SMTP:$escapedEmail';
+Write-Output 'OK'
+\"
+";
 
-            $commandEx = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psExchange];
+    // 🎯 Exécution commande 1
+    $cmd1 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psAliasPrimary];
+    $proc1 = new Process($cmd1);
+    $proc1->setTimeout(30);
+    $proc1->run();
 
-            $processEx = new Process($commandEx);
-            $processEx->setTimeout(30);
-            $processEx->run();
+    // --- Log sortie commande 1 ---
+    \Log::info("Set Alias + PrimarySmtpAddress", [
+        'command' => $psAliasPrimary,
+        'output' => $proc1->getOutput(),
+        'error' => $proc1->getErrorOutput()
+    ]);
 
-            if (!$processEx->isSuccessful()) {
-                throw new ProcessFailedException($processEx);
-            }
-        }
+    if (!$proc1->isSuccessful()) {
+        throw new ProcessFailedException($proc1);
+    }
+
+    // 🎯 Exécution commande 2
+    $cmd2 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psEmailAddresses];
+    $proc2 = new Process($cmd2);
+    $proc2->setTimeout(30);
+    $proc2->run();
+
+    // --- Log sortie commande 2 ---
+    \Log::info("Set EmailAddresses", [
+        'command' => $psEmailAddresses,
+        'output' => $proc2->getOutput(),
+        'error' => $proc2->getErrorOutput()
+    ]);
+
+    if (!$proc2->isSuccessful()) {
+        throw new ProcessFailedException($proc2);
+    }
+}
+
         $this->logAdActivity(
             action: 'update_user',
             targetUser: $sam,
@@ -1057,8 +1098,7 @@ Write-Output 'OK'
             $newData
         );
 
-      
-
+       
     } catch (\Throwable $e) {
         Log::error("updateAdUser() - GLOBAL ERROR", [
             'exception' => $e->getMessage(),
