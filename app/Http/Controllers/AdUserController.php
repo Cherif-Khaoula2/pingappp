@@ -942,6 +942,11 @@ public function updateAdUser(Request $request)
 
         $adUser = $validation['user'];
         $updates = [];
+$oldData = [
+    'sam'   => $adUser['samAccountName'],
+    'name'  => $adUser['name'],
+    'email' => $adUser['email'],
+];
 
         if ($request->filled('name')) $updates['DisplayName'] = $request->name;
         if ($request->filled('emailAddress')) {
@@ -1009,15 +1014,15 @@ public function updateAdUser(Request $request)
             $escapedEmail = $this->escapePowerShellString($primaryEmail);
    
             $exHost = env('SSH_HOST_EX');
-              $psExchange = "
+            
+$psExchange = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
+Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -EmailAddresses 'SMTP:$escapedEmail';
 Write-Output 'OK'
 \"
 ";
-
 
             $commandEx = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psExchange];
 
@@ -1036,6 +1041,18 @@ Write-Output 'OK'
             targetUserName: $adUser['name'],
             success: true,
             additionalDetails: $updates
+        );
+        $newData = [
+    'sam'   => $request->samAccountName ?? $adUser['samAccountName'],
+    'name'  => $request->name ?? $adUser['name'],
+    'email' => $request->emailAddress ?? $adUser['email'],
+];
+
+
+// 🔹 Notification création utilisateur
+        $this->sendAdUserUpdateNotification(
+            $request->user()
+           , $oldData, $newData
         );
 
     } catch (\Throwable $e) {
@@ -1074,6 +1091,119 @@ public function getDirections()
         ], 500);
     }
 }
+protected function sendAdUserUpdateNotification($creator, $oldData, $newData)
+{
+    $usersToNotify = User::permission('superviserusers')->get();
+
+    if (!$usersToNotify->contains('id', $creator->id)) {
+        $usersToNotify->push($creator);
+    }
+
+    // Filtrer utilisateurs sans email
+    $usersToNotify = $usersToNotify->filter(function($user) {
+        if (!$user->email) {
+            \Log::warning("Utilisateur {$user->id} n'a pas d'email, mail non envoyé (update).");
+            return false;
+        }
+        return true;
+    });
+
+    // Labels normalisés
+    $labels = [
+        'sam'   => 'SamAccountName',
+        'name'  => 'Nom complet',
+        'email' => 'Adresse email',
+        'phone' => 'Numéro de téléphone',
+    ];
+
+    // SMTP
+    $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&verify_peer=false');
+    $mailer = new SymfonyMailer($transport);
+
+    // Construction du tableau HTML
+    $changesHtml = "";
+    foreach ($newData as $field => $newValue) {
+
+        $oldValue = $oldData[$field] ?? '-';
+
+        // 🟥 Ignorer les lignes si seul la casse change
+        if (trim(strtolower($oldValue)) == trim(strtolower($newValue))) {
+            continue;
+        }
+
+        // 🔤 Label normalisé
+        $label = $labels[$field] ?? ucfirst($field);
+
+        // Rouge = ancien, Bleu = nouveau
+        $changesHtml .= "
+            <tr>
+                <td style='padding:10px;border:1px solid #dee2e6;'>
+                    <strong>" . htmlspecialchars($label) . "</strong>
+                </td>
+                <td style='padding:10px;border:1px solid #dee2e6;'>
+                    <span style='color:#B00020;font-weight:bold;'>" . htmlspecialchars($oldValue) . "</span>
+                    &nbsp; ➜ &nbsp;
+                    <span style='color:#1E3A8A;font-weight:bold;'>" . htmlspecialchars($newValue) . "</span>
+                </td>
+            </tr>
+        ";
+    }
+
+    if ($changesHtml === "") {
+        \Log::info("Aucun changement détecté, email non envoyé.");
+        return;
+    }
+
+    foreach ($usersToNotify as $user) {
+
+        $email = (new Email())
+            ->from('TOSYS <contact@tosys.sarpi-dz.com>')
+            ->to($user->email)
+            ->subject("[TOSYSAPP] Modification utilisateur AD : {$oldData['sam']}")
+            ->html("
+                <div style='font-family: Arial; font-size: 15px; color: #333;'>
+
+                    <p>Bonjour <strong>" . htmlspecialchars($user->first_name) . " " . htmlspecialchars($user->last_name) . "</strong>,</p>
+
+                    <div style='background-color: #182848; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                        <p style='margin: 0; font-size: 16px;'>🛠️ <strong>Modification d'un utilisateur Active Directory</strong></p>
+                    </div>
+
+                    <p>L'utilisateur <strong>" . htmlspecialchars($creator->name) . "</strong> ({$creator->email}) a modifié les informations du compte AD suivant :</p>
+
+                    <table style='border-collapse: collapse; margin: 15px 0; width:100%; max-width:600px;'>
+                        <tr style='background-color:#f8f9fa;'>
+                            <td style='padding:10px;border:1px solid #dee2e6;'><strong>SamAccountName :</strong></td>
+                            <td style='padding:10px;border:1px solid #dee2e6;'>" . htmlspecialchars($oldData['sam']) . "</td>
+                        </tr>
+                    </table>
+
+                    <h4 style='margin-top:25px;'>📌 Détails des modifications :</h4>
+
+                    <table style='border-collapse: collapse; width:100%; max-width:700px; margin-top:10px;'>
+                        $changesHtml
+                        <tr style='background-color:#f8f9fa;'>
+                            <td style='padding:10px;border:1px solid #dee2e6;'><strong>Date/Heure :</strong></td>
+                            <td style='padding:10px;border:1px solid #dee2e6;'>" . now('Africa/Algiers')->format('d/m/Y à H:i') . "</td>
+                        </tr>
+                    </table>
+
+                    <hr style='margin-top:30px;border:none;border-top:1px solid #ccc;'>
+                    <p style='font-size:13px;color:#777;'>Message généré automatiquement par <strong>TOSYSAPP</strong>.</p>
+
+                </div>
+            ");
+
+        try {
+            $mailer->send($email);
+            \Log::info("Email update envoyé à : {$user->email}");
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            \Log::error("Erreur mail update (AD) vers {$user->email} : " . $e->getMessage());
+        }
+    }
+}
+
+
 protected function sendAdUserCreationNotification($creator, $newUser)
 {
     $usersToNotify = User::permission('superviserusers')->get();
