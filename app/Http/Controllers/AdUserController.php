@@ -964,13 +964,12 @@ public function updateAdUser(Request $request)
         $updates = [];
 
         if ($request->filled('name')) $updates['DisplayName'] = $request->name;
-        if ($request->filled('samAccountName')) $updates['SamAccountName'] = $request->samAccountName;
-         if ($request->filled('direction')) $updates['DistinguishedName'] = $request->direction;
+       
         if ($request->filled('emailAddress')) {
             $updates['EmailAddress'] = $request->emailAddress;
             $updates['UserPrincipalName'] = $request->emailAddress;
         }
-
+        if ($request->filled('samAccountName')) $updates['SamAccountName'] = $request->samAccountName;
         if (empty($updates)) {
             Log::warning("updateAdUser() - Aucun champ à mettre à jour", ['sam' => $sam]);
             return response()->json(['success' => false, 'message' => 'Aucune donnée à mettre à jour'], 400);
@@ -982,9 +981,19 @@ public function updateAdUser(Request $request)
         $escapedSam = $this->escapePowerShellString($sam);
         $ps = [];
 
-        foreach ($updates as $key => $value) {
-            $ps[] = "Set-ADUser -Identity '$escapedSam' -$key '$value'";
-        }
+        $ps = [];
+
+// Mettre à jour tout sauf SamAccountName
+foreach ($updates as $key => $value) {
+    if ($key !== 'SamAccountName') {
+        $ps[] = "Set-ADUser -Identity '$escapedSam' -$key '$value'";
+    }
+}
+
+// SamAccountName en dernier
+if (isset($updates['SamAccountName'])) {
+    $ps[] = "Set-ADUser -Identity '$escapedSam' -SamAccountName '{$updates['SamAccountName']}'";
+}
 
         $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
         Log::info("updateAdUser() - PS command", ['cmd' => $psCommand]);
