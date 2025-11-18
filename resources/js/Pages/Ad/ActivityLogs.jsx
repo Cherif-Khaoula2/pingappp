@@ -43,8 +43,7 @@ export default function ActivityLogs({ logs, stats, filters }) {
         { label: 'Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
         { label: 'Modification utilisateur', value: 'update_user' },
 
-        
-update_user
+
     ];
 
     const handleFilterChange = (key, value) => {
