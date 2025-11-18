@@ -308,7 +308,8 @@ const actionChartData = {
             'unhide_account': 'Démasquage',
             'authorize_ldap_user': 'Autorisation',
             'unauthorize_ldap_user': 'Désautorisation',
-            'Modification utilisateur':'update_user' 
+            'update_user': 'Modification utilisateur' 
+
 
         };
         
