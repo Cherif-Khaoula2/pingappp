@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Card } from "primereact/card";
@@ -7,6 +7,7 @@ import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import { Message } from "primereact/message";
+import { Toast } from "primereact/toast";
 import { ConfirmDialog } from "primereact/confirmdialog";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { router } from "@inertiajs/react";
@@ -17,6 +18,7 @@ import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
 
 export default function ResetUserPassword() {
+  const toast = useRef(null);
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
@@ -53,6 +55,12 @@ export default function ResetUserPassword() {
   const handleSearch = async () => {
     if (!search.trim() && search.trim() !== ".") {
       setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
+      toast.current.show({
+        severity: 'warn',
+        summary: 'Attention',
+        detail: 'Veuillez saisir un nom d\'utilisateur',
+        life: 3000
+      });
       return;
     }
 
@@ -75,14 +83,32 @@ export default function ResetUserPassword() {
         }));
         setUsers(mappedUsers);
         setError(null);
+        toast.current.show({
+          severity: 'success',
+          summary: 'Recherche réussie',
+          detail: `${mappedUsers.length} utilisateur(s) trouvé(s)`,
+          life: 3000
+        });
       } else {
         setUsers([]);
         setError("Aucun utilisateur trouvé pour cette recherche.");
+        toast.current.show({
+          severity: 'info',
+          summary: 'Aucun résultat',
+          detail: 'Aucun utilisateur trouvé pour cette recherche',
+          life: 3000
+        });
       }
     } catch (err) {
       console.error("Erreur lors de la recherche :", err);
       setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
       setUsers([]);
+      toast.current.show({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Erreur lors de la recherche de l\'utilisateur',
+        life: 4000
+      });
     } finally {
       setLoading(false);
     }
@@ -110,6 +136,12 @@ export default function ResetUserPassword() {
     // Vérifier les champs obligatoires
     if (!editDialog.name.trim() || !editDialog.samAccountName.trim() || !editDialog.emailAddress.trim()) {
       setEditError("Tous les champs sont obligatoires.");
+      toast.current.show({
+        severity: 'warn',
+        summary: 'Champs manquants',
+        detail: 'Tous les champs sont obligatoires',
+        life: 3000
+      });
       return;
     }
 
@@ -117,6 +149,12 @@ export default function ResetUserPassword() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editDialog.emailAddress)) {
       setEditError("Format d'email invalide.");
+      toast.current.show({
+        severity: 'warn',
+        summary: 'Email invalide',
+        detail: 'Le format de l\'email est invalide',
+        life: 3000
+      });
       return;
     }
 
@@ -146,6 +184,12 @@ export default function ResetUserPassword() {
 
     if (changes.length === 0) {
       setEditError("Aucune modification détectée.");
+      toast.current.show({
+        severity: 'info',
+        summary: 'Aucune modification',
+        detail: 'Aucun changement n\'a été détecté',
+        life: 3000
+      });
       return;
     }
 
@@ -182,12 +226,28 @@ export default function ResetUserPassword() {
           setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
           setOriginalData(null);
           setIsUpdating(false);
+          
+          // Toast de succès
+          toast.current.show({
+            severity: 'success',
+            summary: 'Modification réussie',
+            detail: 'Les informations de l\'utilisateur ont été mises à jour avec succès',
+            life: 4000
+          });
         },
         onError: (errors) => {
           console.error("Erreur backend :", errors);
           setEditError(errors?.message || "Erreur lors de la modification.");
           setIsUpdating(false);
           setEditDialog({ ...editDialog, visible: true });
+          
+          // Toast d'erreur
+          toast.current.show({
+            severity: 'error',
+            summary: 'Erreur de modification',
+            detail: errors?.message || 'Une erreur est survenue lors de la modification',
+            life: 5000
+          });
         },
       }
     );
@@ -207,6 +267,7 @@ export default function ResetUserPassword() {
   return (
     <Layout>
       <Head title="Modification des utilisateurs AD" />
+      <Toast ref={toast} position="top-right" />
 
       <div className="grid">
         <div className="col-12">
@@ -367,7 +428,6 @@ export default function ResetUserPassword() {
           <div className="flex gap-3 mt-5 pt-4 border-top-1 border-200">
             <Button
               label="Annuler"
-              icon="pi pi-times"
               outlined
               severity="secondary"
               className="flex-1 p-3"
@@ -379,7 +439,6 @@ export default function ResetUserPassword() {
             />
             <Button
               label="Valider les modifications"
-              icon="pi pi-check"
               className="flex-1 p-3"
               onClick={handleValidateChanges}
               style={{
@@ -452,7 +511,6 @@ export default function ResetUserPassword() {
           <div className="flex gap-3">
             <Button
               label="Retour"
-              icon="pi pi-arrow-left"
               outlined
               severity="secondary"
               className="flex-1 p-3"
@@ -461,7 +519,6 @@ export default function ResetUserPassword() {
             />
             <Button
               label={isUpdating ? "Modification en cours..." : "Confirmer la modification"}
-              icon={isUpdating ? "pi pi-spin pi-spinner" : "pi pi-check"}
               severity="warning"
               className="flex-1 p-3"
               onClick={confirmUpdateUser}
