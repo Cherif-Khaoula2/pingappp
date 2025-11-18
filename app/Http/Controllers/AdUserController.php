@@ -977,25 +977,27 @@ public function updateAdUser(Request $request)
 
         Log::info("updateAdUser() - Champs détectés pour mise à jour", ['updates' => $updates]);
 
-        // 🔹 Construire PowerShell
-        $escapedSam = $this->escapePowerShellString($sam);
-        $ps = [];
+       // Récupérer le DN complet de l’utilisateur depuis $adUser
+$escapedDn = $this->escapePowerShellString($adUser['dn']);
 
-        $ps = [];
+// Construire les commandes PowerShell
+$ps = [];
 
 // Mettre à jour tout sauf SamAccountName
 foreach ($updates as $key => $value) {
     if ($key !== 'SamAccountName') {
-        $ps[] = "Set-ADUser -Identity '$escapedSam' -$key '$value'";
+        $ps[] = "Set-ADUser -Identity '$escapedDn' -$key '$value'";
     }
 }
 
 // SamAccountName en dernier
 if (isset($updates['SamAccountName'])) {
-    $ps[] = "Set-ADUser -Identity '$escapedSam' -SamAccountName '{$updates['SamAccountName']}'";
+    $ps[] = "Set-ADUser -Identity '$escapedDn' -SamAccountName '{$updates['SamAccountName']}'";
 }
 
-        $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
+$psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
+
+       
         Log::info("updateAdUser() - PS command", ['cmd' => $psCommand]);
 
         // 🔹 SSH
