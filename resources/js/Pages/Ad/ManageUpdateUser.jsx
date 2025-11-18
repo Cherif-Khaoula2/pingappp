@@ -7,124 +7,162 @@ import { Column } from "primereact/column";
 import { Dialog } from "primereact/dialog";
 import { Divider } from "primereact/divider";
 import { Message } from "primereact/message";
+import { ConfirmDialog } from "primereact/confirmdialog";
 import Layout from "@/Layouts/layout/layout.jsx";
 import { router } from "@inertiajs/react";
 import { Head } from '@inertiajs/react';
-import 'primereact/resources/themes/lara-light-indigo/theme.css';  // Thème
-import 'primereact/resources/primereact.min.css';                   // Core CSS
-import 'primeicons/primeicons.css';                                 // Icônes
-import 'primeflex/primeflex.css';  
-// Fonction pour générer un mot de passe automatique
+import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
 
 export default function ResetUserPassword() {
- const [search, setSearch] = useState("");
-const [users, setUsers] = useState([]);
-const [error, setError] = useState(null);
-const [loading, setLoading] = useState(false);
-const [first, setFirst] = useState(0);
-const [rows, setRows] = useState(25);
+  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(25);
 
-const [editDialog, setEditDialog] = useState({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
-const [editError, setEditError] = useState(null);
-const [isUpdating, setIsUpdating] = useState(false);
+  const [editDialog, setEditDialog] = useState({ 
+    visible: false, 
+    sam: null, 
+    name: "", 
+    samAccountName: "", 
+    emailAddress: "" 
+  });
+  
+  const [confirmDialog, setConfirmDialog] = useState({
+    visible: false,
+    changes: []
+  });
+  
+  const [editError, setEditError] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [originalData, setOriginalData] = useState(null);
 
-const nameTemplate = (rowData) => <span>{rowData.name}</span>;
-const emailTemplate = (rowData) => <span>{rowData.email || "N/A"}</span>;
+  const nameTemplate = (rowData) => <span>{rowData.name}</span>;
+  const emailTemplate = (rowData) => <span>{rowData.email || "N/A"}</span>;
 
   const onPageChange = (event) => {
-  setFirst(event.first);
-  setRows(event.rows);
-};
- 
-// 🔹 Recherche d'un utilisateur
-// 🔹 Recherche d'un utilisateur
-const handleSearch = async () => {
-  if (!search.trim() && search.trim() !== ".") {
-    setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
-    return;
-  }
+    setFirst(event.first);
+    setRows(event.rows);
+  };
 
-  setLoading(true);
-  setError(null);
-  setFirst(0);
-
-  try {
-    const response = await axios.post("/ad/users/find", { search });
-
-    if (Array.isArray(response.data.users) && response.data.users.length > 0) {
-      const mappedUsers = response.data.users.map((user) => ({
-        name: user.name || user.sam,
-        sam: user.sam,
-        samAccountName: user.sam,      // <-- ajout ici
-        email: user.email,
-        enabled: user.enabled,
-        dn: user.dn,
-        lastLogon: user.last_logon,
-      }));
-      setUsers(mappedUsers);
-      setError(null);
-    } else {
-      setUsers([]);
-      setError("Aucun utilisateur trouvé pour cette recherche.");
+  // Recherche d'un utilisateur
+  const handleSearch = async () => {
+    if (!search.trim() && search.trim() !== ".") {
+      setError("Veuillez saisir un nom d'utilisateur ou SamAccountName");
+      return;
     }
-  } catch (err) {
-    console.error("Erreur lors de la recherche :", err);
-    setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
-    setUsers([]);
-  } finally {
-    setLoading(false);
-  }
-};
 
-// 🔹 Ouverture du dialogue de modification
-const handleEditClick = (user) => {
-  console.log("🟦 handleEditClick() → utilisateur sélectionné :", user);
+    setLoading(true);
+    setError(null);
+    setFirst(0);
 
-  setEditDialog({
-    visible: true,
-    sam: user.sam,
-    name: user.name || "",
-    samAccountName: user.samAccountName || "",  // maintenant existant
-    emailAddress: user.email || "",
-  });
+    try {
+      const response = await axios.post("/ad/users/find", { search });
 
-  setEditError(null);
-};
+      if (Array.isArray(response.data.users) && response.data.users.length > 0) {
+        const mappedUsers = response.data.users.map((user) => ({
+          name: user.name || user.sam,
+          sam: user.sam,
+          samAccountName: user.sam,
+          email: user.email,
+          enabled: user.enabled,
+          dn: user.dn,
+          lastLogon: user.last_logon,
+        }));
+        setUsers(mappedUsers);
+        setError(null);
+      } else {
+        setUsers([]);
+        setError("Aucun utilisateur trouvé pour cette recherche.");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la recherche :", err);
+      setError("Erreur lors de la recherche de l'utilisateur. Veuillez réessayer.");
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Ouverture du dialogue de modification
+  const handleEditClick = (user) => {
+    const userData = {
+      sam: user.sam,
+      name: user.name || "",
+      samAccountName: user.samAccountName || "",
+      emailAddress: user.email || "",
+    };
 
-const confirmUpdateUser = () => {
-    console.log("🟨 confirmUpdateUser() → données avant validation :", editDialog);
+    setOriginalData(userData);
+    setEditDialog({
+      visible: true,
+      ...userData
+    });
+    setEditError(null);
+  };
 
-    // Vérifier les champs
+  // Validation et préparation de la confirmation
+  const handleValidateChanges = () => {
+    // Vérifier les champs obligatoires
     if (!editDialog.name.trim() || !editDialog.samAccountName.trim() || !editDialog.emailAddress.trim()) {
       setEditError("Tous les champs sont obligatoires.");
       return;
     }
 
-    const originalUser = users.find(u => u.sam === editDialog.sam);
-    console.log("🟦 Données utilisateur original :", originalUser);
+    // Validation format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editDialog.emailAddress)) {
+      setEditError("Format d'email invalide.");
+      return;
+    }
 
-    if (
-      originalUser &&
-      originalUser.name === editDialog.name &&
-      originalUser.samAccountName === editDialog.samAccountName &&
-      originalUser.email === editDialog.emailAddress
-    ) {
+    // Détecter les modifications
+    const changes = [];
+    if (originalData.name !== editDialog.name) {
+      changes.push({
+        field: "Nom complet",
+        oldValue: originalData.name,
+        newValue: editDialog.name
+      });
+    }
+    if (originalData.samAccountName !== editDialog.samAccountName) {
+      changes.push({
+        field: "SamAccountName",
+        oldValue: originalData.samAccountName,
+        newValue: editDialog.samAccountName
+      });
+    }
+    if (originalData.emailAddress !== editDialog.emailAddress) {
+      changes.push({
+        field: "Email",
+        oldValue: originalData.emailAddress,
+        newValue: editDialog.emailAddress
+      });
+    }
+
+    if (changes.length === 0) {
       setEditError("Aucune modification détectée.");
       return;
     }
 
-    console.log("🟩 Envoi des données au backend :", {
-        sam: editDialog.sam,
-        name: editDialog.name,
-        samAccountName: editDialog.samAccountName,
-        emailAddress: editDialog.emailAddress,
+    // Afficher le dialogue de confirmation
+    setConfirmDialog({
+      visible: true,
+      changes: changes
     });
-
-    setIsUpdating(true);
     setEditError(null);
+  };
 
-        router.post(
+  // Confirmation finale de la modification
+  const confirmUpdateUser = () => {
+    setIsUpdating(true);
+    setConfirmDialog({ visible: false, changes: [] });
+
+    router.post(
       "/ad/users/update-user",
       {
         sam: editDialog.sam,
@@ -134,8 +172,6 @@ const confirmUpdateUser = () => {
       },
       {
         onSuccess: () => {
-          console.log("🟩 SUCCESS backend → L’utilisateur a été modifié !");
-
           setUsers((prev) =>
             prev.map((u) =>
               u.sam === editDialog.sam
@@ -144,18 +180,18 @@ const confirmUpdateUser = () => {
             )
           );
           setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
+          setOriginalData(null);
           setIsUpdating(false);
         },
         onError: (errors) => {
-          console.error("🟥 ERREUR backend :", errors);
+          console.error("Erreur backend :", errors);
           setEditError(errors?.message || "Erreur lors de la modification.");
           setIsUpdating(false);
+          setEditDialog({ ...editDialog, visible: true });
         },
-
       }
     );
-};
-
+  };
 
   const actionTemplate = (rowData) => (
     <Button
@@ -170,7 +206,7 @@ const confirmUpdateUser = () => {
 
   return (
     <Layout>
-    <Head title="Modification des utilisateurs AD" />
+      <Head title="Modification des utilisateurs AD" />
 
       <div className="grid">
         <div className="col-12">
@@ -182,32 +218,27 @@ const confirmUpdateUser = () => {
               rows={rows}
               first={first}
               onPage={onPageChange}
-              rowsPerPageOptions={[25, 50, 100 , 200]}
+              rowsPerPageOptions={[25, 50, 100, 200]}
               paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
               currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} utilisateurs"
-              paginatorClassName="custom-paginator"
               responsiveLayout="scroll"
               className="custom-datatable"
               header={
                 <div className="flex flex-column gap-4">
                   <div className="flex align-items-center gap-3">
-                    <div
-                    >
-                    </div>
                     <div>
                       <h1 className="text-900 text-3xl font-bold m-0 mb-1">
                         Modification des utilisateurs AD
                       </h1>
                       <p className="text-600 m-0 text-lg">
-                        Recherchez un utilisateur Active Directory et Modifier ces informations
+                        Recherchez un utilisateur Active Directory et modifiez ses informations
                       </p>
                     </div>
                   </div>
 
                   <div className="p-inputgroup" style={{ height: "52px" }}>
-                
                     <InputText
-                      placeholder="Rechercher un utilisateur dans AD (nom, samaccountname , email)..."
+                      placeholder="Rechercher un utilisateur dans AD (nom, samaccountname, email)..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleSearch()}
@@ -218,8 +249,8 @@ const confirmUpdateUser = () => {
                       icon={loading ? "pi pi-spin pi-spinner" : "pi pi-search"}
                       onClick={handleSearch}
                       disabled={loading}
-                      style={{ 
-                        background: "linear-gradient(135deg, #6366f1, #4f46e5)", 
+                      style={{
+                        background: "linear-gradient(135deg, #6366f1, #4f46e5)",
                         border: "none",
                         height: "52px",
                         minWidth: "150px",
@@ -229,8 +260,8 @@ const confirmUpdateUser = () => {
                   </div>
 
                   {error && (
-                    <Message 
-                      severity="error" 
+                    <Message
+                      severity="error"
                       text={error}
                       style={{ width: "100%" }}
                       className="custom-error-message"
@@ -256,50 +287,195 @@ const confirmUpdateUser = () => {
         </div>
       </div>
 
-     {/* Dialog de modification */}
+      {/* Dialog de modification amélioré */}
       <Dialog
         visible={editDialog.visible}
-        onHide={() => setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" })}
+        onHide={() => {
+          setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
+          setEditError(null);
+          setOriginalData(null);
+        }}
         modal
         dismissableMask
-        style={{ width: "500px" }}
-        header="Modifier l'utilisateur"
+        style={{ width: "550px" }}
+        className="edit-dialog"
       >
-        <div className="p-4 flex flex-col gap-3">
-          <InputText
-            value={editDialog.name}
-            placeholder="Nom complet"
-            onChange={(e) => setEditDialog({ ...editDialog, name: e.target.value })}
-          />
-          <InputText
-            value={editDialog.samAccountName}
-            placeholder="SamAccountName"
-            onChange={(e) => setEditDialog({ ...editDialog, samAccountName: e.target.value })}
-          />
-          <InputText
-            value={editDialog.emailAddress}
-            placeholder="Email"
-            onChange={(e) => setEditDialog({ ...editDialog, emailAddress: e.target.value })}
-          />
-          {editError && <Message severity="error" text={editError} />}
-          <div className="flex gap-3 mt-4">
+        <div className="p-5">
+          {/* En-tête personnalisé */}
+          <div className="flex align-items-center gap-3 mb-4 pb-3 border-bottom-1 border-200">
+            <div className="flex align-items-center justify-content-center bg-primary-100 border-circle" style={{ width: "48px", height: "48px" }}>
+              <i className="pi pi-user-edit text-primary text-2xl"></i>
+            </div>
+            <div>
+              <h3 className="text-900 font-bold text-2xl m-0">Modifier l'utilisateur</h3>
+              <p className="text-600 m-0 mt-1">Mettez à jour les informations de l'utilisateur</p>
+            </div>
+          </div>
+
+          {/* Formulaire */}
+          <div className="flex flex-column gap-4 mt-4">
+            <div className="flex flex-column gap-2">
+              <label className="text-900 font-semibold">
+                <i className="pi pi-user mr-2 text-primary"></i>
+                Nom complet
+              </label>
+              <InputText
+                value={editDialog.name}
+                placeholder="Ex: Jean Dupont"
+                onChange={(e) => setEditDialog({ ...editDialog, name: e.target.value })}
+                className="p-3"
+              />
+            </div>
+
+            <div className="flex flex-column gap-2">
+              <label className="text-900 font-semibold">
+                <i className="pi pi-id-card mr-2 text-primary"></i>
+                SamAccountName
+              </label>
+              <InputText
+                value={editDialog.samAccountName}
+                placeholder="Ex: jdupont"
+                onChange={(e) => setEditDialog({ ...editDialog, samAccountName: e.target.value })}
+                className="p-3"
+              />
+            </div>
+
+            <div className="flex flex-column gap-2">
+              <label className="text-900 font-semibold">
+                <i className="pi pi-envelope mr-2 text-primary"></i>
+                Adresse email
+              </label>
+              <InputText
+                value={editDialog.emailAddress}
+                placeholder="Ex: jean.dupont@entreprise.com"
+                onChange={(e) => setEditDialog({ ...editDialog, emailAddress: e.target.value })}
+                className="p-3"
+                type="email"
+              />
+            </div>
+
+            {editError && (
+              <Message 
+                severity="error" 
+                text={editError} 
+                className="w-full"
+              />
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 mt-5 pt-4 border-top-1 border-200">
             <Button
               label="Annuler"
+              icon="pi pi-times"
               outlined
               severity="secondary"
-              className="flex-1"
-              onClick={() => setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" })}
+              className="flex-1 p-3"
+              onClick={() => {
+                setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
+                setEditError(null);
+                setOriginalData(null);
+              }}
             />
             <Button
-              label={isUpdating ? "Modification..." : "Confirmer"}
-              className="flex-1"
-              onClick={confirmUpdateUser}
-              disabled={isUpdating}
+              label="Valider les modifications"
+              icon="pi pi-check"
+              className="flex-1 p-3"
+              onClick={handleValidateChanges}
+              style={{
+                background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+                border: "none"
+              }}
             />
           </div>
         </div>
       </Dialog>
-       <style jsx>{`
+
+      {/* Dialog de confirmation des modifications */}
+      <Dialog
+        visible={confirmDialog.visible}
+        onHide={() => setConfirmDialog({ visible: false, changes: [] })}
+        modal
+        dismissableMask
+        style={{ width: "600px" }}
+        className="confirm-dialog"
+      >
+        <div className="p-5">
+          {/* En-tête de confirmation */}
+          <div className="flex align-items-center gap-3 mb-4 pb-3 border-bottom-1 border-200">
+            <div className="flex align-items-center justify-content-center bg-orange-100 border-circle" style={{ width: "48px", height: "48px" }}>
+              <i className="pi pi-exclamation-triangle text-orange-500 text-2xl"></i>
+            </div>
+            <div>
+              <h3 className="text-900 font-bold text-2xl m-0">Confirmer les modifications</h3>
+              <p className="text-600 m-0 mt-1">Veuillez vérifier les changements avant de confirmer</p>
+            </div>
+          </div>
+
+          {/* Résumé des modifications */}
+          <div className="bg-primary-50 border-round-lg p-4 mb-4">
+            <div className="flex align-items-center gap-2 mb-3">
+              <i className="pi pi-info-circle text-primary"></i>
+              <span className="font-semibold text-900">Modifications détectées ({confirmDialog.changes.length})</span>
+            </div>
+            
+            <div className="flex flex-column gap-3">
+              {confirmDialog.changes.map((change, index) => (
+                <div key={index} className="bg-white border-round p-3">
+                  <div className="font-semibold text-900 mb-2">
+                    <i className="pi pi-angle-right text-primary mr-2"></i>
+                    {change.field}
+                  </div>
+                  <div className="flex flex-column gap-2 ml-4">
+                    <div className="flex align-items-center gap-2">
+                      <span className="text-600 font-medium">Ancienne valeur:</span>
+                      <span className="text-500 line-through">{change.oldValue}</span>
+                    </div>
+                    <div className="flex align-items-center gap-2">
+                      <span className="text-600 font-medium">Nouvelle valeur:</span>
+                      <span className="text-primary font-semibold">{change.newValue}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Message d'avertissement */}
+          <Message
+            severity="warn"
+            text="Cette action modifiera les informations de l'utilisateur dans Active Directory. Assurez-vous que les données sont correctes."
+            className="w-full mb-4"
+          />
+
+          {/* Actions de confirmation */}
+          <div className="flex gap-3">
+            <Button
+              label="Retour"
+              icon="pi pi-arrow-left"
+              outlined
+              severity="secondary"
+              className="flex-1 p-3"
+              onClick={() => setConfirmDialog({ visible: false, changes: [] })}
+              disabled={isUpdating}
+            />
+            <Button
+              label={isUpdating ? "Modification en cours..." : "Confirmer la modification"}
+              icon={isUpdating ? "pi pi-spin pi-spinner" : "pi pi-check"}
+              severity="warning"
+              className="flex-1 p-3"
+              onClick={confirmUpdateUser}
+              disabled={isUpdating}
+              style={{
+                background: isUpdating ? "#94a3b8" : "linear-gradient(135deg, #f59e0b, #d97706)",
+                border: "none"
+              }}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      <style jsx>{`
         .custom-datatable :global(.p-datatable-header) {
           background: var(--surface-50);
           border-radius: 12px 12px 0 0;
@@ -322,18 +498,12 @@ const confirmUpdateUser = () => {
           transform: scale(1.01);
         }
 
-        :global(.custom-dialog .p-dialog-content) {
-          padding: 0 !important;
-          border-radius: 12px;
-        }
-
-        :global(.custom-dialog .p-dialog-header) {
+        :global(.edit-dialog .p-dialog-header) {
           display: none;
         }
 
-        :global(.custom-reset-btn:hover) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+        :global(.confirm-dialog .p-dialog-header) {
+          display: none;
         }
 
         :global(.custom-error-message) {

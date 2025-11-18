@@ -284,7 +284,9 @@ const actionChartData = {
             'hide_account': 'warning',
             'unhide_account': 'success',
             'authorize_ldap_user': 'success',
-            'unauthorize_ldap_user': 'danger'
+            'unauthorize_ldap_user': 'danger',
+            'update_user': 'primary',
+
         };
         
         const labelMap = {
