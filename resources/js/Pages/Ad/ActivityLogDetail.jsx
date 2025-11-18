@@ -130,6 +130,12 @@ export default function ActivityLogDetail({ log }) {
             label: 'Désautorisation', 
             color: '#e11d48'
         },
+         update_user: { 
+                icon: ' pi-pencil', 
+                severity: null, 
+                label: 'Modification utilisateur', 
+                color: '#2a1de1ff'
+            },
     };
 
     const getActionConfig = (action) => {
