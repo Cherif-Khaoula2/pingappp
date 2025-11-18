@@ -305,7 +305,9 @@ const actionChartData = {
             'hide_account': 'Masquage',
             'unhide_account': 'Démasquage',
             'authorize_ldap_user': 'Autorisation',
-            'unauthorize_ldap_user': 'Désautorisation'
+            'unauthorize_ldap_user': 'Désautorisation',
+            'Modification utilisateur':'update_user' 
+
         };
         
         return <Tag value={labelMap[row.action] || row.action} severity={severityMap[row.action] || 'secondary'} rounded />;

@@ -41,6 +41,10 @@ export default function ActivityLogs({ logs, stats, filters }) {
         { label: 'Démasquage des utilisateurs', value: 'unhide_account' },        
         { label: 'Autorisation des utilisateurs', value: 'authorize_ldap_user' },
         { label: 'Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
+        { label: 'Modification utilisateur', value: 'update_user' },
+
+        
+update_user
     ];
 
     const handleFilterChange = (key, value) => {
@@ -211,6 +215,14 @@ export default function ActivityLogs({ logs, stats, filters }) {
                 label: 'Désautorisation', 
                 color: '#2a1de1ff'
             },
+               update_user: { 
+                icon: 'pi-user-minus', 
+                severity: null, 
+                label: 'Désautorisation', 
+                color: '#2a1de1ff'
+            },
+
+
         };
 
         return configs[action] || { icon: 'pi-question', severity: null, label: action, color: '#6b7280' };
