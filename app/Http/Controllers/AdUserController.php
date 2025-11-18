@@ -1052,7 +1052,6 @@ public function updateAdUser(Request $request)
             additionalDetails: $updates
         );
 
-        return response()->json(['success' => true, 'message' => 'Utilisateur mis à jour avec succès']);
     }
     catch (\Throwable $e) {
         Log::error("updateAdUser() - GLOBAL ERROR", [
