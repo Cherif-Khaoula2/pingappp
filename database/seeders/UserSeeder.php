@@ -16,10 +16,10 @@ class UserSeeder extends Seeder
     {
         // 🔑 Créer un utilisateur Admin par défaut
         $admin = User::firstOrCreate(
-            ['email' => 'khaoula.cherif@sarpi-dz.com'],
+            ['email' => 'khaoula.hamadouche@sarpi-dz.com'],
             [
                 'first_name' => 'khaoula',
-                'last_name'  => 'Cherif',
+                'last_name'  => 'hamadouche',
                 'password'   => '123456789',
                 'account_id' => 1,
                 

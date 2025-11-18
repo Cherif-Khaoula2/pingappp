@@ -56,7 +56,8 @@ export default function UserActivityHistory({ user, logs }) {
         { label: ' Démasquage des utilisateurs ', value: 'unhide_account' },        
         { label: ' Autorisation des utilisateurs ', value: 'authorize_ldap_user' },
         { label: ' Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
-        
+         { label: 'Modification utilisateur', value: 'update_user' },
+
     ];
 
     const getActionConfig = (action) => {
