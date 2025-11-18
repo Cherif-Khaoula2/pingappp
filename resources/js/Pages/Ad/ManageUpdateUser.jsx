@@ -83,15 +83,9 @@ export default function ResetUserPassword() {
         }));
         setUsers(mappedUsers);
         setError(null);
-        toast.current.show({
-          severity: 'success',
-          summary: 'Recherche réussie',
-          detail: `${mappedUsers.length} utilisateur(s) trouvé(s)`,
-          life: 3000
-        });
+      
       } else {
         setUsers([]);
-        setError("Aucun utilisateur trouvé pour cette recherche.");
         toast.current.show({
           severity: 'info',
           summary: 'Aucun résultat',
@@ -183,7 +177,6 @@ export default function ResetUserPassword() {
     }
 
     if (changes.length === 0) {
-      setEditError("Aucune modification détectée.");
       toast.current.show({
         severity: 'info',
         summary: 'Aucune modification',
