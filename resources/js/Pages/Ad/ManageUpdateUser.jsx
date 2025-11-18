@@ -432,6 +432,7 @@ export default function ResetUserPassword() {
             />
             <Button
               label="Valider les modifications"
+              icon={isUpdating ? "pi pi-spin pi-spinner" : ""}
               className="flex-1 p-3"
               onClick={handleValidateChanges}
               style={{
