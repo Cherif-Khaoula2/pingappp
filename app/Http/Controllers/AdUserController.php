@@ -933,6 +933,7 @@ public function updateAdUser(Request $request)
                 'name' => 'nullable|string|max:100',
                 'samAccountName' => 'nullable|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
                 'emailAddress' => 'nullable|email|max:100',
+                
             ]);
         } catch (\Throwable $e) {
             Log::error("updateAdUser() - VALIDATION ERROR", [
@@ -962,9 +963,9 @@ public function updateAdUser(Request $request)
         $adUser = $validation['user'];
         $updates = [];
 
-        if ($request->filled('name')) $updates['Name'] = $request->name;
+        if ($request->filled('name')) $updates['DisplayName'] = $request->name;
         if ($request->filled('samAccountName')) $updates['SamAccountName'] = $request->samAccountName;
-
+         if ($request->filled('direction')) $updates['DistinguishedName'] = $request->direction;
         if ($request->filled('emailAddress')) {
             $updates['EmailAddress'] = $request->emailAddress;
             $updates['UserPrincipalName'] = $request->emailAddress;
