@@ -42,6 +42,10 @@ export default function ActivityLogs({ logs, stats, filters }) {
         { label: 'Autorisation des utilisateurs', value: 'authorize_ldap_user' },
         { label: 'Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
         { label: 'Modification utilisateur', value: 'update_user' },
+        { label: 'Récupération d/un mot de passe LAPS', value: 'get_laps_password' },
+        { label: 'Récupération de tous les ordinateurs LAPS', value: 'get_all_laps_computers' },
+        { label: 'Consultation de la page de recherche', value: 'view_laps_search_page' },
+        { label: 'Consultation de la page de liste complète', value: 'view_all_laps_computers_page' },
 
 
     ];
