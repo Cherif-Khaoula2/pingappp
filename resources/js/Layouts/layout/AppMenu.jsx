@@ -88,12 +88,12 @@ const AppMenu = () => {
         // --- GESTION UTILISATEURS ---
         const userItems = [
             hasPermission('addaduser') && {
-                label: 'Ajouter utilisateur',
+                label: 'Ajouter un utilisateur',
                 icon: 'pi pi-fw pi-user-plus',
                 to: safeRoute('ad.add-user'),
             },
              hasPermission('updateaduser') && {
-                label: 'Modifier utilisateur',
+                label: 'Modifier un utilisateur',
                 icon: 'pi pi-fw pi-pencil', 
                 to: safeRoute('ad.users.manage-update'),
             },
