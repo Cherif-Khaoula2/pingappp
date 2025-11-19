@@ -20,12 +20,11 @@ class AdUserController extends Controller
 {
     use LogsAdActivity, ValidatesAdUsers;
 
-    public function index()
-    {
-        $permissions = Auth::user()->getAllPermissions()->pluck('name')->toArray();
-        return Inertia::render('Ad/IpConfigPage', [
-    'userPermissions' => $permissions,
-]);}
+  
+public function index()
+{
+    return inertia('Ad/IpConfigPage'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
+}
 
     public function ipConfig(Request $request)
     {
