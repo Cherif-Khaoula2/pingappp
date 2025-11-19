@@ -224,23 +224,17 @@ const actionChartData = {
     };
 
     const statCards = [
-        { 
-            label: "Connexions", 
-            value: safeStats.login_count ?? 0, 
-            icon: "pi pi-sign-in", 
-            color: "bg-green-500",
-            lightColor: "bg-green-50",
-            percentage: safeStats.total_logs > 0 ? ((safeStats.login_count / safeStats.total_logs) * 100).toFixed(1) : 0
-        },
-        { 
-            label: "Déconnexions", 
-            value: safeStats.logout_count ?? 0, 
-            icon: "pi pi-sign-out", 
-            color: "bg-amber-500",
-            lightColor: "bg-amber-50",
-            percentage: safeStats.total_logs > 0 ? ((safeStats.logout_count / safeStats.total_logs) * 100).toFixed(1) : 0
+        
+         { 
+            label: "Créations", 
+            value: safeStats.create_count ?? 0, 
+            icon: "pi pi-user-plus", 
+            color: "bg-cyan-500",
+            lightColor: "bg-cyan-50",
+            percentage: safeStats.total_logs > 0 ? ((safeStats.create_count / safeStats.total_logs) * 100).toFixed(1): 0
         },
         {
+            
             label: "Modifications", 
             value: safeStats.update_count ?? 0, // si c'est pour "Modification"
             icon: "pi pi-pencil", // icône plus appropriée pour Modification
@@ -251,14 +245,7 @@ const actionChartData = {
                 : 0
          },
 
-         { 
-            label: "Créations", 
-            value: safeStats.create_count ?? 0, 
-            icon: "pi pi-user-plus", 
-            color: "bg-cyan-500",
-            lightColor: "bg-cyan-50",
-            percentage: safeStats.total_logs > 0 ? ((safeStats.create_count / safeStats.total_logs) * 100).toFixed(1): 0
-        },
+        
         { 
             label: "Blocages", 
             value: safeStats.block_count ?? 0, 
