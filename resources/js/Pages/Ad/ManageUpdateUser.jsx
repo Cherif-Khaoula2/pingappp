@@ -389,24 +389,29 @@ export default function ResetUserPassword() {
               <InputText
                 value={editDialog.samAccountName}
                 placeholder="Ex: jdupont"
-                onChange={(e) => setEditDialog({ ...editDialog, samAccountName: e.target.value })}
+                onChange={(e) =>
+                    setEditDialog({
+                      ...editDialog,
+                      samAccountName: e.target.value,
+                      emailAddress: `${e.target.value}@sarpi-dz.com`, // email généré automatiquement
+                    })
+                  }
                 className="p-3"
               />
             </div>
 
-            <div className="flex flex-column gap-2">
-              <label className="text-900 font-semibold">
-                <i className="pi pi-envelope mr-2 text-primary"></i>
-                Adresse email
-              </label>
-              <InputText
-                value={editDialog.emailAddress}
-                placeholder="Ex: jean.dupont@entreprise.com"
-                onChange={(e) => setEditDialog({ ...editDialog, emailAddress: e.target.value })}
-                className="p-3"
-                type="email"
-              />
-            </div>
+               <div className="flex flex-column gap-2">
+                  <label className="text-900 font-semibold">
+                    <i className="pi pi-envelope mr-2 text-primary"></i>
+                    Adresse email (auto)
+                  </label>
+                  <InputText
+                    value={`${editDialog.samAccountName || ""}@sarpi-dz.com`}
+                    disabled
+                    className="p-3 bg-gray-100"
+                  />
+                 </div>
+
 
             {editError && (
               <Message 
