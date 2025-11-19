@@ -159,7 +159,7 @@ export default function Dashboard({
         }
     };
 
-    const includedActions = [ 'Création', 'Blocage', 'Déblocage', 'Reset MDP'];
+    const includedActions = [ 'Création', 'Blocage', 'Déblocage', 'Reset MDP' ,'Modification'];
     const filteredActionBreakdown = safeActionBreakdown.filter(a => includedActions.includes(a.action));
     
 const actionChartData = {
