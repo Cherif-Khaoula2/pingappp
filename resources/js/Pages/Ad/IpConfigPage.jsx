@@ -400,17 +400,36 @@ export default function ResetUserPassword() {
               />
             </div>
 
-               <div className="flex flex-column gap-2">
-                  <label className="text-900 font-semibold">
-                    <i className="pi pi-envelope mr-2 text-primary"></i>
-                    Adresse email (auto)
-                  </label>
-                  <InputText
-                    value={`${editDialog.samAccountName || ""}@sarpi-dz.com`}
-                    disabled
-                    className="p-3 bg-gray-100"
-                  />
-                 </div>
+              <div className="flex flex-column gap-2">
+  <label className="text-900 font-semibold">
+    <i className="pi pi-envelope mr-2 text-primary"></i>
+    Adresse email
+  </label>
+
+  <div className="p-inputgroup">
+    <InputText
+      value={editDialog.emailAddress}
+      onChange={(e) =>
+        setEditDialog({ ...editDialog, emailAddress: e.target.value })
+      }
+      placeholder="email@sarpi-dz.com"
+      className="p-3"
+    />
+
+    <Button
+      label="Générer"
+      icon="pi pi-refresh"
+      className="p-3"
+      onClick={() =>
+        setEditDialog({
+          ...editDialog,
+          emailAddress: `${editDialog.samAccountName}@sarpi-dz.com`,
+        })
+      }
+    />
+  </div>
+</div>
+
 
 
             {editError && (
