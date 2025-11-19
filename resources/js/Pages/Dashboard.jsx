@@ -175,8 +175,9 @@ const actionChartData = {
                 case 'Déblocage': 
                     return '#14b8a6'; 
                 case 'Reset MDP':
-                case 'Modification':
                     return '#f97316';
+                case 'Modification':
+                    return '#f59e0b';
                 default: 
                     return '#6b7280'; 
             }
