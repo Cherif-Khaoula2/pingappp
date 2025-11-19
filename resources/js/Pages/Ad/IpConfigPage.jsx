@@ -389,13 +389,13 @@ export default function ResetUserPassword() {
               <InputText
                 value={editDialog.samAccountName}
                 placeholder="Ex: jdupont"
-                onChange={(e) =>
-                    setEditDialog({
-                      ...editDialog,
-                      samAccountName: e.target.value,
-                      emailAddress: `${e.target.value}@sarpi-dz.com`, // email généré automatiquement
-                    })
-                  }
+               onChange={(e) =>
+  setEditDialog({
+    ...editDialog,
+    samAccountName: e.target.value,
+  })
+}
+
                 className="p-3"
               />
             </div>
