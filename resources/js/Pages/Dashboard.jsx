@@ -366,46 +366,48 @@ const actionChartData = {
                 )}
 
                 {/* Cartes de statistiques */}
-                <div className="grid mb-4">
-                    {statCards.map((stat, i) => (
-                        <div key={i} className="col-12 sm:col-6 lg:col-4 xl:col-2">
-                            <Card className="shadow-3 border-round-xl overflow-hidden hover:shadow-4 h-full border-1 surface-border">
-                                <div className="flex flex-column gap-3">
-                                    <div className="flex align-items-center justify-content-between">
-                                        <div className={`${stat.lightColor} p-3 border-round-lg`}>
-                                            <i className={`${stat.icon} ${stat.color.replace('bg-', 'text-')} text-2xl`}></i>
-                                        </div>
-                                       
-                                    </div>
-                                    
-                                    <div>
-                                        <p className="text-sm text-600 mb-2 font-medium uppercase" style={{ letterSpacing: '0.5px' }}>
-                                            {stat.label}
-                                        </p>
-                                        <h2 className="text-4xl font-bold text-900 m-0 mb-3">
-                                            {stat.value.toLocaleString()}
-                                        </h2>
-                                        
-                                        {stat.percentage !== undefined && (
-                                            <div>
-                                                <div className="flex align-items-center justify-content-between mb-2">
-                                                    <span className="text-xs text-600 font-medium">Part du total</span>
-                                                    <span className="text-xs font-semibold text-900">{stat.percentage}%</span>
-                                                </div>
-                                                <ProgressBar 
-                                                    value={parseFloat(stat.percentage)} 
-                                                    showValue={false}
-                                                    style={{ height: '6px' }}
-                                                    className="border-round-lg"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </Card>
-                        </div>
-                    ))}
+              <div className="grid mb-4" style={{ 
+    display: 'grid',
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: '1rem'
+}}>
+    {statCards.map((stat, i) => (
+        <Card key={i} className="shadow-3 border-round-xl overflow-hidden hover:shadow-4 h-full border-1 surface-border">
+            <div className="flex flex-column gap-3">
+                <div className="flex align-items-center justify-content-between">
+                    <div className={`${stat.lightColor} p-3 border-round-lg`}>
+                        <i className={`${stat.icon} ${stat.color.replace('bg-', 'text-')} text-2xl`}></i>
+                    </div>
                 </div>
+
+                <div>
+                    <p className="text-sm text-600 mb-2 font-medium uppercase" style={{ letterSpacing: '0.5px' }}>
+                        {stat.label}
+                    </p>
+                    <h2 className="text-4xl font-bold text-900 m-0 mb-3">
+                        {stat.value.toLocaleString()}
+                    </h2>
+
+                    {stat.percentage !== undefined && (
+                        <div>
+                            <div className="flex align-items-center justify-content-between mb-2">
+                                <span className="text-xs text-600 font-medium">Part du total</span>
+                                <span className="text-xs font-semibold text-900">{stat.percentage}%</span>
+                            </div>
+                            <ProgressBar 
+                                value={parseFloat(stat.percentage)}
+                                showValue={false}
+                                style={{ height: '6px' }}
+                                className="border-round-lg"
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Card>
+    ))}
+</div>
+
 
                 {/* Graphiques */}
                 <div className="grid mb-4">
