@@ -167,13 +167,20 @@ const actionChartData = {
         datasets: [{
             data: filteredActionBreakdown.map(a => a.count),
             backgroundColor: filteredActionBreakdown.map(a => {
-                switch(a.action) {
-                    case 'Création': return '#06b6d4'; // Bleu cyan
-                    case 'Blocage': return '#ef4444';  // Rouge
-                    case 'Déblocage': return '#14b8a6'; // Bleu-vert (teal)
-                    case 'Reset MDP': return '#f97316'; // Orange
-                    default: return '#6b7280'; // Gris par défaut
-                }
+            switch(a.action) {
+                case 'Création': 
+                    return '#06b6d4';
+                case 'Blocage': 
+                    return '#ef4444';  
+                case 'Déblocage': 
+                    return '#14b8a6'; 
+                case 'Reset MDP':
+                case 'Modification':
+                    return '#f97316';
+                default: 
+                    return '#6b7280'; 
+            }
+
             }),
             borderWidth: 0,
             hoverOffset: 8
@@ -232,7 +239,18 @@ const actionChartData = {
             lightColor: "bg-amber-50",
             percentage: safeStats.total_logs > 0 ? ((safeStats.logout_count / safeStats.total_logs) * 100).toFixed(1) : 0
         },
-        { 
+        {
+            label: "Modifications", 
+            value: safeStats.update_count ?? 0, // si c'est pour "Modification"
+            icon: "pi pi-pencil", // icône plus appropriée pour Modification
+            color: "bg-orange-500", // correspond à #f97316 dans Tailwind
+            lightColor: "bg-orange-50",
+            percentage: safeStats.total_logs > 0 
+                ? ((safeStats.update_count / safeStats.total_logs) * 100).toFixed(1) 
+                : 0
+         },
+
+         { 
             label: "Créations", 
             value: safeStats.create_count ?? 0, 
             icon: "pi pi-user-plus", 
