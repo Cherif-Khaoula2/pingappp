@@ -40,7 +40,7 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
   const [mailboxes, setMailboxes] = useState([]);
   const [samError, setSamError] = useState("");
   const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: "", color: "" });
-
+const [samManuallyEdited, setSamManuallyEdited] = useState(false);
   const calculatePasswordStrength = (password) => {
     if (!password) return { level: 0, text: "", color: "" };
     
@@ -195,24 +195,38 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
   }
 };
 
+const handleNameChange = (e) => {
+  const { name, value } = e.target;
 
-  const handleNameChange = (e) => {
-    const { name, value } = e.target;
+  setForm((prev) => {
+    const newForm = { ...prev };
 
-    setForm((prev) => {
-      const newForm = { ...prev };
-      
-      if (name === "firstName") {
-        newForm.firstName = formatFirstName(value);
-      } else if (name === "lastName") {
-        newForm.lastName = formatLastName(value);
-      }
-      
-      newForm.name = `${newForm.firstName} ${newForm.lastName}`.trim();
-      return newForm;
-    });
-  };
+    if (name === "firstName") {
+      newForm.firstName = formatFirstName(value);
+    } else if (name === "lastName") {
+      newForm.lastName = formatLastName(value);
+    }
 
+    newForm.name = `${newForm.firstName} ${newForm.lastName}`.trim();
+
+    // Mise à jour automatique de sam seulement si l'utilisateur n'a pas modifié manuellement
+    if (!samManuallyEdited) {
+      const generatedSam = `${newForm.firstName.toLowerCase()}.${newForm.lastName.toLowerCase()}`.replace(/\s+/g, '');
+      newForm.sam = generatedSam;
+      newForm.logmail = `${generatedSam}@sarpi-dz.sg`;
+      newForm.email = `${generatedSam}@sarpi-dz.com`;
+    }
+
+    return newForm;
+  });
+};
+
+// Gestion du champ SAM
+const handleSamChange = (e) => {
+  const { value } = e.target;
+  setSamManuallyEdited(true); // l'utilisateur a modifié manuellement
+  handleChange({ target: { name: "sam", value } });
+};
   useEffect(() => {
     document.addEventListener('touchstart', () => {}, { passive: true });
   }, []);
@@ -458,15 +472,16 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
                             Nom d'utilisateur <span className="text-red-500">*</span>
                           </label>
                           <InputText
-                            id="sam"
-                            name="sam"
-                            value={form.sam}
-                            onChange={handleChange}
-                            className="w-full text-sm md:text-base"
-                            maxLength={25}
-                            placeholder="Ex: m.benali"
-                            required
-                          />
+  id="sam"
+  name="sam"
+  value={form.sam}
+  onChange={handleSamChange} // utilise le handleSamChange
+  className="w-full text-sm md:text-base"
+  maxLength={25}
+  placeholder="Ex: BENALI.Mohamed"
+  required
+/>
+
                           {samError && <small className="p-error text-xs md:text-sm mt-1 block">{samError}</small>}
                         </div>
                       </div>

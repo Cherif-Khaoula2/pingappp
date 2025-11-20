@@ -936,6 +936,8 @@ public function updateAdUser(Request $request)
         // Validation
         $request->validate([
             'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
+             'firstName' => 'required|string|max:100',
+             'lastName' => 'required|string|max:100',
             'name' => 'nullable|string|max:100',
             'samAccountName' => 'nullable|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
             'emailAddress' => 'nullable|email|max:100',
@@ -955,11 +957,13 @@ public function updateAdUser(Request $request)
         $updates = [];
         
         // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
-        $oldData = [
-            'sam'   => $adUser['sam'],  // ← Changé ici
-            'name'  => $adUser['name'],
-            'email' => $adUser['email'],
-        ];
+      $oldData = [
+    'sam'        => $adUser['sam'],
+    'firstName'  => $adUser['firstName'],
+    'lastName'   => $adUser['lastName'],
+    'name'       => $adUser['name'],
+    'email'      => $adUser['email'],
+];
 
         if ($request->filled('name')) $updates['DisplayName'] = $request->name;
         if ($request->filled('emailAddress')) {
@@ -974,6 +978,12 @@ public function updateAdUser(Request $request)
 
         $escapedDn = $this->escapePowerShellString($adUser['dn']);
         $ps = [];
+// Ajouter à la récupération des mises à jour
+if ($request->filled('firstName')) $updates['GivenName'] = $request->firstName;
+if ($request->filled('lastName')) $updates['Surname'] = $request->lastName;
+
+
+
 
         // Renommer si besoin
         if ($request->filled('name') && $request->name !== $adUser['name']) {
@@ -985,18 +995,20 @@ public function updateAdUser(Request $request)
             $escapedDn = $this->escapePowerShellString(implode(',', $dnParts));
         }
 
-        // Mettre à jour AD
-        foreach ($updates as $key => $value) {
-            if ($key !== 'SamAccountName') {
-                $escapedValue = $this->escapePowerShellString($value);
-                $ps[] = "Set-ADUser -Identity '$escapedDn' -$key '$escapedValue'";
-            }
-        }
+       // Puis dans la boucle de mise à jour AD
+foreach ($updates as $key => $value) {
+    if ($key !== 'SamAccountName') {
+        $escapedValue = $this->escapePowerShellString($value);
+        $ps[] = "Set-ADUser -Identity '$escapedDn' -$key '$escapedValue'";
+    }
+}
 
-        if (isset($updates['SamAccountName'])) {
-            $escapedSamAccount = $this->escapePowerShellString($updates['SamAccountName']);
-            $ps[] = "Set-ADUser -Identity '$escapedDn' -SamAccountName '$escapedSamAccount'";
-        }
+// SamAccountName reste séparé comme avant
+if (isset($updates['SamAccountName'])) {
+    $escapedSamAccount = $this->escapePowerShellString($updates['SamAccountName']);
+    $ps[] = "Set-ADUser -Identity '$escapedDn' -SamAccountName '$escapedSamAccount'";
+}
+      
 
         $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
 
@@ -1095,13 +1107,17 @@ Write-Output 'OK'
             success: true,
             additionalDetails: $updates
         );
-        
-        // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
-        $newData = [
-            'sam'   => $request->samAccountName ?? $adUser['sam'],  // ← Changé ici
-            'name'  => $request->name ?? $adUser['name'],
-            'email' => $request->emailAddress ?? $adUser['email'],
-        ];
+       
+
+$newData = [
+    'sam'        => $request->samAccountName ?? $adUser['sam'],
+    'firstName'  => $request->firstName ?? $adUser['firstName'],
+    'lastName'   => $request->lastName ?? $adUser['lastName'],
+    'name'       => $request->name ?? $adUser['name'],
+    'email'      => $request->emailAddress ?? $adUser['email'],
+];
+
+       
 
         // 🔹 Notification création utilisateur
         $this->sendAdUserUpdateNotification(
@@ -1164,12 +1180,16 @@ protected function sendAdUserUpdateNotification($creator, $oldData, $newData)
     });
 
     // Labels normalisés
-    $labels = [
-        'sam'   => 'SamAccountName',
-        'name'  => 'Nom complet',
-        'email' => 'Adresse email',
-        'phone' => 'Numéro de téléphone',
-    ];
+   // Labels normalisés
+$labels = [
+    'sam'       => 'SamAccountName',
+    'firstName' => 'Prénom',
+    'lastName'  => 'Nom de famille',
+    'name'      => 'Nom complet',
+    'email'     => 'Adresse email',
+    'phone'     => 'Numéro de téléphone',
+];
+
 
     // SMTP
     $transport = Transport::fromDsn('smtp://mail.sarpi-dz.com:25?encryption=null&verify_peer=false');
