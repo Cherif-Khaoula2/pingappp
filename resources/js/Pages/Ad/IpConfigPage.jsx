@@ -115,10 +115,26 @@ const handleNameChange = (field, value) => {
 
     // Génération automatique du SamAccountName si pas modifié manuellement
     if (!samManuallyEdited) {
-      updated.samAccountName = generateSam(updated.firstName, updated.lastName);
-      // Génération automatique de l'email si pas modifié manuellement
-      if (!emailManuallyEdited) {
-        updated.emailAddress = `${updated.samAccountName}@sarpi-dz.com`;
+      const generatedSam = generateSam(updated.firstName, updated.lastName);
+
+      if (generatedSam.length <= 25) { // ⚡ seulement si <=25
+        updated.samAccountName = generatedSam;
+
+        // Génération automatique de l'email si pas modifié manuellement
+        if (!emailManuallyEdited) {
+          updated.emailAddress = `${generatedSam}@sarpi-dz.com`;
+        }
+      } else {
+        updated.samAccountName = ""; // vide ou tu peux mettre un message d'erreur
+        if (!emailManuallyEdited) {
+          updated.emailAddress = "";
+        }
+        toast.current.show({
+          severity: 'warn',
+          summary: 'SamAccountName trop long',
+          detail: 'Le SamAccountName généré dépasse 25 caractères. Veuillez modifier le prénom ou le nom.',
+          life: 4000
+        });
       }
     }
 
