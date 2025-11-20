@@ -1036,11 +1036,22 @@ public function updateAdUser(Request $request)
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias'  -EmailAddresses 'SMTP:$escapedEmail';
+Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
 Write-Output 'OK'
 \"
 ";
 
+    // -------------------------
+    // 2️⃣ Commande : set EmailAddresses
+    // -------------------------
+    $psEmailAddresses = "
+powershell.exe -NoProfile -Command \"
+. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
+Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
+Set-Mailbox -Identity '$escapedDn' -EmailAddresses 'SMTP:$escapedEmail';
+Write-Output 'OK'
+\"
+";
 
     // 🎯 Exécution commande 1
     $cmd1 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psAliasPrimary];
@@ -1059,7 +1070,22 @@ Write-Output 'OK'
         throw new ProcessFailedException($proc1);
     }
 
-   
+    // 🎯 Exécution commande 2
+    $cmd2 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psEmailAddresses];
+    $proc2 = new Process($cmd2);
+    $proc2->setTimeout(30);
+    $proc2->run();
+
+    // --- Log sortie commande 2 ---
+    \Log::info("Set EmailAddresses", [
+        'command' => $psEmailAddresses,
+        'output' => $proc2->getOutput(),
+        'error' => $proc2->getErrorOutput()
+    ]);
+
+    if (!$proc2->isSuccessful()) {
+        throw new ProcessFailedException($proc2);
+    }
 }
 
         $this->logAdActivity(

@@ -7,9 +7,12 @@ use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Illuminate\Support\Facades\Log;
 use App\Models\AdHiddenAccount;
+use App\Traits\LogsAdActivity;
 
 class AdComputerController extends Controller
 {
+    use LogsAdActivity;
+
     public function getLapsPassword(Request $request)
     {
         $this->authorize('getadpc');
@@ -26,6 +29,14 @@ class AdComputerController extends Controller
         $keyPath = env('SSH_KEY_PATH');
 
         if (!$host || !$user) {
+            $this->logAdActivity(
+                action: 'get_laps_password',
+                targetUser: $sam,
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Configuration SSH manquante'
+            );
+            
             return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
         }
 
@@ -58,12 +69,37 @@ class AdComputerController extends Controller
                     'output' => $process->getOutput(),
                     'sam' => $sam
                 ]);
+
+                $this->logAdActivity(
+                    action: 'get_laps_password',
+                    targetUser: $sam,
+                    targetUserName: null,
+                    success: false,
+                    errorMessage: 'Erreur lors de la récupération du mot de passe LAPS : ' . $process->getErrorOutput(),
+                    additionalDetails: [
+                        'exit_code' => $process->getExitCode(),
+                        'computer_name' => $sam
+                    ]
+                );
+
                 throw new ProcessFailedException($process);
             }
 
             $output = trim($process->getOutput());
 
             if (empty($output)) {
+                $this->logAdActivity(
+                    action: 'get_laps_password',
+                    targetUser: $sam,
+                    targetUserName: null,
+                    success: false,
+                    errorMessage: 'Aucun mot de passe LAPS trouvé pour cet ordinateur',
+                    additionalDetails: [
+                        'computer_name' => $sam,
+                        'reason' => 'empty_output'
+                    ]
+                );
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Aucun mot de passe LAPS trouvé pour cet ordinateur'
@@ -74,6 +110,20 @@ class AdComputerController extends Controller
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $passwordValue = $output;
             }
+
+            // ✅ Log de succès
+            $this->logAdActivity(
+                action: 'get_laps_password',
+                targetUser: $sam,
+                targetUserName: $sam,
+                success: true,
+                additionalDetails: [
+                    'computer_name' => $sam,
+                    'password_retrieved' => true,
+                    'method' => 'LAPS PowerShell',
+                    'timestamp' => now()->toDateTimeString()
+                ]
+            );
 
             return response()->json([
                 'success' => true,
@@ -89,36 +139,53 @@ class AdComputerController extends Controller
                 'sam' => $sam
             ]);
 
+            $this->logAdActivity(
+                action: 'get_laps_password',
+                targetUser: $sam,
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Erreur serveur : ' . $e->getMessage(),
+                additionalDetails: [
+                    'computer_name' => $sam,
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine()
+                ]
+            );
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur serveur : ' . $e->getMessage()
             ], 500);
         }
     }
+
     public function showFindPage()
-{
-    return inertia('Ad/FindComputerLaps');
-}
-
-public function getAllLapsComputers(Request $request)
-{
-    $this->authorize('getadpc');
-
-    // Optionnel : tu peux filtrer par statut si tu veux (ici on récupère tout)
-    // $onlyEnabled = $request->boolean('onlyEnabled', false);
-
-    $host = env('SSH_HOST');
-    $user = env('SSH_USER');
-    $password = env('SSH_PASSWORD');
-    $keyPath = env('SSH_KEY_PATH');
-
-    if (!$host || !$user) {
-        return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
+    {
+        return inertia('Ad/FindComputerLaps');
     }
 
-    // Script PowerShell qui récupère tous les ordinateurs, tente d'obtenir le mot de passe LAPS
-    // et renvoie un tableau d'objets JSON : { Name, Enabled, LapsPassword }
-    $psScript = <<<'PS'
+    public function getAllLapsComputers(Request $request)
+    {
+        $this->authorize('getadpc');
+
+        $host = env('SSH_HOST');
+        $user = env('SSH_USER');
+        $password = env('SSH_PASSWORD');
+        $keyPath = env('SSH_KEY_PATH');
+
+        if (!$host || !$user) {
+            $this->logAdActivity(
+                action: 'get_all_laps_computers',
+                targetUser: 'ordinateur',
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Configuration SSH manquante'
+            );
+
+            return response()->json(['success' => false, 'message' => 'Configuration SSH manquante']);
+        }
+
+        $psScript = <<<'PS'
 try {
     # Récupérer tous les ordinateurs (ajuster le filtre si besoin)
     $computers = Get-ADComputer -Filter * -Properties Enabled ,DistinguishedName  | Sort-Object -Property Name
@@ -153,96 +220,145 @@ try {
 }
 PS;
 
-    // Encodage en UTF-16LE puis Base64 pour -EncodedCommand
-    $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
-    $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
+        // Encodage en UTF-16LE puis Base64 pour -EncodedCommand
+        $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
+        $psCommand = "powershell -NoProfile -NonInteractive -EncodedCommand {$psScriptBase64}";
 
-    $sshOptions = [
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'UserKnownHostsFile=/dev/null',
-        '-o', 'LogLevel=ERROR'
-    ];
+        $sshOptions = [
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'LogLevel=ERROR'
+        ];
 
-    $command = $keyPath && file_exists($keyPath)
-        ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
-        : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
+        $command = $keyPath && file_exists($keyPath)
+            ? array_merge(['ssh', '-i', $keyPath], $sshOptions, ["{$user}@{$host}", $psCommand])
+            : array_merge(['sshpass', '-p', $password, 'ssh'], $sshOptions, ["{$user}@{$host}", $psCommand]);
 
-    try {
-        $process = new Process($command);
-        // plus de temps si l'AD est volumineux
-        $process->setTimeout(120);
-        $process->run();
+        try {
+            $process = new Process($command);
+            $process->setTimeout(120);
+            $process->run();
 
-        if (!$process->isSuccessful()) {
-            Log::error('getAllLapsComputers PowerShell SSH Error', [
-                'exit_code' => $process->getExitCode(),
-                'error' => $process->getErrorOutput(),
-                'output' => $process->getOutput(),
+            if (!$process->isSuccessful()) {
+                Log::error('getAllLapsComputers PowerShell SSH Error', [
+                    'exit_code' => $process->getExitCode(),
+                    'error' => $process->getErrorOutput(),
+                    'output' => $process->getOutput(),
+                ]);
+
+                $this->logAdActivity(
+                    action: 'get_all_laps_computers',
+                    targetUser: 'ordinateur',
+                    targetUserName: null,
+                    success: false,
+                    errorMessage: 'Erreur PowerShell SSH : ' . $process->getErrorOutput(),
+                    additionalDetails: [
+                        'exit_code' => $process->getExitCode()
+                    ]
+                );
+
+                throw new ProcessFailedException($process);
+            }
+
+            $output = trim($process->getOutput());
+
+            if (empty($output)) {
+                $this->logAdActivity(
+                    action: 'get_all_laps_computers',
+                    targetUser: 'ordinateur',
+                    targetUserName: null,
+                    success: false,
+                    errorMessage: 'Aucune sortie depuis le serveur distant'
+                );
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune sortie depuis le serveur distant'
+                ]);
+            }
+
+            $decoded = json_decode($output, true);
+
+            // Si le script a retourné une erreur encapsulée
+            if (is_array($decoded) && array_key_exists('error', $decoded) && count($decoded) === 1) {
+                $this->logAdActivity(
+                    action: 'get_all_laps_computers',
+                    targetUser: 'ordinateur',
+                    targetUserName: null,
+                    success: false,
+                    errorMessage: 'Erreur PowerShell: ' . $decoded['error']
+                );
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur PowerShell: ' . $decoded['error']
+                ], 500);
+            }
+
+            // Normaliser la structure : s'assurer que c'est un tableau d'objets
+            if (is_array($decoded) && array_values($decoded) !== $decoded) {
+                $computers = [$decoded];
+            } else {
+                $computers = (array) $decoded;
+            }
+
+            // Nettoyage / formatage
+            $computersFormatted = array_map(function ($item) {
+                return [
+                    'name' => $item['Name'] ?? ($item['name'] ?? null),
+                    'enabled' => array_key_exists('Enabled', $item) ? (bool)$item['Enabled'] : (isset($item['enabled']) ? (bool)$item['enabled'] : null),
+                    'laps_password' => $item['LapsPassword'] ?? ($item['lapsPassword'] ?? null),
+                    'distinguished_name' => $item['DistinguishedName'] ?? ($item['distinguishedName'] ?? null),
+                ];
+            }, $computers);
+
+            // ✅ Log de succès
+            $this->logAdActivity(
+                action: 'get_all_laps_computers',
+                targetUser: 'ordinateur',
+                targetUserName: 'Liste des ordinateurs AD',
+                success: true,
+                additionalDetails: [
+                    'computers_count' => count($computersFormatted),
+                    'method' => 'LAPS PowerShell Bulk',
+                    'timestamp' => now()->toDateTimeString()
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'count' => count($computersFormatted),
+                'computers' => $computersFormatted
             ]);
-            throw new ProcessFailedException($process);
-        }
 
-        $output = trim($process->getOutput());
+        } catch (\Throwable $e) {
+            Log::error('getAllLapsComputers error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
-        if (empty($output)) {
+            $this->logAdActivity(
+                action: 'get_all_laps_computers',
+                targetUser: 'ordinateur',
+                targetUserName: null,
+                success: false,
+                errorMessage: 'Erreur serveur : ' . $e->getMessage(),
+                additionalDetails: [
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine()
+                ]
+            );
+
             return response()->json([
                 'success' => false,
-                'message' => 'Aucune sortie depuis le serveur distant'
-            ]);
-        }
-
-        $decoded = json_decode($output, true);
-
-        // Si le script a retourné une erreur encapsulée
-        if (is_array($decoded) && array_key_exists('error', $decoded) && count($decoded) === 1) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur PowerShell: ' . $decoded['error']
+                'message' => 'Erreur serveur : ' . $e->getMessage()
             ], 500);
         }
-
-        // Normaliser la structure : s'assurer que c'est un tableau d'objets
-        if (is_array($decoded) && array_values($decoded) !== $decoded) {
-            // Cas improbable où json_decode retourne un assoc non-numérique, on convertit en tableau
-            $computers = [$decoded];
-        } else {
-            $computers = (array) $decoded;
-        }
-
-        // Nettoyage / formatage : garder seulement les champs nécessaires et convertir bool en int si tu veux
-        $computersFormatted = array_map(function ($item) {
-            return [
-                'name' => $item['Name'] ?? ($item['name'] ?? null),
-                'enabled' => array_key_exists('Enabled', $item) ? (bool)$item['Enabled'] : (isset($item['enabled']) ? (bool)$item['enabled'] : null),
-                'laps_password' => $item['LapsPassword'] ?? ($item['lapsPassword'] ?? null),
-                'distinguished_name' => $item['DistinguishedName'] ?? ($item['distinguishedName'] ?? null),
-            ];
-        }, $computers);
-
-        return response()->json([
-            'success' => true,
-            'count' => count($computersFormatted),
-            'computers' => $computersFormatted
-        ]);
-
-    } catch (\Throwable $e) {
-        Log::error('getAllLapsComputers error', [
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur serveur : ' . $e->getMessage()
-        ], 500);
     }
-}
-public function showAllComputersPage()
-{
-    // Ne pas retourner les 1000+ items ici — laisse le front les charger
-    return inertia('Ad/FindAllComputersLaps');
-}
 
-
+    public function showAllComputersPage()
+    {
+        return inertia('Ad/FindAllComputersLaps');
+    }
 }

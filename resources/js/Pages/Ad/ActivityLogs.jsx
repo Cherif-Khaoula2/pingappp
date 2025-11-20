@@ -42,8 +42,10 @@ export default function ActivityLogs({ logs, stats, filters }) {
         { label: 'Autorisation des utilisateurs', value: 'authorize_ldap_user' },
         { label: 'Désautorisation des utilisateurs', value: 'unauthorize_ldap_user' },
         { label: 'Modification utilisateur', value: 'update_user' },
+        { label: 'Recherchez et récupérez MDP', value: 'get_laps_password' },
+        { label: 'Voir Liste des ordinateurs AD', value: 'get_all_laps_computers' },
 
-        
+
 
 
     ];
@@ -222,6 +224,18 @@ export default function ActivityLogs({ logs, stats, filters }) {
                 label: 'Modification utilisateur', 
                 color: '#2a1de1ff'
             },
+                  get_laps_password: { 
+            icon: 'pi-key', 
+            severity: 'warning', 
+            label: 'Récupération LAPS', 
+            color: '#f59e0b'
+        },
+        get_all_laps_computers: { 
+            icon: 'pi-desktop', 
+            severity: 'info', 
+            label: 'Voir Liste ordinateurs AD', 
+            color: '#3b82f6'
+         },
 
 
         };
