@@ -248,10 +248,12 @@ const ManageAddUser = ({ directions: initialDirections = [] }) => {
         ...form, 
         accountType: "AD+Exchange",
       };
-     
+     console.log(payload)
       const res = await axios.post("/ad/create-user", payload);
 
       setCreatedUserDetails({
+        firstName: form.firstName,
+        lastName: form.lastName,
         name: form.name,
         sam: form.sam,
         email: form.email,

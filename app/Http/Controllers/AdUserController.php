@@ -21,6 +21,10 @@ class AdUserController extends Controller
     use LogsAdActivity, ValidatesAdUsers;
 
   
+public function index()
+{
+    return inertia('Ad/IpConfigPage'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
+}
 
     public function ipConfig(Request $request)
     {
@@ -429,11 +433,11 @@ public function findUser(Request $request)
     $psScripts = [];
 
   
-        $psScripts[] = "Get-ADUser -Filter *   -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName";
+        $psScripts[] = "Get-ADUser -Filter *   -Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName,GivenName,Surname";
  
 
     $psScript = implode(";", $psScripts) .
-        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | ConvertTo-Json -Depth 3 -Compress";
+        " | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName,GivenName,Surname | ConvertTo-Json -Depth 3 -Compress";
 
     // Variable de log à utiliser à la place de $filter
     $logFilter = implode(" OR ", $userAuthDns);
@@ -444,8 +448,8 @@ public function findUser(Request $request)
     $filter = "(Name -like '*{$escapedSearch}*') -or (SamAccountName -like '*{$escapedSearch}*') -or (EmailAddress -like '*{$escapedSearch}*')";
     $psScript =
         "\$users = Get-ADUser -Filter {" . $filter . "} -ResultSetSize 100 " .
-        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName; " .
-        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+        "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName,GivenName,Surname; " .
+        "\$users | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName,GivenName,Surname | " .
         "ConvertTo-Json -Depth 3 -Compress";
 
     $logFilter = $filter;
@@ -543,6 +547,9 @@ if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
         $users = collect($adUsers)->map(function ($adUser) use ($existingEmails, $hiddenSamAccounts, $userAuthDns) {
             $email = strtolower($adUser['EmailAddress'] ?? '');
             $sam = strtolower($adUser['SamAccountName'] ?? '');
+            $firstName = strtolower($adUser['GivenName'] ?? '');
+            $lastName = strtolower($adUser['Surname'] ?? '');
+
             $dn = $adUser['DistinguishedName'] ?? '';
             $enabled = (bool)($adUser['Enabled'] ?? false);
             $isLocal = in_array($email, $existingEmails);
@@ -551,6 +558,8 @@ if (!$adUsers || json_last_error() !== JSON_ERROR_NONE || empty($adUsers)) {
 
             return [
                 'name' => $adUser['Name'] ?? '',
+                'firstName' => $adUser['GivenName'] ?? '',
+                'lastName' => $adUser['Surname'] ?? '',
                 'sam' => $adUser['SamAccountName'] ?? '',
                 'email' => $email,
                 'enabled' => $enabled,
@@ -633,6 +642,8 @@ public function createAdUser(Request $request)
 
     // 🔹 Validation
     $request->validate([
+        'firstName' => 'required|string|max:100',
+        'lastName' => 'required|string|max:100',
         'name' => 'required|string|max:100',
         'sam' => ['required','max:25','regex:/^[A-Za-z0-9._-]+$/'],
         'email' => 'nullable|email',
@@ -686,6 +697,8 @@ public function createAdUser(Request $request)
     }
 
     // 🔹 Inputs
+    $firstName = $request->input('firstName');
+    $lastName = $request->input('lastName');
     $name = $request->input('name');
     $sam = $request->input('sam');
     $email = $request->input('email');
@@ -704,6 +717,8 @@ public function createAdUser(Request $request)
     }
 
     // 🔹 Échappement des valeurs pour PowerShell
+    $escapedfirstName = $this->escapePowerShellString($firstName);
+    $escapedlastName = $this->escapePowerShellString($lastName);
     $escapedName = $this->escapePowerShellString($name);
     $escapedSam = $this->escapePowerShellString($sam);
     $escapedEmail = $this->escapePowerShellString($email ?? '');
@@ -736,6 +751,8 @@ public function createAdUser(Request $request)
         // 🔹 Commande création AD
         $adCommand = "New-ADUser -Name '$escapedName' `
             -SamAccountName '$escapedSam' `
+            -GivenName '$escapedfirstName' `
+            -Surname '$escapedlastName' `
             -UserPrincipalName '$userPrincipalName' ";
         if ($accountType === "AD+Exchange") {
             $adCommand .= " -EmailAddress '$escapedEmail' ";
