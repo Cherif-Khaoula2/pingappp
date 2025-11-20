@@ -61,6 +61,49 @@ const generateSam = (firstName, lastName) => {
 
   return `${clean(lastName)}.${clean(firstName)}`;
 };
+const validateFrontend = () => {
+  const errors = [];
+
+  // SAM obligatoire, max 25 caractères et format
+  if (!editDialog.sam || editDialog.sam.trim() === "") {
+    errors.push("Le SamAccountName est requis.");
+  } else if (editDialog.sam.length > 25) {
+    errors.push("Le SamAccountName ne doit pas dépasser 25 caractères.");
+  } else if (!/^[a-zA-Z0-9._-]+$/.test(editDialog.sam)) {
+    errors.push("Le SamAccountName doit être alphanumérique (._- autorisés).");
+  }
+
+  // Prénom obligatoire, max 100
+  if (!editDialog.firstName || editDialog.firstName.trim() === "") {
+    errors.push("Le prénom est requis.");
+  } else if (editDialog.firstName.length > 100) {
+    errors.push("Le prénom ne doit pas dépasser 100 caractères.");
+  }
+
+  // Nom obligatoire, max 100
+  if (!editDialog.lastName || editDialog.lastName.trim() === "") {
+    errors.push("Le nom est requis.");
+  } else if (editDialog.lastName.length > 100) {
+    errors.push("Le nom ne doit pas dépasser 100 caractères.");
+  }
+
+  // Nom complet nullable, max 100
+  if (editDialog.name && editDialog.name.length > 100) {
+    errors.push("Le nom complet ne doit pas dépasser 100 caractères.");
+  }
+
+  // SamAccountName nullable, max 25, format déjà vérifié
+  if (editDialog.samAccountName && editDialog.samAccountName.length > 25) {
+    errors.push("Le SamAccountName ne doit pas dépasser 25 caractères.");
+  }
+
+  // Email nullable mais doit être valide
+  if (editDialog.emailAddress && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editDialog.emailAddress)) {
+    errors.push("Le format de l'email est invalide.");
+  }
+
+  return errors;
+};
 
 // Gestion des changements de prénom/nom
 const handleNameChange = (field, value) => {
@@ -188,6 +231,17 @@ const handleEmailChange = (value) => {
 
   // Validation et préparation de la confirmation
   const handleValidateChanges = () => {
+    const errors = validateFrontend();
+  if (errors.length > 0) {
+    setEditError(errors.join(" "));
+    toast.current.show({
+      severity: 'warn',
+      summary: 'Erreur de validation',
+      detail: errors.join(" "),
+      life: 4000
+    });
+    return;
+  }
     // Vérifier les champs obligatoires
     if (!editDialog.firstName.trim() ||!editDialog.lastName.trim() || !editDialog.name.trim() || !editDialog.samAccountName.trim() || !editDialog.emailAddress.trim()) {
       setEditError("Tous les champs sont obligatoires.");
@@ -489,7 +543,7 @@ const handleEmailChange = (value) => {
               </label>
               <InputText
   value={editDialog.samAccountName}
-  onChange={(e) => handleSamChange(e.target.value)}
+  onChange={(e) => handleSamChange(e.target.value.slice(0, 25))}
   className="p-3"
 />
             </div>
@@ -526,7 +580,7 @@ const handleEmailChange = (value) => {
               severity="secondary"
               className="flex-1 p-3"
               onClick={() => {
-                setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
+               setEditDialog({ visible: false, sam: null,  firstName :"" ,lastName:"", name: "", samAccountName: "", emailAddress: "" });
                 setEditError(null);
                 setOriginalData(null);
               }}
