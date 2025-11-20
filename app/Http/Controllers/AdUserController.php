@@ -960,6 +960,7 @@ public function updateAdUser(Request $request)
         }
 
         $adUser = $validation['user'];
+        
         $updates = [];
          \Log::info("updateAdUser() - AD User Data", [
             'adUser' => $adUser

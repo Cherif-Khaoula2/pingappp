@@ -99,8 +99,8 @@ trait ValidatesAdUsers
 
         $psScript = 
             "\$user = Get-ADUser -Identity '$escapedSam' " .
-            "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName -ErrorAction Stop; " .
-            "\$user | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName | " .
+            "-Properties Name,SamAccountName,EmailAddress,Enabled,DistinguishedName,GivenName,Surname -ErrorAction Stop; " .
+            "\$user | Select-Object Name,SamAccountName,EmailAddress,Enabled,DistinguishedName,GivenName,Surname | " .
             "ConvertTo-Json -Depth 2";
 
         $psScriptBase64 = base64_encode(mb_convert_encoding($psScript, 'UTF-16LE', 'UTF-8'));
@@ -139,6 +139,8 @@ trait ValidatesAdUsers
 
             return [
                 'name' => $adUser['Name'] ?? '',
+                'firstName' => $adUser['GivenName'] ?? '',
+                'lastName' => $adUser['Surname'] ?? '',
                 'sam' => $adUser['SamAccountName'] ?? '',
                 'email' => $adUser['EmailAddress'] ?? '',
                 'enabled' => (bool)($adUser['Enabled'] ?? false),
