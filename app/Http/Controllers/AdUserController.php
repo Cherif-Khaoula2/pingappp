@@ -1056,35 +1056,6 @@ if (isset($updates['SamAccountName'])) {
 
     $exchangeIdentity = $alias;
 
-    // 🔹 Commande 1 : Alias + PrimarySmtpAddress
-    $psAliasPrimary = "
-powershell.exe -NoProfile -Command \"
-. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
-Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
-Write-Output 'OK'
-\"";
-
-    \Log::info("Exchange - Prepare Set Alias + PrimarySmtpAddress", [
-        'identity' => $exchangeIdentity,
-        'alias' => $alias,
-        'primaryEmail' => $primaryEmail,
-        'command' => $psAliasPrimary
-    ]);
-
-    $cmd1 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psAliasPrimary];
-    $proc1 = new Process($cmd1);
-    $proc1->setTimeout(30);
-    $proc1->run();
-
-    \Log::info("Exchange - Set Alias + PrimarySmtpAddress Output", [
-        'output' => $proc1->getOutput(),
-        'error' => $proc1->getErrorOutput()
-    ]);
-
-    if (!$proc1->isSuccessful()) {
-        throw new ProcessFailedException($proc1);
-    }
 
     // 🔹 Commande 2 : EmailAddresses
     $psEmailAddresses = "
@@ -1120,6 +1091,37 @@ Write-Output 'OK'
         'alias' => $alias,
         'primaryEmail' => $primaryEmail
     ]);
+
+    
+    // 🔹 Commande 1 : Alias + PrimarySmtpAddress
+    $psAliasPrimary = "
+powershell.exe -NoProfile -Command \"
+. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
+Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
+Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
+Write-Output 'OK'
+\"";
+
+    \Log::info("Exchange - Prepare Set Alias + PrimarySmtpAddress", [
+        'identity' => $exchangeIdentity,
+        'alias' => $alias,
+        'primaryEmail' => $primaryEmail,
+        'command' => $psAliasPrimary
+    ]);
+
+    $cmd1 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psAliasPrimary];
+    $proc1 = new Process($cmd1);
+    $proc1->setTimeout(30);
+    $proc1->run();
+
+    \Log::info("Exchange - Set Alias + PrimarySmtpAddress Output", [
+        'output' => $proc1->getOutput(),
+        'error' => $proc1->getErrorOutput()
+    ]);
+
+    if (!$proc1->isSuccessful()) {
+        throw new ProcessFailedException($proc1);
+    }
 }
 
 
