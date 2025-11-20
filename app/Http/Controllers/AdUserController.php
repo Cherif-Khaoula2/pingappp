@@ -1041,13 +1041,12 @@ if (isset($updates['SamAccountName'])) {
             throw new ProcessFailedException($process);
         }
 
-      if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
+               // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress)
+     if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
 
-    // Utiliser le SamAccountName déjà changé si fourni
-    $exchangeIdentity = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
-
-    $alias = $exchangeIdentity;
+    $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
     $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
+
     $escapedAlias = $this->escapePowerShellString($alias);
     $escapedEmail = $this->escapePowerShellString($primaryEmail);
 
@@ -1055,34 +1054,74 @@ if (isset($updates['SamAccountName'])) {
     $user = env('SSH_USER');
     $password = env('SSH_PASSWORD');
 
-    // 🔹 Commande unique pour mettre à jour Alias, PrimarySmtpAddress et EmailAddresses
-    $psCommand = "
+    $exchangeIdentity = $alias;
+
+    // 🔹 Commande 1 : Alias + PrimarySmtpAddress
+    $psAliasPrimary = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -EmailAddresses 'SMTP:$escapedEmail';
+Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
 Write-Output 'OK'
-\"
-";
+\"";
 
-    $cmd = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psCommand];
-    $process = new Process($cmd);
-    $process->setTimeout(30);
-    $process->run();
-
-    \Log::info("Update Exchange Mailbox", [
+    \Log::info("Exchange - Prepare Set Alias + PrimarySmtpAddress", [
         'identity' => $exchangeIdentity,
         'alias' => $alias,
         'primaryEmail' => $primaryEmail,
-        'command' => $psCommand,
-        'output' => $process->getOutput(),
-        'error' => $process->getErrorOutput()
+        'command' => $psAliasPrimary
     ]);
 
-    if (!$process->isSuccessful()) {
-        throw new ProcessFailedException($process);
+    $cmd1 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psAliasPrimary];
+    $proc1 = new Process($cmd1);
+    $proc1->setTimeout(30);
+    $proc1->run();
+
+    \Log::info("Exchange - Set Alias + PrimarySmtpAddress Output", [
+        'output' => $proc1->getOutput(),
+        'error' => $proc1->getErrorOutput()
+    ]);
+
+    if (!$proc1->isSuccessful()) {
+        throw new ProcessFailedException($proc1);
     }
+
+    // 🔹 Commande 2 : EmailAddresses
+    $psEmailAddresses = "
+powershell.exe -NoProfile -Command \"
+. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
+Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
+Set-Mailbox -Identity '$exchangeIdentity' -EmailAddresses 'SMTP:$escapedEmail';
+Write-Output 'OK'
+\"";
+
+    \Log::info("Exchange - Prepare Set EmailAddresses", [
+        'identity' => $exchangeIdentity,
+        'emailAddresses' => $escapedEmail,
+        'command' => $psEmailAddresses
+    ]);
+
+    $cmd2 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psEmailAddresses];
+    $proc2 = new Process($cmd2);
+    $proc2->setTimeout(30);
+    $proc2->run();
+
+    \Log::info("Exchange - Set EmailAddresses Output", [
+        'output' => $proc2->getOutput(),
+        'error' => $proc2->getErrorOutput()
+    ]);
+
+    if (!$proc2->isSuccessful()) {
+        throw new ProcessFailedException($proc2);
+    }
+
+    \Log::info("Exchange - Mailbox update completed successfully", [
+        'identity' => $exchangeIdentity,
+        'alias' => $alias,
+        'primaryEmail' => $primaryEmail
+    ]);
 }
+
 
         $this->logAdActivity(
             action: 'update_user',
