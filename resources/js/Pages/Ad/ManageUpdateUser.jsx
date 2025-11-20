@@ -30,6 +30,8 @@ export default function ResetUserPassword() {
     visible: false, 
     sam: null, 
     name: "", 
+    lastName:"",
+    firstName:"",
     samAccountName: "", 
     emailAddress: "" 
   });
@@ -45,6 +47,120 @@ export default function ResetUserPassword() {
 
   const nameTemplate = (rowData) => <span>{rowData.name}</span>;
   const emailTemplate = (rowData) => <span>{rowData.email || "N/A"}</span>;
+const [samManuallyEdited, setSamManuallyEdited] = useState(false);
+const [emailManuallyEdited, setEmailManuallyEdited] = useState(false);
+
+// Fonction utilitaire pour générer un SamAccountName sûr
+const generateSam = (firstName, lastName) => {
+  const clean = (str) =>
+    str
+      .normalize("NFD") // enlever accents
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "")
+      .toLowerCase();
+
+  return `${clean(lastName)}.${clean(firstName)}`;
+};
+const validateFrontend = () => {
+  const errors = [];
+
+  // SAM obligatoire, max 25 caractères et format
+  if (!editDialog.sam || editDialog.sam.trim() === "") {
+    errors.push("Le SamAccountName est requis.");
+  } else if (editDialog.sam.length > 25) {
+    errors.push("Le SamAccountName ne doit pas dépasser 25 caractères.");
+  } else if (!/^[a-zA-Z0-9._-]+$/.test(editDialog.sam)) {
+    errors.push("Le SamAccountName doit être alphanumérique (._- autorisés).");
+  }
+
+  // Prénom obligatoire, max 100
+  if (!editDialog.firstName || editDialog.firstName.trim() === "") {
+    errors.push("Le prénom est requis.");
+  } else if (editDialog.firstName.length > 100) {
+    errors.push("Le prénom ne doit pas dépasser 100 caractères.");
+  }
+
+  // Nom obligatoire, max 100
+  if (!editDialog.lastName || editDialog.lastName.trim() === "") {
+    errors.push("Le nom est requis.");
+  } else if (editDialog.lastName.length > 100) {
+    errors.push("Le nom ne doit pas dépasser 100 caractères.");
+  }
+
+  // Nom complet nullable, max 100
+  if (editDialog.name && editDialog.name.length > 100) {
+    errors.push("Le nom complet ne doit pas dépasser 100 caractères.");
+  }
+
+  // SamAccountName nullable, max 25, format déjà vérifié
+  if (editDialog.samAccountName && editDialog.samAccountName.length > 25) {
+    errors.push("Le SamAccountName ne doit pas dépasser 25 caractères.");
+  }
+
+  // Email nullable mais doit être valide
+  if (editDialog.emailAddress && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editDialog.emailAddress)) {
+    errors.push("Le format de l'email est invalide.");
+  }
+
+  return errors;
+};
+
+// Gestion des changements de prénom/nom
+const handleNameChange = (field, value) => {
+  setEditDialog((prev) => {
+    const updated = { ...prev, [field]: value };
+
+    // Mise à jour du nom complet
+    updated.name = `${updated.firstName} ${updated.lastName}`.trim();
+
+    // Génération automatique du SamAccountName si pas modifié manuellement
+    if (!samManuallyEdited) {
+      const generatedSam = generateSam(updated.firstName, updated.lastName);
+
+      if (generatedSam.length <= 25) { // ⚡ seulement si <=25
+        updated.samAccountName = generatedSam;
+
+        // Génération automatique de l'email si pas modifié manuellement
+        if (!emailManuallyEdited) {
+          updated.emailAddress = `${generatedSam}@sarpi-dz.com`;
+        }
+      } else {
+        updated.samAccountName = ""; // vide ou tu peux mettre un message d'erreur
+        if (!emailManuallyEdited) {
+          updated.emailAddress = "";
+        }
+        toast.current.show({
+          severity: 'warn',
+          summary: 'SamAccountName trop long',
+          detail: 'Le SamAccountName généré dépasse 25 caractères. Veuillez modifier le prénom ou le nom.',
+          life: 4000
+        });
+      }
+    }
+
+    return updated;
+  });
+};
+
+// Gestion de la saisie manuelle du SamAccountName
+const handleSamChange = (value) => {
+  const truncated = value.slice(0, 25); // ⚡ sécurité côté JS
+  setSamManuallyEdited(true);
+  setEditDialog((prev) => ({ ...prev, samAccountName: truncated }));
+
+  if (!emailManuallyEdited) {
+    setEditDialog((prev) => ({
+      ...prev,
+      emailAddress: `${truncated}@sarpi-dz.com`
+    }));
+  }
+};
+
+// Gestion de la saisie manuelle de l'email
+const handleEmailChange = (value) => {
+  setEmailManuallyEdited(true);
+  setEditDialog((prev) => ({ ...prev, emailAddress: value }));
+};
 
   const onPageChange = (event) => {
     setFirst(event.first);
@@ -72,15 +188,18 @@ export default function ResetUserPassword() {
       const response = await axios.post("/ad/users/find", { search });
 
       if (Array.isArray(response.data.users) && response.data.users.length > 0) {
-        const mappedUsers = response.data.users.map((user) => ({
-          name: user.name || user.sam,
-          sam: user.sam,
-          samAccountName: user.sam,
-          email: user.email,
-          enabled: user.enabled,
-          dn: user.dn,
-          lastLogon: user.last_logon,
-        }));
+       const mappedUsers = response.data.users.map((user) => ({
+    name: user.name || user.sam,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    sam: user.sam,
+    samAccountName: user.sam,
+    email: user.email || "",
+    enabled: user.enabled,
+    dn: user.dn,
+    lastLogon: user.last_logon,
+}));
+
         setUsers(mappedUsers);
         setError(null);
       
@@ -107,144 +226,124 @@ export default function ResetUserPassword() {
       setLoading(false);
     }
   };
+// Ouverture du dialogue de modification
+const handleEditClick = (user) => {
+  const userData = {
+    sam: user.sam,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    name: user.name || "",
+    samAccountName: user.samAccountName || "",
+    emailAddress: user.email || "",
+  };
 
-  // Ouverture du dialogue de modification
-  const handleEditClick = (user) => {
-    const userData = {
-      sam: user.sam,
-      name: user.name || "",
-      samAccountName: user.samAccountName || "",
-      emailAddress: user.email || "",
-    };
 
-    setOriginalData(userData);
-    setEditDialog({
-      visible: true,
-      ...userData
+
+  setOriginalData(userData);
+  setEditDialog({
+    visible: true,
+    ...userData
+  });
+  setEditError(null);
+};
+
+// Validation et préparation de la confirmation
+const handleValidateChanges = () => {
+  const errors = validateFrontend();
+  if (errors.length > 0) {
+    setEditError(errors.join(" "));
+
+    toast.current.show({
+      severity: 'warn',
+      summary: 'Erreur de validation',
+      detail: errors.join(" "),
+      life: 4000
     });
-    setEditError(null);
-  };
+    return;
+  }
 
-  // Validation et préparation de la confirmation
-  const handleValidateChanges = () => {
-    // Vérifier les champs obligatoires
-    if (!editDialog.name.trim() || !editDialog.samAccountName.trim() || !editDialog.emailAddress.trim()) {
-      setEditError("Tous les champs sont obligatoires.");
-      toast.current.show({
-        severity: 'warn',
-        summary: 'Champs manquants',
-        detail: 'Tous les champs sont obligatoires',
-        life: 3000
-      });
-      return;
-    }
+  // Détecter les modifications
+  const changes = [];
+  if (originalData.firstName !== editDialog.firstName) {
+    changes.push({ field: "Prénom", oldValue: originalData.firstName, newValue: editDialog.firstName });
+  }
+  if (originalData.lastName !== editDialog.lastName) {
+    changes.push({ field: "Nom", oldValue: originalData.lastName, newValue: editDialog.lastName });
+  }
+  if (originalData.name !== editDialog.name) {
+    changes.push({ field: "Nom complet", oldValue: originalData.name, newValue: editDialog.name });
+  }
+  if (originalData.samAccountName !== editDialog.samAccountName) {
+    changes.push({ field: "SamAccountName", oldValue: originalData.samAccountName, newValue: editDialog.samAccountName });
+  }
+  if (originalData.emailAddress !== editDialog.emailAddress) {
+    changes.push({ field: "Email", oldValue: originalData.emailAddress, newValue: editDialog.emailAddress });
+  }
 
-    // Validation format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(editDialog.emailAddress)) {
-      setEditError("Format d'email invalide.");
-      toast.current.show({
-        severity: 'warn',
-        summary: 'Email invalide',
-        detail: 'Le format de l\'email est invalide',
-        life: 3000
-      });
-      return;
-    }
+ 
 
-    // Détecter les modifications
-    const changes = [];
-    if (originalData.name !== editDialog.name) {
-      changes.push({
-        field: "Nom complet",
-        oldValue: originalData.name,
-        newValue: editDialog.name
-      });
-    }
-    if (originalData.samAccountName !== editDialog.samAccountName) {
-      changes.push({
-        field: "SamAccountName",
-        oldValue: originalData.samAccountName,
-        newValue: editDialog.samAccountName
-      });
-    }
-    if (originalData.emailAddress !== editDialog.emailAddress) {
-      changes.push({
-        field: "Email",
-        oldValue: originalData.emailAddress,
-        newValue: editDialog.emailAddress
-      });
-    }
-
-    if (changes.length === 0) {
-      toast.current.show({
-        severity: 'info',
-        summary: 'Aucune modification',
-        detail: 'Aucun changement n\'a été détecté',
-        life: 3000
-      });
-      return;
-    }
-
-    // Afficher le dialogue de confirmation
-    setConfirmDialog({
-      visible: true,
-      changes: changes
+  if (changes.length === 0) {
+    toast.current.show({
+      severity: 'info',
+      summary: 'Aucune modification',
+      detail: 'Aucun changement n\'a été détecté',
+      life: 3000
     });
-    setEditError(null);
+    return;
+  }
+
+  setConfirmDialog({ visible: true, changes });
+  setEditError(null);
+};
+
+// Confirmation finale de la modification
+const confirmUpdateUser = () => {
+  setIsUpdating(true);
+  setConfirmDialog({ visible: false, changes: [] });
+
+  const payload = {
+    sam: editDialog.sam,
+    firstName: editDialog.firstName,
+    lastName: editDialog.lastName,
+    name: editDialog.name,
+    samAccountName: editDialog.samAccountName,
+    emailAddress: editDialog.emailAddress,
   };
 
-  // Confirmation finale de la modification
-  const confirmUpdateUser = () => {
-    setIsUpdating(true);
-    setConfirmDialog({ visible: false, changes: [] });
 
-    router.post(
-      "/ad/users/update-user",
-      {
-        sam: editDialog.sam,
-        name: editDialog.name,
-        samAccountName: editDialog.samAccountName,
-        emailAddress: editDialog.emailAddress,
-      },
-      {
-        onSuccess: () => {
-          setUsers((prev) =>
-            prev.map((u) =>
-              u.sam === editDialog.sam
-                ? { ...u, name: editDialog.name, samAccountName: editDialog.samAccountName, email: editDialog.emailAddress }
-                : u
-            )
-          );
-          setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
-          setOriginalData(null);
-          setIsUpdating(false);
-          
-          // Toast de succès
-          toast.current.show({
-            severity: 'success',
-            summary: 'Modification réussie',
-            detail: 'Les informations de l\'utilisateur ont été mises à jour avec succès',
-            life: 4000
-          });
-        },
-        onError: (errors) => {
-          console.error("Erreur backend :", errors);
-          setEditError(errors?.message || "Erreur lors de la modification.");
-          setIsUpdating(false);
-          setEditDialog({ ...editDialog, visible: true });
-          
-          // Toast d'erreur
-          toast.current.show({
-            severity: 'error',
-            summary: 'Erreur de modification',
-            detail: errors?.message || 'Une erreur est survenue lors de la modification',
-            life: 5000
-          });
-        },
-      }
-    );
-  };
+  router.post("/ad/users/update-user", payload, {
+    onSuccess: () => {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.sam === editDialog.sam
+            ? { ...u, ...payload, email: editDialog.emailAddress }
+            : u
+        )
+      );
+      setEditDialog({ visible: false, sam: null, firstName: "", lastName: "", name: "", samAccountName: "", emailAddress: "" });
+      setOriginalData(null);
+      setIsUpdating(false);
+      toast.current.show({
+        severity: 'success',
+        summary: 'Modification réussie',
+        detail: 'Les informations de l\'utilisateur ont été mises à jour avec succès',
+        life: 4000
+      });
+    },
+    onError: (errors) => {
+      console.error("Erreur backend :", errors); // ✅ log ici
+      setEditError(errors?.message || "Erreur lors de la modification.");
+      setIsUpdating(false);
+      setEditDialog({ ...editDialog, visible: true });
+      toast.current.show({
+        severity: 'error',
+        summary: 'Erreur de modification',
+        detail: errors?.message || 'Une erreur est survenue lors de la modification',
+        life: 5000
+      });
+    },
+  });
+};
 
   const actionTemplate = (rowData) => (
     <Button
@@ -345,7 +444,7 @@ export default function ResetUserPassword() {
       <Dialog
         visible={editDialog.visible}
         onHide={() => {
-          setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
+          setEditDialog({ visible: false, sam: null,  firstName :"" ,lastName:"", name: "", samAccountName: "", emailAddress: "" });
           setEditError(null);
           setOriginalData(null);
         }}
@@ -367,18 +466,42 @@ export default function ResetUserPassword() {
           </div>
 
           {/* Formulaire */}
+          
           <div className="flex flex-column gap-4 mt-4">
+             <div className="flex flex-column gap-2">
+              <label className="text-900 font-semibold">
+                <i className="pi pi-user mr-2 text-primary"></i>
+                Prénom
+              </label>
+              <InputText
+  value={editDialog.firstName}
+  onChange={(e) => handleNameChange("firstName", e.target.value)}
+  className="p-3"
+/>
+            </div>
+             <div className="flex flex-column gap-2">
+              <label className="text-900 font-semibold">
+                <i className="pi pi-user mr-2 text-primary"></i>
+                Nom
+              </label>
+             <InputText
+  value={editDialog.lastName}
+  onChange={(e) => handleNameChange("lastName", e.target.value)}
+  className="p-3"
+/>
+            </div>
             <div className="flex flex-column gap-2">
               <label className="text-900 font-semibold">
                 <i className="pi pi-user mr-2 text-primary"></i>
                 Nom complet
               </label>
               <InputText
-                value={editDialog.name}
-                placeholder="Ex: Jean Dupont"
-                onChange={(e) => setEditDialog({ ...editDialog, name: e.target.value })}
-                className="p-3"
-              />
+  value={editDialog.name}
+  onChange={(e) => setEditDialog({ ...editDialog, name: e.target.value })}
+  className="p-3"
+   disabled
+/>
+
             </div>
 
             <div className="flex flex-column gap-2">
@@ -386,27 +509,29 @@ export default function ResetUserPassword() {
                 <i className="pi pi-id-card mr-2 text-primary"></i>
                 SamAccountName
               </label>
-              <InputText
-                value={editDialog.samAccountName}
-                placeholder="Ex: jdupont"
-                onChange={(e) => setEditDialog({ ...editDialog, samAccountName: e.target.value })}
-                className="p-3"
-              />
+             <InputText
+  value={editDialog.samAccountName}
+  onChange={(e) => handleSamChange(e.target.value)}
+  className="p-3"
+  maxLength={25}  // ⚡ limite l’input à 25 caractères
+/>
+
             </div>
 
-            <div className="flex flex-column gap-2">
-              <label className="text-900 font-semibold">
-                <i className="pi pi-envelope mr-2 text-primary"></i>
-                Adresse email
-              </label>
-              <InputText
-                value={editDialog.emailAddress}
-                placeholder="Ex: jean.dupont@entreprise.com"
-                onChange={(e) => setEditDialog({ ...editDialog, emailAddress: e.target.value })}
-                className="p-3"
-                type="email"
-              />
-            </div>
+             <div className="flex flex-column gap-2">
+                         <label className="text-900 font-semibold">
+                           <i className="pi pi-envelope mr-2 text-primary"></i>
+                           Adresse email
+                         </label>
+                         <InputText
+  value={editDialog.emailAddress}
+  onChange={(e) => handleEmailChange(e.target.value)}
+  className="p-3"
+  type="email"
+   disabled
+/>
+                       </div>
+
 
             {editError && (
               <Message 
@@ -425,7 +550,7 @@ export default function ResetUserPassword() {
               severity="secondary"
               className="flex-1 p-3"
               onClick={() => {
-                setEditDialog({ visible: false, sam: null, name: "", samAccountName: "", emailAddress: "" });
+               setEditDialog({ visible: false, sam: null,  firstName :"" ,lastName:"", name: "", samAccountName: "", emailAddress: "" });
                 setEditError(null);
                 setOriginalData(null);
               }}
