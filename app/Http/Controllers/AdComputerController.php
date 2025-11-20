@@ -176,7 +176,7 @@ class AdComputerController extends Controller
         if (!$host || !$user) {
             $this->logAdActivity(
                 action: 'get_all_laps_computers',
-                targetUser: 'all_computers',
+                targetUser: 'ordinateur',
                 targetUserName: null,
                 success: false,
                 errorMessage: 'Configuration SSH manquante'
@@ -248,7 +248,7 @@ PS;
 
                 $this->logAdActivity(
                     action: 'get_all_laps_computers',
-                    targetUser: 'all_computers',
+                    targetUser: 'ordinateur',
                     targetUserName: null,
                     success: false,
                     errorMessage: 'Erreur PowerShell SSH : ' . $process->getErrorOutput(),
@@ -265,7 +265,7 @@ PS;
             if (empty($output)) {
                 $this->logAdActivity(
                     action: 'get_all_laps_computers',
-                    targetUser: 'all_computers',
+                    targetUser: 'ordinateur',
                     targetUserName: null,
                     success: false,
                     errorMessage: 'Aucune sortie depuis le serveur distant'
@@ -283,7 +283,7 @@ PS;
             if (is_array($decoded) && array_key_exists('error', $decoded) && count($decoded) === 1) {
                 $this->logAdActivity(
                     action: 'get_all_laps_computers',
-                    targetUser: 'all_computers',
+                    targetUser: 'ordinateur',
                     targetUserName: null,
                     success: false,
                     errorMessage: 'Erreur PowerShell: ' . $decoded['error']
@@ -315,8 +315,8 @@ PS;
             // ✅ Log de succès
             $this->logAdActivity(
                 action: 'get_all_laps_computers',
-                targetUser: 'all_computers',
-                targetUserName: 'Liste complète des ordinateurs',
+                targetUser: 'ordinateur',
+                targetUserName: 'Liste des ordinateurs AD',
                 success: true,
                 additionalDetails: [
                     'computers_count' => count($computersFormatted),
@@ -340,7 +340,7 @@ PS;
 
             $this->logAdActivity(
                 action: 'get_all_laps_computers',
-                targetUser: 'all_computers',
+                targetUser: 'ordinateur',
                 targetUserName: null,
                 success: false,
                 errorMessage: 'Erreur serveur : ' . $e->getMessage(),
