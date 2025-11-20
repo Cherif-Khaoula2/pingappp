@@ -1134,10 +1134,7 @@ $newData = [
             'sam' => $request->sam
         ]);
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur lors de la mise à jour : ' . $e->getMessage()
-        ], 500);
+       
     }
 }
 

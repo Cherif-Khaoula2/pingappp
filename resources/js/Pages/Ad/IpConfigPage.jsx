@@ -188,17 +188,18 @@ const handleEmailChange = (value) => {
       const response = await axios.post("/ad/users/find", { search });
 
       if (Array.isArray(response.data.users) && response.data.users.length > 0) {
-        const mappedUsers = response.data.users.map((user) => ({
-          name: user.name || user.sam,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          sam: user.sam,
-          samAccountName: user.sam,
-          email: user.email,
-          enabled: user.enabled,
-          dn: user.dn,
-          lastLogon: user.last_logon,
-        }));
+       const mappedUsers = response.data.users.map((user) => ({
+    name: user.name || user.sam,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    sam: user.sam,
+    samAccountName: user.sam,
+    email: user.email || "",
+    enabled: user.enabled,
+    dn: user.dn,
+    lastLogon: user.last_logon,
+}));
+
         setUsers(mappedUsers);
         setError(null);
       
