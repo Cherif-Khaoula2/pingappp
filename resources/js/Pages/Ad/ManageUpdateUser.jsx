@@ -59,7 +59,7 @@ const generateSam = (firstName, lastName) => {
       .replace(/\s+/g, "")
       .toLowerCase();
 
-  return `${clean(lastName)}.${clean(firstName)}`;
+  return `${clean(firstName)}.${clean(lastName)}`;
 };
 const validateFrontend = () => {
   const errors = [];
