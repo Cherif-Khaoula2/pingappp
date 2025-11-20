@@ -934,6 +934,10 @@ public function updateAdUser(Request $request)
 {
     try {
         // Validation
+         \Log::info("updateAdUser() - REQUEST DATA", [
+            'all' => $request->all()
+        ]);
+
         $request->validate([
             'sam' => 'required|string|max:25|regex:/^[a-zA-Z0-9._-]+$/',
              'firstName' => 'required|string|max:100',
@@ -945,7 +949,9 @@ public function updateAdUser(Request $request)
 
         $sam = $request->sam;
         $validation = $this->validateAdUserAccess($sam);
-
+  \Log::info("updateAdUser() - AD User Validation", [
+            'validation' => $validation
+        ]);
         if (!$validation['authorized']) {
             return response()->json([
                 'success' => false,
@@ -955,7 +961,9 @@ public function updateAdUser(Request $request)
 
         $adUser = $validation['user'];
         $updates = [];
-        
+         \Log::info("updateAdUser() - AD User Data", [
+            'adUser' => $adUser
+        ]);
         // 🔹 CORRECTION: Utilisez 'sam' au lieu de 'samAccountName'
       $oldData = [
     'sam'        => $adUser['sam'],
@@ -1008,7 +1016,9 @@ if (isset($updates['SamAccountName'])) {
     $escapedSamAccount = $this->escapePowerShellString($updates['SamAccountName']);
     $ps[] = "Set-ADUser -Identity '$escapedDn' -SamAccountName '$escapedSamAccount'";
 }
-      
+      \Log::info("updateAdUser() - PS Commands prepared", [
+            'psCommands' => $ps
+        ]);
 
         $psCommand = "powershell -NoProfile -NonInteractive -Command \"" . implode("; ", $ps) . "; Write-Output 'OK'\"";
 

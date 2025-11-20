@@ -226,31 +226,33 @@ const handleEmailChange = (value) => {
       setLoading(false);
     }
   };
-
-  // Ouverture du dialogue de modification
-  const handleEditClick = (user) => {
-    const userData = {
-      sam: user.sam,
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      name: user.name || "",
-      samAccountName: user.samAccountName || "",
-      emailAddress: user.email || "",
-    };
-
-    setOriginalData(userData);
-    setEditDialog({
-      visible: true,
-      ...userData
-    });
-    setEditError(null);
+// Ouverture du dialogue de modification
+const handleEditClick = (user) => {
+  const userData = {
+    sam: user.sam,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    name: user.name || "",
+    samAccountName: user.samAccountName || "",
+    emailAddress: user.email || "",
   };
 
-  // Validation et préparation de la confirmation
-  const handleValidateChanges = () => {
-    const errors = validateFrontend();
+  console.log("Ouverture du dialogue avec l'utilisateur :", userData); // ✅ log ici
+
+  setOriginalData(userData);
+  setEditDialog({
+    visible: true,
+    ...userData
+  });
+  setEditError(null);
+};
+
+// Validation et préparation de la confirmation
+const handleValidateChanges = () => {
+  const errors = validateFrontend();
   if (errors.length > 0) {
     setEditError(errors.join(" "));
+    console.log("Erreurs de validation frontend :", errors); // ✅ log ici
     toast.current.show({
       severity: 'warn',
       summary: 'Erreur de validation',
@@ -259,140 +261,91 @@ const handleEmailChange = (value) => {
     });
     return;
   }
-    // Vérifier les champs obligatoires
-    if (!editDialog.firstName.trim() ||!editDialog.lastName.trim() || !editDialog.name.trim() || !editDialog.samAccountName.trim() || !editDialog.emailAddress.trim()) {
-      setEditError("Tous les champs sont obligatoires.");
-      toast.current.show({
-        severity: 'warn',
-        summary: 'Champs manquants',
-        detail: 'Tous les champs sont obligatoires',
-        life: 3000
-      });
-      return;
-    }
 
-    // Validation format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(editDialog.emailAddress)) {
-      setEditError("Format d'email invalide.");
-      toast.current.show({
-        severity: 'warn',
-        summary: 'Email invalide',
-        detail: 'Le format de l\'email est invalide',
-        life: 3000
-      });
-      return;
-    }
+  // Détecter les modifications
+  const changes = [];
+  if (originalData.firstName !== editDialog.firstName) {
+    changes.push({ field: "Prénom", oldValue: originalData.firstName, newValue: editDialog.firstName });
+  }
+  if (originalData.lastName !== editDialog.lastName) {
+    changes.push({ field: "Nom", oldValue: originalData.lastName, newValue: editDialog.lastName });
+  }
+  if (originalData.name !== editDialog.name) {
+    changes.push({ field: "Nom complet", oldValue: originalData.name, newValue: editDialog.name });
+  }
+  if (originalData.samAccountName !== editDialog.samAccountName) {
+    changes.push({ field: "SamAccountName", oldValue: originalData.samAccountName, newValue: editDialog.samAccountName });
+  }
+  if (originalData.emailAddress !== editDialog.emailAddress) {
+    changes.push({ field: "Email", oldValue: originalData.emailAddress, newValue: editDialog.emailAddress });
+  }
 
-    // Détecter les modifications
-    const changes = [];
-    if (originalData.firstName !== editDialog.firstName) {
-      changes.push({
-        field: "Prénom",
-        oldValue: originalData.firstName,
-        newValue: editDialog.firstName
-      });
-    }
-     if (originalData.lastName !== editDialog.lastName) {
-      changes.push({
-        field: "Nom",
-        oldValue: originalData.lastName,
-        newValue: editDialog.lastName
-      });
-    }
-     if (originalData.name !== editDialog.name) {
-      changes.push({
-        field: "Nom complet",
-        oldValue: originalData.name,
-        newValue: editDialog.name
-      });
-    }
-    if (originalData.samAccountName !== editDialog.samAccountName) {
-      changes.push({
-        field: "SamAccountName",
-        oldValue: originalData.samAccountName,
-        newValue: editDialog.samAccountName
-      });
-    }
-    if (originalData.emailAddress !== editDialog.emailAddress) {
-      changes.push({
-        field: "Email",
-        oldValue: originalData.emailAddress,
-        newValue: editDialog.emailAddress
-      });
-    }
+  console.log("Modifications détectées :", changes); // ✅ log ici
 
-    if (changes.length === 0) {
-      toast.current.show({
-        severity: 'info',
-        summary: 'Aucune modification',
-        detail: 'Aucun changement n\'a été détecté',
-        life: 3000
-      });
-      return;
-    }
-
-    // Afficher le dialogue de confirmation
-    setConfirmDialog({
-      visible: true,
-      changes: changes
+  if (changes.length === 0) {
+    toast.current.show({
+      severity: 'info',
+      summary: 'Aucune modification',
+      detail: 'Aucun changement n\'a été détecté',
+      life: 3000
     });
-    setEditError(null);
+    return;
+  }
+
+  setConfirmDialog({ visible: true, changes });
+  setEditError(null);
+};
+
+// Confirmation finale de la modification
+const confirmUpdateUser = () => {
+  setIsUpdating(true);
+  setConfirmDialog({ visible: false, changes: [] });
+
+  const payload = {
+    sam: editDialog.sam,
+    firstName: editDialog.firstName,
+    lastName: editDialog.lastName,
+    name: editDialog.name,
+    samAccountName: editDialog.samAccountName,
+    emailAddress: editDialog.emailAddress,
   };
 
-  // Confirmation finale de la modification
-  const confirmUpdateUser = () => {
-    setIsUpdating(true);
-    setConfirmDialog({ visible: false, changes: [] });
+  console.log("Envoi au backend :", payload); // ✅ log ici
 
-    router.post(
-      "/ad/users/update-user",
-      {
-        sam: editDialog.sam,
-        firstName: editDialog.firstName,
-        lastName: editDialog.lastName,
-        name: editDialog.name,
-        samAccountName: editDialog.samAccountName,
-        emailAddress: editDialog.emailAddress,
-      },
-      {
-        onSuccess: () => {
-          setUsers((prev) =>
-            prev.map((u) =>
-              u.sam === editDialog.sam
-                ? { ...u,firstName: editDialog.firstName ,lastName: editDialog.lastName,  name: editDialog.name, samAccountName: editDialog.samAccountName, email: editDialog.emailAddress }
-                : u
-            )
-          );
-          setEditDialog({ visible: false, sam: null,firstName :"" ,lastName:"", name: "",  samAccountName: "", emailAddress: "" });
-          setOriginalData(null);
-          setIsUpdating(false);
-          
-          // Toast de succès
-          toast.current.show({
-            severity: 'success',
-            summary: 'Modification réussie',
-            detail: 'Les informations de l\'utilisateur ont été mises à jour avec succès',
-            life: 4000
-          });
-        },
-        onError: (errors) => {
-          console.error("Erreur backend :", errors);
-          setEditError(errors?.message || "Erreur lors de la modification.");
-          setIsUpdating(false);
-          setEditDialog({ ...editDialog, visible: true });
-          
-          // Toast d'erreur
-          toast.current.show({
-            severity: 'error',
-            summary: 'Erreur de modification',
-            detail: errors?.message || 'Une erreur est survenue lors de la modification',
-            life: 5000
-          });
-        },
-      }
-    );
-  };
+  router.post("/ad/users/update-user", payload, {
+    onSuccess: () => {
+      console.log("Modification réussie pour :", payload); // ✅ log ici
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.sam === editDialog.sam
+            ? { ...u, ...payload, email: editDialog.emailAddress }
+            : u
+        )
+      );
+      setEditDialog({ visible: false, sam: null, firstName: "", lastName: "", name: "", samAccountName: "", emailAddress: "" });
+      setOriginalData(null);
+      setIsUpdating(false);
+      toast.current.show({
+        severity: 'success',
+        summary: 'Modification réussie',
+        detail: 'Les informations de l\'utilisateur ont été mises à jour avec succès',
+        life: 4000
+      });
+    },
+    onError: (errors) => {
+      console.error("Erreur backend :", errors); // ✅ log ici
+      setEditError(errors?.message || "Erreur lors de la modification.");
+      setIsUpdating(false);
+      setEditDialog({ ...editDialog, visible: true });
+      toast.current.show({
+        severity: 'error',
+        summary: 'Erreur de modification',
+        detail: errors?.message || 'Une erreur est survenue lors de la modification',
+        life: 5000
+      });
+    },
+  });
+};
 
   const actionTemplate = (rowData) => (
     <Button
