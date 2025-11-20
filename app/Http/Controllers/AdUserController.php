@@ -21,10 +21,6 @@ class AdUserController extends Controller
     use LogsAdActivity, ValidatesAdUsers;
 
   
-public function index()
-{
-    return inertia('Ad/IpConfigPage'); // ton composant React (ex: resources/js/Pages/Ad/ManageLock.jsx)
-}
 
     public function ipConfig(Request $request)
     {
