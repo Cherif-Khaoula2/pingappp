@@ -1055,11 +1055,14 @@ if (isset($updates['SamAccountName'])) {
     // -------------------------
     // 1️⃣ Commande : set Alias + PrimarySmtpAddress
     // -------------------------
-    $psAliasPrimary = "
+  
+$exchangeIdentity = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
+
+$psAliasPrimary = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
+Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
 Write-Output 'OK'
 \"
 ";
@@ -1071,7 +1074,7 @@ Write-Output 'OK'
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$escapedDn' -EmailAddresses 'SMTP:$escapedEmail';
+Set-Mailbox -Identity '$exchangeIdentity' -EmailAddresses 'SMTP:$escapedEmail';
 Write-Output 'OK'
 \"
 ";
