@@ -233,9 +233,9 @@ export default function ActivityLogs({ logs, stats, filters }) {
         get_all_laps_computers: { 
             icon: 'pi-desktop', 
             severity: 'info', 
-            label: 'Liste ordinateurs AD', 
+            label: 'Voir Liste ordinateurs AD', 
             color: '#3b82f6'
-},
+         },
 
 
         };

@@ -292,6 +292,8 @@ const actionChartData = {
             'authorize_ldap_user': 'success',
             'unauthorize_ldap_user': 'danger',
             'update_user': 'primary',
+            'get_laps_password': 'warning' ,
+            'get_all_laps_computers': 'info' 
 
         };
         
@@ -314,11 +316,13 @@ const actionChartData = {
             'unhide_account': 'Démasquage',
             'authorize_ldap_user': 'Autorisation',
             'unauthorize_ldap_user': 'Désautorisation',
-            'update_user': 'Modification utilisateur' 
+            'update_user': 'Modification utilisateur', 
+            'get_laps_password': 'Récupération LAPS' ,
+            'get_all_laps_computers': 'Voir Liste ordinateurs AD' 
 
 
         };
-        
+   
         return <Tag value={labelMap[row.action] || row.action} severity={severityMap[row.action] || 'secondary'} rounded />;
     };
 
