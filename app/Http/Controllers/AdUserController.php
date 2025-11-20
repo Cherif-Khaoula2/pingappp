@@ -1041,76 +1041,46 @@ if (isset($updates['SamAccountName'])) {
             throw new ProcessFailedException($process);
         }
 
-               // 🔹 Mise à jour Exchange (Alias + PrimarySmtpAddress)
       if ($request->filled('samAccountName') || $request->filled('emailAddress')) {
 
-    $alias = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
-    $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
+    // Utiliser le SamAccountName déjà changé si fourni
+    $exchangeIdentity = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
 
+    $alias = $exchangeIdentity;
+    $primaryEmail = $request->filled('emailAddress') ? $request->emailAddress : $adUser['email'];
     $escapedAlias = $this->escapePowerShellString($alias);
     $escapedEmail = $this->escapePowerShellString($primaryEmail);
 
     $exHost = env('SSH_HOST_EX');
+    $user = env('SSH_USER');
+    $password = env('SSH_PASSWORD');
 
-    // -------------------------
-    // 1️⃣ Commande : set Alias + PrimarySmtpAddress
-    // -------------------------
-  
-$exchangeIdentity = $request->filled('samAccountName') ? $request->samAccountName : $adUser['sam'];
-
-$psAliasPrimary = "
+    // 🔹 Commande unique pour mettre à jour Alias, PrimarySmtpAddress et EmailAddresses
+    $psCommand = "
 powershell.exe -NoProfile -Command \"
 . 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
 Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail';
+Set-Mailbox -Identity '$exchangeIdentity' -Alias '$escapedAlias' -PrimarySmtpAddress '$escapedEmail' -EmailAddresses 'SMTP:$escapedEmail';
 Write-Output 'OK'
 \"
 ";
 
-    // -------------------------
-    // 2️⃣ Commande : set EmailAddresses
-    // -------------------------
-    $psEmailAddresses = "
-powershell.exe -NoProfile -Command \"
-. 'C:\\Program Files\\Microsoft\\Exchange Server\\V15\\bin\\RemoteExchange.ps1';
-Connect-ExchangeServer -auto -ClientApplication:ManagementShell;
-Set-Mailbox -Identity '$exchangeIdentity' -EmailAddresses 'SMTP:$escapedEmail';
-Write-Output 'OK'
-\"
-";
+    $cmd = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psCommand];
+    $process = new Process($cmd);
+    $process->setTimeout(30);
+    $process->run();
 
-    // 🎯 Exécution commande 1
-    $cmd1 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psAliasPrimary];
-    $proc1 = new Process($cmd1);
-    $proc1->setTimeout(30);
-    $proc1->run();
-
-    // --- Log sortie commande 1 ---
-    \Log::info("Set Alias + PrimarySmtpAddress", [
-        'command' => $psAliasPrimary,
-        'output' => $proc1->getOutput(),
-        'error' => $proc1->getErrorOutput()
+    \Log::info("Update Exchange Mailbox", [
+        'identity' => $exchangeIdentity,
+        'alias' => $alias,
+        'primaryEmail' => $primaryEmail,
+        'command' => $psCommand,
+        'output' => $process->getOutput(),
+        'error' => $process->getErrorOutput()
     ]);
 
-    if (!$proc1->isSuccessful()) {
-        throw new ProcessFailedException($proc1);
-    }
-
-    // 🎯 Exécution commande 2
-    $cmd2 = ['sshpass', '-p', $password, 'ssh', '-o', 'StrictHostKeyChecking=no', "{$user}@{$exHost}", $psEmailAddresses];
-    $proc2 = new Process($cmd2);
-    $proc2->setTimeout(30);
-    $proc2->run();
-
-    // --- Log sortie commande 2 ---
-    \Log::info("Set EmailAddresses", [
-        'command' => $psEmailAddresses,
-        'output' => $proc2->getOutput(),
-        'error' => $proc2->getErrorOutput()
-    ]);
-
-    if (!$proc2->isSuccessful()) {
-        throw new ProcessFailedException($proc2);
+    if (!$process->isSuccessful()) {
+        throw new ProcessFailedException($process);
     }
 }
 
