@@ -128,14 +128,14 @@ const handleNameChange = (field, value) => {
 
 // Gestion de la saisie manuelle du SamAccountName
 const handleSamChange = (value) => {
+  const truncated = value.slice(0, 25); // ⚡ sécurité côté JS
   setSamManuallyEdited(true);
-  setEditDialog((prev) => ({ ...prev, samAccountName: value }));
+  setEditDialog((prev) => ({ ...prev, samAccountName: truncated }));
 
-  // Si l'utilisateur change le Sam, on peut proposer de mettre à jour l'email si elle n'a pas été modifiée manuellement
   if (!emailManuallyEdited) {
     setEditDialog((prev) => ({
       ...prev,
-      emailAddress: `${value}@sarpi-dz.com`
+      emailAddress: `${truncated}@sarpi-dz.com`
     }));
   }
 };
