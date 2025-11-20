@@ -175,9 +175,7 @@ Route::get('/ad/mailboxes', [AdUserController::class, 'listMailboxes']);
     Route::post('/ad/users/find', [AdUserController::class, 'findUser'])
     ->middleware('permission:getaduser')
         ->name('ad.users.find');
- Route::get('/ip', [AdUserController::class, 'index'])
-    ->middleware('permission:getaduser')
-        ->name('ad.ip');
+
 
 
     // 🔐 Page spéciale pour bloquer / débloquer un utilisateur
