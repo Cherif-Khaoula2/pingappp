@@ -47,6 +47,61 @@ export default function ResetUserPassword() {
 
   const nameTemplate = (rowData) => <span>{rowData.name}</span>;
   const emailTemplate = (rowData) => <span>{rowData.email || "N/A"}</span>;
+const [samManuallyEdited, setSamManuallyEdited] = useState(false);
+const [emailManuallyEdited, setEmailManuallyEdited] = useState(false);
+
+// Fonction utilitaire pour générer un SamAccountName sûr
+const generateSam = (firstName, lastName) => {
+  const clean = (str) =>
+    str
+      .normalize("NFD") // enlever accents
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "")
+      .toLowerCase();
+
+  return `${clean(lastName)}.${clean(firstName)}`;
+};
+
+// Gestion des changements de prénom/nom
+const handleNameChange = (field, value) => {
+  setEditDialog((prev) => {
+    const updated = { ...prev, [field]: value };
+
+    // Mise à jour du nom complet
+    updated.name = `${updated.firstName} ${updated.lastName}`.trim();
+
+    // Génération automatique du SamAccountName si pas modifié manuellement
+    if (!samManuallyEdited) {
+      updated.samAccountName = generateSam(updated.firstName, updated.lastName);
+      // Génération automatique de l'email si pas modifié manuellement
+      if (!emailManuallyEdited) {
+        updated.emailAddress = `${updated.samAccountName}@sarpi-dz.com`;
+      }
+    }
+
+    return updated;
+  });
+};
+
+// Gestion de la saisie manuelle du SamAccountName
+const handleSamChange = (value) => {
+  setSamManuallyEdited(true);
+  setEditDialog((prev) => ({ ...prev, samAccountName: value }));
+
+  // Si l'utilisateur change le Sam, on peut proposer de mettre à jour l'email si elle n'a pas été modifiée manuellement
+  if (!emailManuallyEdited) {
+    setEditDialog((prev) => ({
+      ...prev,
+      emailAddress: `${value}@sarpi-dz.com`
+    }));
+  }
+};
+
+// Gestion de la saisie manuelle de l'email
+const handleEmailChange = (value) => {
+  setEmailManuallyEdited(true);
+  setEditDialog((prev) => ({ ...prev, emailAddress: value }));
+};
 
   const onPageChange = (event) => {
     setFirst(event.first);
@@ -397,23 +452,21 @@ export default function ResetUserPassword() {
                 Prénom
               </label>
               <InputText
-                value={editDialog.firstName}
-                placeholder="Ex: Jean Dupont"
-                onChange={(e) => setEditDialog({ ...editDialog, firstName: e.target.value })}
-                className="p-3"
-              />
+  value={editDialog.firstName}
+  onChange={(e) => handleNameChange("firstName", e.target.value)}
+  className="p-3"
+/>
             </div>
              <div className="flex flex-column gap-2">
               <label className="text-900 font-semibold">
                 <i className="pi pi-user mr-2 text-primary"></i>
                 Nom
               </label>
-              <InputText
-                value={editDialog.lastName}
-                placeholder="Ex: Jean Dupont"
-                onChange={(e) => setEditDialog({ ...editDialog, lastName: e.target.value })}
-                className="p-3"
-              />
+             <InputText
+  value={editDialog.lastName}
+  onChange={(e) => handleNameChange("lastName", e.target.value)}
+  className="p-3"
+/>
             </div>
             <div className="flex flex-column gap-2">
               <label className="text-900 font-semibold">
@@ -421,11 +474,12 @@ export default function ResetUserPassword() {
                 Nom complet
               </label>
               <InputText
-                value={editDialog.name}
-                placeholder="Ex: Jean Dupont"
-                onChange={(e) => setEditDialog({ ...editDialog, name: e.target.value })}
-                className="p-3"
-              />
+  value={editDialog.name}
+  onChange={(e) => setEditDialog({ ...editDialog, name: e.target.value })}
+  className="p-3"
+   disabled
+/>
+
             </div>
 
             <div className="flex flex-column gap-2">
@@ -434,17 +488,10 @@ export default function ResetUserPassword() {
                 SamAccountName
               </label>
               <InputText
-                value={editDialog.samAccountName}
-                placeholder="Ex: jdupont"
-               onChange={(e) =>
-  setEditDialog({
-    ...editDialog,
-    samAccountName: e.target.value,
-  })
-}
-
-                className="p-3"
-              />
+  value={editDialog.samAccountName}
+  onChange={(e) => handleSamChange(e.target.value)}
+  className="p-3"
+/>
             </div>
 
              <div className="flex flex-column gap-2">
@@ -453,12 +500,12 @@ export default function ResetUserPassword() {
                            Adresse email
                          </label>
                          <InputText
-                           value={editDialog.emailAddress}
-                           placeholder="Ex: jean.dupont@entreprise.com"
-                           onChange={(e) => setEditDialog({ ...editDialog, emailAddress: e.target.value })}
-                           className="p-3"
-                           type="email"
-                         />
+  value={editDialog.emailAddress}
+  onChange={(e) => handleEmailChange(e.target.value)}
+  className="p-3"
+  type="email"
+   disabled
+/>
                        </div>
 
 
