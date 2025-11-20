@@ -541,11 +541,13 @@ const handleEmailChange = (value) => {
                 <i className="pi pi-id-card mr-2 text-primary"></i>
                 SamAccountName
               </label>
-              <InputText
+             <InputText
   value={editDialog.samAccountName}
-  onChange={(e) => handleSamChange(e.target.value.slice(0, 25))}
+  onChange={(e) => handleSamChange(e.target.value)}
   className="p-3"
+  maxLength={25}  // ⚡ limite l’input à 25 caractères
 />
+
             </div>
 
              <div className="flex flex-column gap-2">
